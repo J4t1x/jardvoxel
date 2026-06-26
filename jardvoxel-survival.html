@@ -219,7 +219,7 @@ canvas{display:block}
 #map-coords{color:#aaa;font-size:0.85rem;margin-top:0.5rem;font-family:monospace}
 
 /* ===== Main Menu ===== */
-#main-menu{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:auto}
+#main-menu{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:auto}
 #main-menu h1{font-size:2.8rem;margin-bottom:0.3rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 #main-menu .subtitle{color:#8888aa;font-size:0.9rem;margin-bottom:2rem}
 #main-menu .menu-btns{display:flex;flex-direction:column;gap:0.8rem;align-items:center}
@@ -685,7 +685,7 @@ canvas{display:block}
     <button class="pause-btn primary" id="resume-btn">Continuar</button>
     <button class="pause-btn secondary" id="achievements-btn">Logros</button>
     <button class="pause-btn secondary" id="pause-options-btn">Opciones</button>
-    <button class="pause-btn danger" id="pause-menu-btn">Menu Principal</button>
+    <button class="pause-btn danger" id="pause-menu-btn">Reiniciar</button>
   </div>
 </div>
 
@@ -1455,38 +1455,32 @@ class SurvivalGame {
     const settingsMenu = document.getElementById('settings-menu');
     const creditsScreen = document.getElementById('credits-screen');
 
-    // Show main menu initially
-    mainMenu.style.display = 'flex';
+    // Start game directly — no main menu
+    mainMenu.style.display = 'none';
     pauseScreen.style.display = 'none';
+    this.gameStarted = true;
     const loadingEl = document.getElementById('loading');
     if (loadingEl) { loadingEl.style.opacity = '0'; loadingEl.style.pointerEvents = 'none'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
+    if (this.touchControls && this.touchControls.enabled) {
+      // Touch mode — no pointer lock needed
+    } else {
+      document.body.requestPointerLock();
+    }
 
-    // Main menu buttons
-    document.getElementById('menu-play').addEventListener('click', () => {
-      mainMenu.style.display = 'none';
-      this.gameStarted = true;
-      if (this.touchControls && this.touchControls.enabled) {
-        // Touch mode — no pointer lock needed
-      } else {
-        document.body.requestPointerLock();
-      }
-    });
-
+    // Options/credits accessible from pause screen only
     document.getElementById('menu-options').addEventListener('click', () => {
       this.settingsMenuReturnTo = 'main';
-      mainMenu.style.display = 'none';
       settingsMenu.classList.add('show');
     });
 
     document.getElementById('menu-credits').addEventListener('click', () => {
-      mainMenu.style.display = 'none';
       creditsScreen.classList.add('show');
     });
 
-    // Credits back
+    // Credits back — return to pause screen
     document.getElementById('credits-back').addEventListener('click', () => {
       creditsScreen.classList.remove('show');
-      mainMenu.style.display = 'flex';
+      pauseScreen.style.display = 'flex';
     });
 
     // Settings menu — tab switching
@@ -1505,7 +1499,7 @@ class SurvivalGame {
       if (this.settingsMenuReturnTo === 'pause') {
         pauseScreen.style.display = 'flex';
       } else {
-        mainMenu.style.display = 'flex';
+        pauseScreen.style.display = 'flex';
       }
     });
 
@@ -1539,11 +1533,8 @@ class SurvivalGame {
     });
 
     document.getElementById('pause-menu-btn').addEventListener('click', () => {
-      if (confirm('Volver al menu principal? El progreso no guardado se perdera.')) {
-        pauseScreen.style.display = 'none';
-        mainMenu.style.display = 'flex';
-        this.gameStarted = false;
-        if (this.pointerLocked) document.exitPointerLock();
+      if (confirm('Reiniciar el juego? El progreso no guardado se perdera.')) {
+        location.reload();
       }
     });
 
