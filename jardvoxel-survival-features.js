@@ -500,6 +500,15 @@ VoxelChunk.prototype.blockTypeToId = function(type) {
     'portal': 116, 'quartz': 117, 'blaze_rod': 118, 'nether_wart': 119,
     'redstone_dust': 120, 'redstone_torch': 121, 'lever': 122,
     'piston': 123, 'redstone_lamp': 124, 'redstone_repeater': 125,
+    'brewing_stand': 126, 'glass_bottle': 127, 'cauldron': 128,
+    'water_bottle': 129, 'awkward_potion': 130, 'potion_speed': 131,
+    'potion_strength': 132, 'potion_healing': 133, 'potion_night_vision': 134,
+    'potion_fire_resistance': 135, 'potion_regeneration': 136,
+    'splash_potion_healing': 137, 'potion_water_breathing': 138,
+    'blaze_powder': 139, 'sugar': 140,
+    'shield': 151, 'banner': 152,
+    'anvil': 153,
+    'map': 154, 'compass': 155, 'cartography_table': 156,
   };
   return extended[type] ?? 0;
 };

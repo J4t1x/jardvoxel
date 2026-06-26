@@ -3,7 +3,7 @@
 // Fishing rod, bobber, catches, cooking
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS } from './jardvoxel-survival-mesher.js';
+// MC_BLOCKS values inlined to avoid circular dependency with mesher.js
 
 // New block IDs for fishing items
 export const FISHING_BLOCKS = {
@@ -44,10 +44,10 @@ export const FISHING_PLACEABLE_BLOCKS = [];
 export const FISHING_CATCHES = [
   { block: 106, weight: 60, name: 'Raw Fish' },
   { block: 108, weight: 15, name: 'Pufferfish' },
-  { block: MC_BLOCKS.BONES, weight: 10, name: 'Bones' },
+  { block: 68, weight: 10, name: 'Bones' },
   { block: 109, weight: 8, name: 'Ink Sac' },
-  { block: MC_BLOCKS.STRING, weight: 5, name: 'String' },
-  { block: MC_BLOCKS.LEATHER, weight: 2, name: 'Leather' },
+  { block: 71, weight: 5, name: 'String' },
+  { block: 54, weight: 2, name: 'Leather' },
 ];
 
 // Fishing rod crafting recipe

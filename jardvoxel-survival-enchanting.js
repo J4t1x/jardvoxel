@@ -3,7 +3,7 @@
 // XP orbs, levels, enchanting table, enchantments
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS } from './jardvoxel-survival-mesher.js';
+// MC_BLOCKS values inlined to avoid circular dependency with mesher.js
 import { ToolItem, TOOL_MAP, ARMOR_MAP } from './jardvoxel-survival-tools.js';
 
 // New block IDs for enchanting
@@ -64,9 +64,9 @@ export class XPManager {
     }
   }
 
-  spendLevel() {
-    if (this.level > 0) {
-      this.level--;
+  spendLevel(cost = 1) {
+    if (this.level >= cost) {
+      this.level -= cost;
       return true;
     }
     return false;
@@ -217,10 +217,10 @@ export class EnchantManager {
 
 // XP drop values for ore blocks
 export const XP_DROPS = {
-  [MC_BLOCKS.COAL_ORE]: 1,
-  [MC_BLOCKS.IRON_ORE]: 2,
-  [MC_BLOCKS.GOLD_ORE]: 3,
-  [MC_BLOCKS.DIAMOND_ORE]: 5,
+  [17]: 1,
+  [18]: 2,
+  [19]: 3,
+  [20]: 5,
 };
 
 export function getXPDropForBlock(blockId) {

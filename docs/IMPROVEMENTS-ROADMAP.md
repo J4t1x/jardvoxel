@@ -3,8 +3,9 @@
 **Fecha**: 2026-06-25  
 **Autor**: ja  
 **Estado**: Completado ✅  
-**Total specs**: 13 (SPEC-025 a SPEC-037) — todas completadas  
-**Bug audit**: 10/10 bugs resueltos (BUG-001 a BUG-010)
+**Total specs**: 42 (SPEC-025 a SPEC-066) — todas completadas  
+**Bug audit**: 10/10 bugs resueltos (BUG-001 a BUG-010)  
+**Version actual**: v4.2.0
 
 ---
 
@@ -16,12 +17,26 @@ Roadmap de mejoras para JardVoxel organizado en 5 fases priorizadas por impacto 
 
 | Área | Estado actual | Objetivo |
 |------|---------------|----------|
-| Experiencia de juego | 9 slots fijos, minado instantáneo, sin nadar | Inventario, minado con progreso, natación, audio, UI |
-| Bloques | 43 tipos, color plano uniforme | 60+ tipos, variación de color, patrones, AO |
-| Cielo | Color lerp simple día/noche | Sol, luna, estrellas, nubes, gradiente, atardeceres |
-| Agua | Cara plana opacidad 0.6 | Olas animadas, profundidad, fresnel, flujo |
-| Estructuras | 4 tipos básicos (cajas) | 10+ tipos con detalle arquitectónico |
-| Performance | Face culling básico | Greedy meshing, Web Worker, LOD |
+| Experiencia de juego | Inventario, minado, natación, audio, UI, herramientas, encantamientos | ✅ Completado |
+| Bloques | 157 tipos con colores, hardness, AO, patrones | ✅ Completado |
+| Cielo | Sol, luna, estrellas, nubes, gradiente, atardeceres | ✅ Completado |
+| Agua | Olas animadas, profundidad, fresnel, flujo | ✅ Completado |
+| Estructuras | 14 tipos con detalle arquitectónico | ✅ Completado |
+| Performance | Greedy meshing, Web Worker, LOD, frustum culling | ✅ Completado |
+| Mobs | Pasivos + hostiles con IA, drops, combate | ✅ Completado |
+| Survival | Salud/hambre, clima, hornos, agricultura, camas | ✅ Completado |
+| Herramientas/Armadura | 16 herramientas + 4 armaduras con durabilidad | ✅ Completado |
+| Encantamientos | XP, niveles, mesa encantamiento, 5 encantamientos | ✅ Completado |
+| Aldeanos | 4 profesiones con trading UI | ✅ Completado |
+| Pesca | Caña, bobber animado, tabla de capturas | ✅ Completado |
+| Nether | Dimension alternativa con 10 bloques nuevos | ✅ Completado |
+| Redstone | 6 bloques, propagacion BFS, piston, lamp | ✅ Completado |
+| Musica | ChillTune 8-bit procedural, 7 estados | ✅ Completado |
+| Pociones | Brewing 3-stage, 7 efectos, splash potions | ✅ Completado |
+| Escudos | ShieldItem, blocking cone, shield bash | ✅ Completado |
+| Logros | 30 logros en 8 categorias con toast | ✅ Completado |
+| Yunque | Reparacion, combinacion, renombrado | ✅ Completado |
+| Mapas | MapManager 4 tiers, compass, cartography | ✅ Completado |
 
 ---
 
@@ -433,7 +448,7 @@ Cada spec debe pasar:
 
 | Métrica | Actual | Objetivo | Estado |
 |---------|--------|----------|--------|
-| Bloques totales | 63 | 60+ | ✅ Superado |
+| Bloques totales | 157 | 60+ | ✅ Superado |
 | Tipos de árboles | 6 | 6 | ✅ |
 | Tipos de estructuras | 14 | 14+ | ✅ |
 | FPS (RENDER_DIST=5) | ~60 | 60+ | ✅ (greedy meshing + worker) |
@@ -441,8 +456,8 @@ Cada spec debe pasar:
 | Stutter de generación | No (Web Worker) | No (Web Worker) | ✅ |
 | Elementos de cielo | Sol + luna + estrellas + nubes + gradiente | Sol + luna + estrellas + nubes + gradiente | ✅ |
 | Animación de agua | Olas + profundidad + fresnel | Olas + profundidad + fresnel | ✅ |
-| Audio | Web Audio API procedural | Web Audio API procedural | ✅ |
-| Mecánicas de gameplay | 10+ (nadar, crouch, stamina, minado progresivo, inventario, audio) | 10+ | ✅ |
+| Audio | Web Audio API procedural + ChillTune 8-bit | Web Audio API procedural | ✅ Superado |
+| Mecánicas de gameplay | 30+ (tools, armor, enchanting, fishing, nether, redstone, brewing, shields, achievements, anvil, maps) | 10+ | ✅ Superado |
 | Tone mapping | ACESFilmic | ACESFilmic | ✅ |
 | Point lights | 8 dinámicos (torches/lanterns) | Luces puntuales | ✅ |
 | LOD | 3 niveles por distancia | LOD por distancia | ✅ |
@@ -452,9 +467,11 @@ Cada spec debe pasar:
 | Survival inventory | Decrementa al colocar | Bloques finitos | ✅ (BUG-003) |
 | Meshing efficiency | isCrossChunk skip | -30-50% vertices | ✅ (BUG-005) |
 | 2D noise optimization | noise2D/fbm2D + cache | Sin waste 3D | ✅ (BUG-010) |
+| Módulos JS | 28 archivos modulares | Monolito | ✅ Superado |
+| Specs completadas | 42 (SPEC-025 a SPEC-066) | 13 | ✅ Superado |
 
 ---
 
 *Documento generado: 2026-06-25*  
-*Actualizado: 2026-06-25 — Bug audit completado (10/10)*  
+*Actualizado: 2026-07-01 — v4.2.0 (SPEC-057 a SPEC-066) completado*  
 *Desarrollo: Jard Dev Harness (`/cascade-dev`, `@jard-code`)*

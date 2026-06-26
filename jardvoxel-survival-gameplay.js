@@ -314,7 +314,8 @@ export class PlayerController {
   }
 
   update(dt, keys, touchInput = null) {
-    const speed = this.flying ? this.flySpeed : (keys.shift ? this.runSpeed : this.moveSpeed);
+    const speedMult = this.speedMultiplier || 1.0;
+    const speed = (this.flying ? this.flySpeed : (keys.shift ? this.runSpeed : this.moveSpeed)) * speedMult;
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 

@@ -9,7 +9,7 @@
 html,body{height:100%;overflow:hidden;background:#1a1a2e;font-family:'Courier New',monospace;color:#fff}
 canvas{display:block}
 
-#loading{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s}
+#loading{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s;pointer-events:none}
 #loading h1{font-size:2.5rem;margin-bottom:0.5rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 #loading .subtitle{color:#8888aa;font-size:0.9rem;margin-bottom:1rem}
 #loading .seed-info{color:#00ff88;font-size:0.8rem;margin-top:0.5rem}
@@ -174,6 +174,50 @@ canvas{display:block}
 .furnace-flame{font-size:1.5rem;color:#ff6600;align-self:center;text-align:center;min-width:30px}
 .furnace-arrow{font-size:1.5rem;color:#aaa;align-self:center}
 
+#brewing-panel{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:36;pointer-events:auto}
+#brewing-panel.show{display:flex}
+#brewing-panel h3{font-size:1.5rem;margin-bottom:1rem;color:#aa66ff}
+#brewing-content{display:flex;align-items:center;gap:1.5rem;padding:1.5rem;background:rgba(25,20,35,0.9);border-radius:12px}
+.brewing-slot{width:50px;height:50px;border:3px solid #666;background:rgba(0,0,0,0.5);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.brewing-slot:hover{border-color:#aa66ff}
+.brewing-slot .slot-color{width:34px;height:34px;border-radius:2px}
+.brewing-slot .slot-count{position:absolute;bottom:1px;right:3px;font-size:0.65rem;color:#fff;font-weight:bold}
+.brewing-bubble{font-size:1.5rem;color:#aa66ff;align-self:center;text-align:center;min-width:30px}
+.brewing-arrow{font-size:1.5rem;color:#aaa;align-self:center}
+
+#potion-effects-hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:20;pointer-events:none}
+.potion-effect-icon{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.6);border-radius:6px;padding:4px 8px;min-width:50px}
+.potion-effect-icon .potion-dot{width:12px;height:12px;border-radius:50%;margin-bottom:2px}
+.potion-effect-icon .potion-timer{font-size:0.65rem;color:#fff;font-weight:bold}
+
+/* ===== Achievement Toast ===== */
+.achievement-toast{position:fixed;top:60px;right:20px;width:300px;background:rgba(20,20,30,0.95);border:2px solid #aa4;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;z-index:50;transform:translateX(350px);transition:transform 0.3s ease;pointer-events:none}
+.achievement-toast.show{transform:translateX(0)}
+.achievement-toast .toast-icon{font-size:2rem}
+.achievement-toast .toast-name{color:#ff4;font-size:0.9rem;font-weight:bold}
+.achievement-toast .toast-desc{color:#aaa;font-size:0.75rem}
+
+/* ===== Achievements Panel ===== */
+#achievements-screen{position:fixed;inset:50%;width:600px;max-width:90vw;max-height:80vh;overflow-y:auto;background:rgba(15,15,25,0.97);border:2px solid #555;border-radius:12px;padding:1.5rem;z-index:40;transform:translate(-50%,-50%)}
+#achievements-screen .ui-btn{margin-top:1rem;padding:6px 20px;background:#333;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer}
+#achievements-screen .ui-btn:hover{background:#444}
+
+/* ===== Anvil Panel ===== */
+#anvil-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,25,0.97);border:2px solid #555;border-radius:12px;padding:1.5rem;z-index:30;display:none;pointer-events:auto}
+#anvil-content{display:flex;align-items:center;gap:0.5rem;margin:1rem 0}
+.anvil-slot{width:50px;height:50px;border:2px dashed #555;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;background:rgba(0,0,0,0.3)}
+.anvil-slot.has-item{border-style:solid;border-color:#888}
+.anvil-slot .slot-color{width:34px;height:34px;border-radius:2px}
+.anvil-slot .slot-name{position:absolute;bottom:1px;font-size:0.5rem;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46px}
+.anvil-slot .slot-count{position:absolute;top:1px;right:3px;font-size:0.65rem;color:#00ff88;font-weight:bold}
+.anvil-plus{font-size:1.2rem;color:#888}
+.anvil-arrow{font-size:1.5rem;color:#aaa}
+
+/* ===== Map Overlay ===== */
+#map-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:35;pointer-events:auto}
+#map-canvas{border:4px solid #555;border-radius:8px;image-rendering:pixelated;max-width:70vw;max-height:70vh;background:#000}
+#map-coords{color:#aaa;font-size:0.85rem;margin-top:0.5rem;font-family:monospace}
+
 /* ===== Main Menu ===== */
 #main-menu{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:auto}
 #main-menu h1{font-size:2.8rem;margin-bottom:0.3rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -332,6 +376,64 @@ canvas{display:block}
     <div class="furnace-slot" id="furnace-output" title="Output"></div>
   </div>
   <p style="color:#888;margin-top:1rem;font-size:0.8rem">Click izq: poner item · Click der: sacar item · ESC cerrar</p>
+</div>
+
+<div id="brewing-panel">
+  <h3>Soporte de Pociones</h3>
+  <div id="brewing-content">
+    <div class="brewing-slot" id="brewing-ingredient" title="Ingrediente"></div>
+    <span class="brewing-bubble" id="brewing-bubble"></span>
+    <div class="brewing-slot" id="brewing-fuel" title="Combustible (Blaze Powder)"></div>
+    <span class="brewing-arrow" id="brewing-arrow">→</span>
+    <div class="brewing-slot" id="brewing-bottle1" title="Botella 1"></div>
+    <div class="brewing-slot" id="brewing-bottle2" title="Botella 2"></div>
+  </div>
+  <p style="color:#888;margin-top:1rem;font-size:0.8rem">Click izq: poner item · Click der: sacar item · ESC cerrar</p>
+</div>
+
+<div id="potion-effects-hud"></div>
+
+<div id="shield-hud" style="position:fixed;bottom:70px;left:50%;transform:translateX(-50%);display:none;z-index:20;pointer-events:none">
+  <div style="background:rgba(0,0,0,0.6);border-radius:6px;padding:4px 12px;display:flex;align-items:center;gap:8px">
+    <span style="font-size:1rem">🛡️</span>
+    <div style="width:80px;height:6px;background:#333;border-radius:3px;overflow:hidden">
+      <div id="shield-durability-bar" style="height:100%;background:#4a4;width:100%;transition:width 0.2s"></div>
+    </div>
+    <span id="shield-durability-text" style="font-size:0.7rem;color:#fff"></span>
+  </div>
+</div>
+
+<div id="achievement-toast" class="achievement-toast">
+  <span class="toast-icon">🏆</span>
+  <div class="toast-text">
+    <div class="toast-name"></div>
+    <div class="toast-desc"></div>
+  </div>
+</div>
+
+<div id="achievements-screen" class="ui-panel" style="display:none">
+  <h3>Logros</h3>
+  <div id="achievements-content"></div>
+  <button id="achievements-close" class="ui-btn">Cerrar</button>
+</div>
+
+<div id="anvil-panel">
+  <h3>Yunque</h3>
+  <div id="anvil-content">
+    <div class="anvil-slot" id="anvil-input1" title="Item a reparar"></div>
+    <span class="anvil-plus">+</span>
+    <div class="anvil-slot" id="anvil-input2" title="Material / Segundo item"></div>
+    <span class="anvil-arrow">→</span>
+    <div class="anvil-slot" id="anvil-output" title="Resultado"></div>
+  </div>
+  <input type="text" id="anvil-rename" placeholder="Renombrar (opcional)" maxlength="30" style="width:200px;margin:0.5rem 0;padding:4px 8px;background:#222;color:#fff;border:1px solid #555;border-radius:4px">
+  <div id="anvil-xp-cost" style="color:#4a4;font-size:0.85rem;margin-bottom:0.5rem"></div>
+  <p style="color:#888;font-size:0.8rem">Click izq: poner item · Click der: sacar item · ESC cerrar</p>
+</div>
+
+<div id="map-overlay" style="display:none">
+  <canvas id="map-canvas"></canvas>
+  <div id="map-coords"></div>
 </div>
 
 <div id="enchant-panel">
@@ -581,6 +683,7 @@ canvas{display:block}
   <p>Seed: <span id="pause-seed">--</span></p>
   <div class="pause-btns">
     <button class="pause-btn primary" id="resume-btn">Continuar</button>
+    <button class="pause-btn secondary" id="achievements-btn">Logros</button>
     <button class="pause-btn secondary" id="pause-options-btn">Opciones</button>
     <button class="pause-btn danger" id="pause-menu-btn">Menu Principal</button>
   </div>
@@ -618,10 +721,15 @@ import { WeatherManager, WEATHER } from './jardvoxel-survival-weather.js';
 import { EquipmentManager, ToolItem, isToolBlock, isArmorBlock, TOOL_MAP, ARMOR_MAP, ARMOR_SLOTS } from './jardvoxel-survival-tools.js';
 import { XPManager, EnchantManager, getXPDropForBlock, ENCHANT_BLOCKS, ENCHANTMENTS, ENCHANT_LIST } from './jardvoxel-survival-enchanting.js';
 import { VillagerManager, TradingManager, VILLAGER_BLOCKS, VILLAGER_PROFESSIONS } from './jardvoxel-survival-villagers.js';
-import { FishingManager, FISHING_BLOCKS, FISHING_COOKING } from './jardvoxel-survival-fishing.js';
+import { FishingManager, FISHING_BLOCKS } from './jardvoxel-survival-fishing.js';
 import { PortalManager, NetherGenerator, NETHER_BLOCKS } from './jardvoxel-survival-nether.js';
 import { RedstoneManager, REDSTONE_BLOCKS } from './jardvoxel-survival-redstone.js';
 import { ChillTuneEngine } from './jardvoxel-survival-chilltune.js';
+import { BrewingManager, PotionEffectManager, BREWING_BLOCKS, BREWING_RECIPES, POTION_EFFECTS } from './jardvoxel-survival-brewing.js';
+import { ShieldManager, ShieldItem, SHIELD_BLOCKS, SHIELD_RECIPES } from './jardvoxel-survival-shields.js';
+import { AchievementManager, ACHIEVEMENTS } from './jardvoxel-survival-achievements.js';
+import { AnvilManager, ANVIL_BLOCKS, ANVIL_RECIPES } from './jardvoxel-survival-anvil.js';
+import { MapManager, MAP_BLOCKS, MAP_RECIPES, MAP_ITEMS } from './jardvoxel-survival-map.js';
 
 const BIOME_NAMES = {
   [BIOMES.OCEAN]: 'Ocean', [BIOMES.DEEP_OCEAN]: 'Deep Ocean',
@@ -958,6 +1066,18 @@ class SurvivalGame {
     this.fishingManager = null;
     this.portalManager = null;
     this.redstoneManager = null;
+    this.brewingManager = null;
+    this.potionEffectManager = null;
+    this.brewingUIOpen = false;
+    this.activeBrewingStand = null;
+    this.shieldManager = null;
+    this.shieldBlocking = false;
+    this.achievementManager = null;
+    this.anvilManager = null;
+    this.anvilUIOpen = false;
+    this.activeAnvil = null;
+    this.mapManager = null;
+    this.mapOpen = false;
     this.gameStarted = false;
     this.settingsMenuReturnTo = 'main';
     this.autoSaveTimer = 0;
@@ -980,13 +1100,7 @@ class SurvivalGame {
     if (saved && saved.seed !== undefined) {
       this._pendingSaveData = saved;
     }
-    this.saveManager.startAutoSave(() => {
-      const indicator = document.getElementById('save-indicator');
-      if (indicator) indicator.classList.add('show');
-      const data = this._getSaveData();
-      setTimeout(() => { if (indicator) indicator.classList.remove('show'); }, 1000);
-      return data;
-    }, 30000);
+    // Auto-save handled by game loop autoSaveTimer which respects user settings
     window.addEventListener('beforeunload', () => {
       const data = this._getSaveData();
       if (data) this.saveManager.saveWorld(data);
@@ -1016,6 +1130,12 @@ class SurvivalGame {
       } : null,
       dimension: this.portalManager ? this.portalManager.dimension : 'overworld',
       fishing: this.fishingManager ? this.fishingManager.serialize() : null,
+      brewing: this.brewingManager ? this.brewingManager.serialize() : null,
+      potions: this.potionEffectManager ? this.potionEffectManager.serialize() : null,
+      shield: this.shieldManager ? this.shieldManager.serialize() : null,
+      achievements: this.achievementManager ? this.achievementManager.serialize() : null,
+      anvil: this.anvilManager ? this.anvilManager.serialize() : null,
+      map: this.mapManager ? this.mapManager.serialize() : null,
     };
   }
 
@@ -1033,7 +1153,7 @@ class SurvivalGame {
       if (d.hotbar) {
         for (let i = 0; i < 9 && i < d.hotbar.length; i++) {
           if (d.hotbar[i]) {
-            this.inventory.hotbar[i] = { block: d.hotbar[i].block, count: d.hotbar[i].count };
+            this.inventory.hotbar[i] = { block: d.hotbar[i].block, count: d.hotbar[i].count === -1 ? Infinity : d.hotbar[i].count };
           } else {
             this.inventory.hotbar[i] = null;
           }
@@ -1051,15 +1171,24 @@ class SurvivalGame {
       if (d.hunger !== undefined && this.healthSystem) this.healthSystem.hunger = d.hunger;
       if (d.xp && this.xpManager) this.xpManager.deserialize(d.xp);
       if (d.equipment && this.equipment) {
-        if (d.equipment.tool && this.equipment.tool) {
-          this.equipment.tool.durability = d.equipment.tool.durability ?? this.equipment.tool.durability;
-          this.equipment.tool.enchantments = d.equipment.tool.enchantments || [];
+        if (d.equipment.tool) {
+          const tool = new ToolItem(d.equipment.tool.blockId);
+          tool.durability = d.equipment.tool.durability ?? tool.durability;
+          tool.enchantments = d.equipment.tool.enchantments || [];
+          this.equipment.tool = tool;
+        } else {
+          this.equipment.tool = null;
         }
         if (d.equipment.armor) {
-          for (const [slot, data] of Object.entries(d.equipment.armor)) {
-            if (data && this.equipment.armor && this.equipment.armor[slot]) {
-              this.equipment.armor[slot].durability = data.durability ?? this.equipment.armor[slot].durability;
-              this.equipment.armor[slot].enchantments = data.enchantments || [];
+          for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) {
+            const data = d.equipment.armor[slot];
+            if (data) {
+              const armor = new ToolItem(data.blockId);
+              armor.durability = data.durability ?? armor.durability;
+              armor.enchantments = data.enchantments || [];
+              this.equipment.armor[slot] = armor;
+            } else {
+              this.equipment.armor[slot] = null;
             }
           }
         }
@@ -1069,6 +1198,12 @@ class SurvivalGame {
         this.portalManager.inNether = d.dimension === 'nether';
       }
       if (d.fishing && this.fishingManager) this.fishingManager.deserialize(d.fishing);
+      if (d.brewing && this.brewingManager) this.brewingManager.deserialize(d.brewing);
+      if (d.potions && this.potionEffectManager) this.potionEffectManager.deserialize(d.potions, this.player);
+      if (d.shield && this.shieldManager) this.shieldManager.deserialize(d.shield);
+      if (d.achievements && this.achievementManager) this.achievementManager.deserialize(d.achievements);
+      if (d.anvil && this.anvilManager) this.anvilManager.deserialize(d.anvil);
+      if (d.map && this.mapManager) this.mapManager.deserialize(d.map);
       this._buildHotbar();
       document.getElementById('seed-display').textContent = this.seed;
       document.getElementById('pause-seed').textContent = this.seed;
@@ -1104,6 +1239,7 @@ class SurvivalGame {
     const wasInNether = this.portalManager.inNether;
     this.portalManager.switchDimension();
     const inNether = this.portalManager.inNether;
+    if (inNether && !wasInNether && this.achievementManager) this.achievementManager.unlock('enter_nether');
 
     // Set world dimension
     this.world.dimension = inNether ? 'nether' : 'overworld';
@@ -1111,16 +1247,22 @@ class SurvivalGame {
       this.world.worker.postMessage({ type: 'setDimension', dimension: this.world.dimension });
     }
 
-    // Clear all loaded chunks
-    for (const [key, chunk] of this.world.chunks) {
-      if (chunk.mesh) {
-        this.scene.remove(chunk.mesh);
-        if (chunk.mesh.geometry) chunk.mesh.geometry.dispose();
-        if (chunk.mesh.material) chunk.mesh.material.dispose();
+    // Clear all loaded chunks and their meshes
+    if (this.world.meshes) {
+      for (const [key, mesh] of this.world.meshes) {
+        this.scene.remove(mesh);
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (mesh.material) mesh.material.dispose();
       }
-      if (chunk.waterMesh) {
-        this.scene.remove(chunk.waterMesh);
+      this.world.meshes.clear();
+    }
+    if (this.world.waterMeshes) {
+      for (const [key, mesh] of this.world.waterMeshes) {
+        this.scene.remove(mesh);
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (mesh.material) mesh.material.dispose();
       }
+      this.world.waterMeshes.clear();
     }
     this.world.chunks.clear();
 
@@ -1209,6 +1351,17 @@ class SurvivalGame {
     this.mobManager = new MobManager(this.scene, this.world);
     this.mobManager.playerHealthCallback = (dmg, source) => {
       if (this.healthSystem && !this.healthSystem.creativeMode) {
+        // Shield blocking
+        if (this.shieldManager && this.shieldManager.isBlocking && this.shieldManager.hasShield()) {
+          this.shieldManager.onBlocked();
+          if (this.achievementManager) this.achievementManager.stats.hitsBlocked++;
+          if (this.shieldManager.shield && this.shieldManager.shield.isBroken()) {
+            this.shieldManager.unequipShield();
+            this._updateShieldHUD();
+          }
+          this.audio.playPlace();
+          return; // Block 100% damage
+        }
         this.healthSystem.takeDamage(dmg, source);
         // Apply armor damage reduction
         if (this.equipment) {
@@ -1219,9 +1372,9 @@ class SurvivalGame {
             this.equipment.onPlayerHit();
           }
         }
-        // Player knockback
+        // Player knockback (reduced by knockback resistance)
         if (this.player) {
-          this.player.velocity.y = Math.max(this.player.velocity.y, 4);
+          this.player.velocity.y = Math.max(this.player.velocity.y, 4 * 0.6);
         }
         this._damageFlash();
       }
@@ -1262,6 +1415,22 @@ class SurvivalGame {
     this.redstoneManager = new RedstoneManager(this.world);
     this.world.redstoneManager = this.redstoneManager;
 
+    // Brewing & Potions
+    this.brewingManager = new BrewingManager(this.scene);
+    this.potionEffectManager = new PotionEffectManager();
+
+    // Shields & Combat
+    this.shieldManager = new ShieldManager();
+
+    // Achievements
+    this.achievementManager = new AchievementManager();
+
+    // Anvil
+    this.anvilManager = new AnvilManager();
+
+    // Map
+    this.mapManager = new MapManager();
+
     // Spawn a test villager near spawn
     this.villagerManager.spawnVillager(3, 80, 3, 'farmer');
 
@@ -1290,7 +1459,7 @@ class SurvivalGame {
     mainMenu.style.display = 'flex';
     pauseScreen.style.display = 'none';
     const loadingEl = document.getElementById('loading');
-    if (loadingEl) { loadingEl.style.opacity = '0'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
+    if (loadingEl) { loadingEl.style.opacity = '0'; loadingEl.style.pointerEvents = 'none'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
 
     // Main menu buttons
     document.getElementById('menu-play').addEventListener('click', () => {
@@ -1355,6 +1524,20 @@ class SurvivalGame {
       settingsMenu.classList.add('show');
     });
 
+    document.getElementById('achievements-btn').addEventListener('click', () => {
+      pauseScreen.style.display = 'none';
+      const screen = document.getElementById('achievements-screen');
+      screen.style.display = 'block';
+      if (this.achievementManager) {
+        this.achievementManager.renderPanel(document.getElementById('achievements-content'));
+      }
+    });
+
+    document.getElementById('achievements-close').addEventListener('click', () => {
+      document.getElementById('achievements-screen').style.display = 'none';
+      pauseScreen.style.display = 'flex';
+    });
+
     document.getElementById('pause-menu-btn').addEventListener('click', () => {
       if (confirm('Volver al menu principal? El progreso no guardado se perdera.')) {
         pauseScreen.style.display = 'none';
@@ -1378,7 +1561,7 @@ class SurvivalGame {
         if (this.settings.musicEnabled) this.chilltune.start();
       } else {
         if (this.chilltune && this.chilltune.ctx) this.chilltune.stop();
-        if (this.gameStarted && !this.inventoryOpen && !this.craftTableOpen && !this.furnaceUIOpen && !this.enchantUIOpen && !this.tradeUIOpen && !this._deathScreenShown) {
+        if (this.gameStarted && !this.inventoryOpen && !this.craftTableOpen && !this.furnaceUIOpen && !this.brewingUIOpen && !this.anvilUIOpen && !this.mapOpen && !this.enchantUIOpen && !this.tradeUIOpen && !this._deathScreenShown) {
           if (!settingsMenu.classList.contains('show') && !creditsScreen.classList.contains('show')) {
             pauseScreen.style.display = 'flex';
           }
@@ -1478,7 +1661,9 @@ class SurvivalGame {
     });
 
     wireToggle('setting-clouds', 'clouds', (v) => {
-      if (this.dayNight && this.dayNight.clouds) this.dayNight.clouds.visible = v;
+      if (this.dayNight && this.dayNight.cloudPlanes) {
+      for (const cp of this.dayNight.cloudPlanes) cp.mesh.visible = v;
+    }
     });
     wireToggle('setting-fog', 'fog', (v) => {
       if (this.scene) this.scene.fog = v ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.5) : null;
@@ -1612,12 +1797,16 @@ class SurvivalGame {
     });
 
     wireToggle('setting-show-fps', 'showFPS', (v) => {
-      const el = document.getElementById('info');
-      if (el) el.style.display = v ? 'block' : 'none';
+      const el = document.getElementById('fps');
+      if (el) el.style.display = v ? 'inline' : 'none';
+      const info = document.getElementById('info');
+      if (info) info.style.display = (this.settings.showFPS || this.settings.showCoords) ? 'block' : 'none';
     });
     wireToggle('setting-show-coords', 'showCoords', (v) => {
-      const el = document.getElementById('info');
-      if (el) el.style.display = v ? 'block' : 'none';
+      const el = document.getElementById('coords');
+      if (el) el.style.display = v ? 'inline' : 'none';
+      const info = document.getElementById('info');
+      if (info) info.style.display = (this.settings.showFPS || this.settings.showCoords) ? 'block' : 'none';
     });
     wireToggle('setting-show-minimap', 'showMinimap', (v) => {
       const el = document.getElementById('minimap');
@@ -1642,7 +1831,9 @@ class SurvivalGame {
     this.camera.updateProjectionMatrix();
 
     // Graphics
-    if (this.dayNight && this.dayNight.clouds) this.dayNight.clouds.visible = this.settings.clouds;
+    if (this.dayNight && this.dayNight.cloudPlanes) {
+      for (const cp of this.dayNight.cloudPlanes) cp.mesh.visible = this.settings.clouds;
+    }
     if (this.scene) this.scene.fog = this.settings.fog ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.5) : null;
     if (this.renderer) {
       this.renderer.shadowMap.enabled = this.settings.shadows;
@@ -1684,23 +1875,24 @@ class SurvivalGame {
   _growCrops() {
     if (!this.cropGrowthData) this.cropGrowthData = new Map();
     const px = Math.floor(this.player.position.x);
+    const py = Math.floor(this.player.position.y);
     const pz = Math.floor(this.player.position.z);
     const radius = 16;
     for (let x = px - radius; x <= px + radius; x++) {
       for (let z = pz - radius; z <= pz + radius; z++) {
         for (let y = -4; y <= 4; y++) {
-          const block = this.world.getBlock(x, y, z);
+          const block = this.world.getBlock(x, py + y, z);
           if (block !== MC_BLOCKS.WHEAT_CROP) continue;
           const key = `${x},${y},${z}`;
           let growth = this.cropGrowthData.get(key) || 0;
           // Check if on farmland
-          const below = this.world.getBlock(x, y - 1, z);
+          const below = this.world.getBlock(x, py + y - 1, z);
           if (below !== MC_BLOCKS.FARMLAND) continue;
           // Check water nearby (within 4 blocks)
           let hasWater = false;
           for (let dx = -4; dx <= 4 && !hasWater; dx++) {
             for (let dz = -4; dz <= 4 && !hasWater; dz++) {
-              if (this.world.getBlock(x + dx, y - 1, z + dz) === BLOCK.WATER) hasWater = true;
+              if (this.world.getBlock(x + dx, py + y - 1, z + dz) === BLOCK.WATER) hasWater = true;
             }
           }
           growth += hasWater ? 2 : 1;
@@ -1769,7 +1961,8 @@ class SurvivalGame {
   _buildInventoryGrid() {
     const grid = document.getElementById('inventory-grid');
     grid.innerHTML = '';
-    MC_PLACEABLE_BLOCKS.forEach((blockId) => {
+    const allBlocks = [...MC_PLACEABLE_BLOCKS, ...MAP_ITEMS];
+    allBlocks.forEach((blockId) => {
       const item = document.createElement('div');
       item.className = 'inv-item';
       const colorDiv = document.createElement('div');
@@ -1795,6 +1988,12 @@ class SurvivalGame {
           this.equipment.equipArmor(armor);
           this._updateEquipIndicator();
           this._updateArmorSlots();
+          return;
+        }
+        // Shield equip
+        if (blockId === SHIELD_BLOCKS.SHIELD) {
+          this.shieldManager.equipShield(new ShieldItem());
+          this._updateShieldHUD();
           return;
         }
         this.inventory.addToHotbar(this.inventory.selectedSlot, blockId);
@@ -1871,6 +2070,8 @@ class SurvivalGame {
     document.addEventListener('keydown', (e) => {
       this.keys[e.code.toLowerCase().replace('key', '')] = true;
       this.keys[e.code] = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.keys.shift = true;
+      if (e.code === 'Space') this.keys.space = true;
       if (this.chilltune) this.chilltune.trackInput();
 
       // Number keys for hotbar
@@ -1930,6 +2131,18 @@ class SurvivalGame {
         this._closeFurnaceUI();
         document.body.requestPointerLock();
       }
+      if (e.code === 'Escape' && this.brewingUIOpen) {
+        this._closeBrewingUI();
+        document.body.requestPointerLock();
+      }
+      if (e.code === 'Escape' && this.anvilUIOpen) {
+        this._closeAnvilUI();
+        document.body.requestPointerLock();
+      }
+      if (e.code === 'Escape' && this.mapOpen) {
+        this._closeMap();
+        document.body.requestPointerLock();
+      }
       if (e.code === 'Escape' && this.enchantUIOpen) {
         this._closeEnchantingTable();
         document.body.requestPointerLock();
@@ -1938,11 +2151,18 @@ class SurvivalGame {
         this._closeTradeUI();
         document.body.requestPointerLock();
       }
+      const achScreen = document.getElementById('achievements-screen');
+      if (e.code === 'Escape' && achScreen && achScreen.style.display !== 'none') {
+        achScreen.style.display = 'none';
+        document.getElementById('pause-screen').style.display = 'flex';
+      }
     });
 
     document.addEventListener('keyup', (e) => {
       this.keys[e.code.toLowerCase().replace('key', '')] = false;
       this.keys[e.code] = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.keys.shift = false;
+      if (e.code === 'Space') this.keys.space = false;
     });
 
     // Mouse for block interaction
@@ -1963,6 +2183,25 @@ class SurvivalGame {
           this._openFurnaceUI(target.x, target.y, target.z);
           return;
         }
+        if (target && target.block === BREWING_BLOCKS.BREWING_STAND) {
+          this._openBrewingUI(target.x, target.y, target.z);
+          return;
+        }
+        if (target && target.block === ANVIL_BLOCKS.ANVIL) {
+          this._openAnvilUI(target.x, target.y, target.z);
+          return;
+        }
+        if (target && target.block === MAP_BLOCKS.CARTOGRAPHY_TABLE) {
+          // Simple zoom/clone: if holding map + paper, zoom out
+          const held = this.inventory.getSelected();
+          if (held && held.block === MAP_BLOCKS.MAP) {
+            if (this.mapManager.getActiveMap()) {
+              this.mapManager.zoomOut();
+              this.audio.playPlace();
+            }
+          }
+          return;
+        }
         if (target && target.block === MC_BLOCKS.BED) {
           this._sleep(target.x, target.y, target.z);
           return;
@@ -1975,6 +2214,7 @@ class SurvivalGame {
         // Villager interaction
         const villager = this.villagerManager.getNearbyVillager(target.x + 0.5, target.y, target.z + 0.5, 2);
         if (villager) {
+          if (this.achievementManager) this.achievementManager.unlock('find_village');
           this._openTradeUI(villager);
           return;
         }
@@ -2010,6 +2250,7 @@ class SurvivalGame {
               if (catch_item) {
                 this.inventory.addBlock(catch_item.block);
                 this._buildHotbar();
+                if (this.achievementManager) this.achievementManager.stats.fishCaught++;
                 this.audio.playBreak(catch_item.block);
               }
             } else {
@@ -2057,7 +2298,50 @@ class SurvivalGame {
           if (Math.random() > 0.5) this.inventory.addBlock(MC_BLOCKS.WHEAT_SEEDS);
           this.particles.spawnBlockBreak(target.x, target.y, target.z, MC_BLOCKS.WHEAT_CROP);
           this.audio.playBreak(MC_BLOCKS.WHEAT_CROP);
+          if (this.achievementManager) this.achievementManager.stats.cropsHarvested++;
           this._buildHotbar();
+          return;
+        }
+        // Potion drinking: right-click with potion to drink
+        const potionItem = this.inventory.getSelected();
+        if (potionItem && POTION_EFFECTS[potionItem.block]) {
+          this.potionEffectManager.drinkPotion(potionItem.block, this.player, this.healthSystem);
+          if (this.achievementManager) this.achievementManager.stats.potionsDrunk++;
+          if (!this.inventory.creativeMode) {
+            this.inventory.removeSelected();
+            this.inventory.addBlock(BREWING_BLOCKS.GLASS_BOTTLE);
+            this._buildHotbar();
+          }
+          this.audio.playPlace();
+          return;
+        }
+        // Splash potion: right-click to throw
+        if (potionItem && potionItem.block === BREWING_BLOCKS.SPLASH_POTION_HEALING) {
+          const dir = new THREE.Vector3();
+          this.camera.getWorldDirection(dir);
+          const impactPos = this.player.position.clone().add(dir.multiplyScalar(5));
+          this.potionEffectManager.throwSplashPotion(potionItem.block, this.player, this.healthSystem, this.mobManager ? this.mobManager.mobs : [], impactPos);
+          if (!this.inventory.creativeMode) {
+            this.inventory.removeSelected();
+            this._buildHotbar();
+          }
+          this.audio.playPlace();
+          return;
+        }
+        // Water bottle: fill from water block
+        if (potionItem && potionItem.block === BREWING_BLOCKS.GLASS_BOTTLE && target.block === BLOCK.WATER) {
+          this.inventory.removeSelected();
+          this.inventory.addBlock(BREWING_BLOCKS.WATER_BOTTLE);
+          this._buildHotbar();
+          this.audio.playPlace();
+          return;
+        }
+        // Cauldron: fill glass bottle
+        if (potionItem && potionItem.block === BREWING_BLOCKS.GLASS_BOTTLE && target.block === BREWING_BLOCKS.CAULDRON) {
+          this.inventory.removeSelected();
+          this.inventory.addBlock(BREWING_BLOCKS.WATER_BOTTLE);
+          this._buildHotbar();
+          this.audio.playPlace();
           return;
         }
         // Bow draw: if selected item is bow, start drawing
@@ -2067,15 +2351,48 @@ class SurvivalGame {
           this.bowDrawTime = 0;
           return;
         }
+        // Map: right-click with map to open overlay
+        if (item && item.block === MAP_BLOCKS.MAP) {
+          if (!this.mapManager.getActiveMap()) {
+            this.mapManager.createMap(this.player.position.x, this.player.position.z);
+          }
+          this.mapOpen = true;
+          if (this.pointerLocked) document.exitPointerLock();
+          document.getElementById('map-overlay').style.display = 'flex';
+          this._renderMapOverlay();
+          return;
+        }
+        // Shield: auto-equip from hotbar if held
+        if (item && item.block === SHIELD_BLOCKS.SHIELD && this.shieldManager && !this.shieldManager.hasShield()) {
+          this.shieldManager.equipShield(new ShieldItem());
+          if (!this.inventory.creativeMode) {
+            this.inventory.removeSelected();
+            this._buildHotbar();
+          }
+          this._updateShieldHUD();
+          return;
+        }
+        // Shield: right-click with shield equipped raises shield
+        if (this.shieldManager && this.shieldManager.hasShield() && !this.shieldBlocking) {
+          this.shieldBlocking = true;
+          this.shieldManager.startBlocking();
+          return;
+        }
         this._placeBlock();
       }
     });
 
     document.addEventListener('mouseup', (e) => {
-      if (e.button === 0) { this.mouseLeftDown = false; }
-      if (e.button === 2 && this.bowDrawing) {
-        this._fireBow();
-        this.bowDrawing = false;
+      if (e.button === 0) { this.mouseLeftDown = false; this.miningTarget = null; this.miningProgress = 0; }
+      if (e.button === 2) {
+        if (this.bowDrawing) {
+          this._fireBow();
+          this.bowDrawing = false;
+        }
+        if (this.shieldBlocking) {
+          this.shieldBlocking = false;
+          if (this.shieldManager) this.shieldManager.stopBlocking();
+        }
       }
     });
 
@@ -2107,10 +2424,27 @@ class SurvivalGame {
           this.attackCooldown = 0.5;
           // Apply sword damage bonus
           const swordBonus = this.equipment ? this.equipment.getAttackDamage() : 0;
-          const damage = 4 + swordBonus;
+          const potionBonus = this.player.damageBonus || 0;
+          // Critical hit: +50% if player is falling (jumping)
+          const isCritical = this.player.velocity.y < 0 && !this.player.onGround;
+          const critBonus = isCritical ? Math.floor((4 + swordBonus + potionBonus) * 0.5) : 0;
+          const damage = 4 + swordBonus + potionBonus + critBonus;
           // Knockback direction
           mob._knockbackDir = dir.clone();
           mob.takeDamage(damage);
+          // Sweep attack: if sprinting, hit adjacent mobs too
+          if (this.keys.shift && this.mobManager) {
+            const sweepDmg = Math.floor(damage * 0.5);
+            for (const otherMob of this.mobManager.mobs) {
+              if (otherMob === mob || otherMob.dead || !otherMob.hostile) continue;
+              const dx2 = otherMob.x - mob.x;
+              const dz2 = otherMob.z - mob.z;
+              if (Math.sqrt(dx2 * dx2 + dz2 * dz2) < 3) {
+                otherMob._knockbackDir = dir.clone();
+                otherMob.takeDamage(sweepDmg);
+              }
+            }
+          }
           // Tool durability on sword use
           if (this.equipment && swordBonus > 0) {
             const result = this.equipment.onBlockMined(0); // use() decrements durability
@@ -2123,6 +2457,7 @@ class SurvivalGame {
           this.audio.playBreak(mob.type === 'chicken' ? 58 : 55);
           if (mob.dead) {
             const drops = this.mobManager.killMob(mob);
+            if (this.achievementManager) this.achievementManager.stats.mobsKilled++;
             for (const drop of drops) {
               for (let i = 0; i < drop.count; i++) {
                 this.inventory.addBlock(drop.block);
@@ -2143,9 +2478,16 @@ class SurvivalGame {
       this.world.setBlock(target.x, target.y, target.z, BLOCK.AIR);
       this._trackBlockMod(target.x, target.y, target.z, BLOCK.AIR);
       if (target.block === REDSTONE_BLOCKS.REDSTONE_TORCH) this.redstoneManager.removeTorch(target.x, target.y, target.z);
+      if (target.block === BREWING_BLOCKS.BREWING_STAND) this.brewingManager.removeStand(target.x, target.y, target.z);
+      if (target.block === ANVIL_BLOCKS.ANVIL) this.anvilManager.removeAnvil(target.x, target.y, target.z);
       this.particles.spawnBlockBreak(target.x, target.y, target.z, target.block);
       this.audio.playBreak(target.block);
       if (this.chilltune) this.chilltune.trackBlockBreak();
+      if (this.achievementManager) {
+        this.achievementManager.stats.blocksBroken++;
+        if (target.block === MC_BLOCKS.DIAMOND_ORE) this.achievementManager.unlock('mine_diamond');
+        if (target.block === MC_BLOCKS.OBSIDIAN) this.achievementManager.unlock('mine_obsidian');
+      }
     } else {
       // Mining progress — apply tool speed multiplier
       const toolMult = this.equipment ? this.equipment.getMiningSpeedForBlock(target.block) : 1;
@@ -2158,10 +2500,17 @@ class SurvivalGame {
         this.world.setBlock(target.x, target.y, target.z, BLOCK.AIR);
         this._trackBlockMod(target.x, target.y, target.z, BLOCK.AIR);
         if (target.block === REDSTONE_BLOCKS.REDSTONE_TORCH) this.redstoneManager.removeTorch(target.x, target.y, target.z);
+        if (target.block === BREWING_BLOCKS.BREWING_STAND) this.brewingManager.removeStand(target.x, target.y, target.z);
+        if (target.block === ANVIL_BLOCKS.ANVIL) this.anvilManager.removeAnvil(target.x, target.y, target.z);
         this.particles.spawnBlockBreak(target.x, target.y, target.z, target.block);
         this.inventory.addBlock(target.block);
         this.audio.playBreak(target.block);
         if (this.chilltune) this.chilltune.trackBlockBreak();
+        if (this.achievementManager) {
+          this.achievementManager.stats.blocksBroken++;
+          if (target.block === MC_BLOCKS.DIAMOND_ORE) this.achievementManager.unlock('mine_diamond');
+          if (target.block === MC_BLOCKS.OBSIDIAN) this.achievementManager.unlock('mine_obsidian');
+        }
         // XP drop from ores
         const xpDrop = getXPDropForBlock(target.block);
         if (xpDrop > 0) {
@@ -2202,6 +2551,7 @@ class SurvivalGame {
         this.inventory.removeSelected();
         this._buildHotbar();
         this.audio.playPlace(); // crunch sound
+        if (this.achievementManager) this.achievementManager.stats.foodsEaten++;
       }
       return;
     }
@@ -2221,6 +2571,12 @@ class SurvivalGame {
     this.particles.spawnBlockPlace(px, py, pz, item.block);
     this.audio.playPlace();
     if (this.chilltune) this.chilltune.trackBlockPlace();
+    if (this.achievementManager) {
+      this.achievementManager.stats.blocksPlaced++;
+      if (item.block === REDSTONE_BLOCKS.REDSTONE_DUST) this.achievementManager.unlock('first_redstone');
+      if (item.block === ENCHANT_BLOCKS.ENCHANTING_TABLE) this.achievementManager.unlock('craft_enchant_table');
+      if (item.block === BREWING_BLOCKS.BREWING_STAND) this.achievementManager.unlock('craft_brewing_stand');
+    }
 
     // Redstone torch: register as constant power source
     if (item.block === REDSTONE_BLOCKS.REDSTONE_TORCH) {
@@ -2249,6 +2605,7 @@ class SurvivalGame {
     document.getElementById('chunks').textContent = this.world.getLoadedChunkCount();
 
     const target = this.player.raycast(5);
+    this._cachedRaycast = target;
     document.getElementById('looking-at').textContent = target ? (MC_BLOCK_NAMES[target.block] || `ID:${target.block}`) : '--';
 
     document.getElementById('clock').textContent = this.dayNight.getTimeString();
@@ -2321,6 +2678,11 @@ class SurvivalGame {
   _fireBow() {
     const drawRatio = Math.min(1, this.bowDrawTime / 1.5);
     if (drawRatio < 0.2) return; // minimum draw to fire
+    // Check for arrows in survival mode before firing
+    if (!this.inventory.creativeMode) {
+      const arrowItem = this.inventory.hotbar.find(s => s && s.block === MC_BLOCKS.ARROW);
+      if (!arrowItem) return; // no arrows, can't fire
+    }
     const speed = 15 + drawRatio * 15; // 15-30 blocks/sec
     const damage = 3 + drawRatio * 3; // 3-6 HP
     const dir = new THREE.Vector3(
@@ -2375,6 +2737,7 @@ class SurvivalGame {
     }
     // Set spawn point
     this.spawnPoint = { x: x + 0.5, y: y + 1, z: z + 0.5 };
+    if (this.achievementManager) this.achievementManager.unlock('sleep_bed');
     // Show sleep overlay
     const overlay = document.getElementById('sleep-overlay');
     overlay.style.opacity = '1';
@@ -2481,7 +2844,7 @@ class SurvivalGame {
         opt.innerHTML = `<div class="ench-name">${ench.name}</div><div class="ench-desc">${ench.desc}</div><div class="ench-cost">Cost: ${ench.cost} nivel(es)</div>`;
         opt.addEventListener('click', () => {
           if (this.xpManager.level >= ench.cost) {
-            this.xpManager.spendLevel();
+            this.xpManager.spendLevel(ench.cost);
             em.applyEnchant(ench.id);
             this._renderEnchantUI();
           }
@@ -2657,6 +3020,346 @@ class SurvivalGame {
     }
   }
 
+  _openBrewingUI(x, y, z) {
+    this.brewingUIOpen = true;
+    this.activeBrewingStand = this.brewingManager.addStand(x, y, z);
+    if (this.pointerLocked) document.exitPointerLock();
+    const panel = document.getElementById('brewing-panel');
+    panel.classList.add('show');
+    this._renderBrewingUI();
+    this._setupBrewingSlots();
+  }
+
+  _closeBrewingUI() {
+    this.brewingUIOpen = false;
+    this.activeBrewingStand = null;
+    document.getElementById('brewing-panel').classList.remove('show');
+  }
+
+  _renderBrewingUI() {
+    if (!this.activeBrewingStand) return;
+    const s = this.activeBrewingStand;
+    const renderSlot = (slotEl, slotData) => {
+      slotEl.innerHTML = '';
+      if (slotData) {
+        const colorDiv = document.createElement('div');
+        colorDiv.className = 'slot-color';
+        const color = MC_BLOCK_COLORS[slotData.block];
+        if (color) {
+          colorDiv.style.background = `rgb(${Math.floor(color[0]*255)},${Math.floor(color[1]*255)},${Math.floor(color[2]*255)})`;
+        }
+        slotEl.appendChild(colorDiv);
+        if (slotData.count > 1) {
+          const countSpan = document.createElement('span');
+          countSpan.className = 'slot-count';
+          countSpan.textContent = slotData.count;
+          slotEl.appendChild(countSpan);
+        }
+        slotEl.classList.add('has-item');
+      } else {
+        slotEl.classList.remove('has-item');
+      }
+    };
+    renderSlot(document.getElementById('brewing-ingredient'), s.ingredientSlot);
+    renderSlot(document.getElementById('brewing-fuel'), s.fuelSlot);
+    renderSlot(document.getElementById('brewing-bottle1'), s.bottleSlots[0]);
+    renderSlot(document.getElementById('brewing-bottle2'), s.bottleSlots[1]);
+    const bubble = document.getElementById('brewing-bubble');
+    bubble.textContent = s.isBrewing() ? '◉' : (s.fuelCount > 0 ? '○' : '');
+    const arrow = document.getElementById('brewing-arrow');
+    arrow.textContent = s.isBrewing() ? '⏳' : '→';
+  }
+
+  _setupBrewingSlots() {
+    const ingredientEl = document.getElementById('brewing-ingredient');
+    const fuelEl = document.getElementById('brewing-fuel');
+    const bottle1El = document.getElementById('brewing-bottle1');
+    const bottle2El = document.getElementById('brewing-bottle2');
+    const s = this.activeBrewingStand;
+
+    const setupSlot = (el, slotIdx) => {
+      el.addEventListener('click', () => {
+        const item = this.inventory.getSelected();
+        if (item) {
+          if (slotIdx === 'ingredient') {
+            if (s.ingredientSlot) {
+              this.inventory.addBlock(s.ingredientSlot.block);
+            }
+            s.ingredientSlot = { block: item.block, count: 1 };
+          } else if (slotIdx === 'fuel') {
+            if (item.block !== BREWING_BLOCKS.BLAZE_POWDER) return;
+            if (s.fuelSlot) {
+              this.inventory.addBlock(s.fuelSlot.block);
+            }
+            s.fuelSlot = { block: item.block, count: 1 };
+          } else if (slotIdx === 0 || slotIdx === 1) {
+            if (s.bottleSlots[slotIdx]) {
+              this.inventory.addBlock(s.bottleSlots[slotIdx].block);
+            }
+            s.bottleSlots[slotIdx] = { block: item.block, count: 1 };
+          }
+          this.inventory.removeSelected();
+          this._buildHotbar();
+        }
+        this._renderBrewingUI();
+      });
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (slotIdx === 'ingredient') {
+          if (s.ingredientSlot) {
+            this.inventory.addBlock(s.ingredientSlot.block);
+            s.ingredientSlot.count--;
+            if (s.ingredientSlot.count <= 0) s.ingredientSlot = null;
+          }
+        } else if (slotIdx === 'fuel') {
+          if (s.fuelSlot) {
+            this.inventory.addBlock(s.fuelSlot.block);
+            s.fuelSlot.count--;
+            if (s.fuelSlot.count <= 0) s.fuelSlot = null;
+          }
+        } else if (slotIdx === 0 || slotIdx === 1) {
+          if (s.bottleSlots[slotIdx]) {
+            this.inventory.addBlock(s.bottleSlots[slotIdx].block);
+            s.bottleSlots[slotIdx].count--;
+            if (s.bottleSlots[slotIdx].count <= 0) s.bottleSlots[slotIdx] = null;
+          }
+        }
+        this._buildHotbar();
+        this._renderBrewingUI();
+      });
+    };
+    setupSlot(ingredientEl, 'ingredient');
+    setupSlot(fuelEl, 'fuel');
+    setupSlot(bottle1El, 0);
+    setupSlot(bottle2El, 1);
+  }
+
+  _updatePotionEffectHUD() {
+    const hud = document.getElementById('potion-effects-hud');
+    if (!hud) return;
+    const effects = this.potionEffectManager.getActiveEffects();
+    hud.innerHTML = '';
+    for (const eff of effects) {
+      const icon = document.createElement('div');
+      icon.className = 'potion-effect-icon';
+      const dot = document.createElement('div');
+      dot.className = 'potion-dot';
+      const hex = '#' + eff.color.toString(16).padStart(6, '0');
+      dot.style.background = hex;
+      icon.appendChild(dot);
+      const timer = document.createElement('div');
+      timer.className = 'potion-timer';
+      timer.textContent = Math.ceil(eff.timeRemaining) + 's';
+      icon.appendChild(timer);
+      hud.appendChild(icon);
+    }
+  }
+
+  _updateShieldHUD() {
+    const hud = document.getElementById('shield-hud');
+    if (!hud) return;
+    if (this.shieldManager && this.shieldManager.hasShield()) {
+      hud.style.display = 'block';
+      const shield = this.shieldManager.shield;
+      const pct = shield.durability / shield.maxDurability;
+      const bar = document.getElementById('shield-durability-bar');
+      bar.style.width = Math.max(0, pct * 100) + '%';
+      bar.style.background = pct > 0.5 ? '#4a4' : pct > 0.2 ? '#aa4' : '#a44';
+      document.getElementById('shield-durability-text').textContent = shield.durability + '/' + shield.maxDurability;
+      if (this.shieldManager.isDisabled()) {
+        hud.style.opacity = '0.4';
+      } else {
+        hud.style.opacity = '1';
+      }
+    } else {
+      hud.style.display = 'none';
+    }
+  }
+
+  _openAnvilUI(x, y, z) {
+    this.anvilUIOpen = true;
+    this.activeAnvil = { x, y, z };
+    this.anvilManager.addAnvil(x, y, z);
+    this.anvilManager.input1 = null;
+    this.anvilManager.input2 = null;
+    this.anvilManager.output = null;
+    this.anvilManager.renameText = '';
+    const panel = document.getElementById('anvil-panel');
+    panel.style.display = 'block';
+    document.getElementById('anvil-rename').value = '';
+    this._renderAnvilUI();
+    this._setupAnvilSlots();
+    if (this.pointerLocked) document.exitPointerLock();
+  }
+
+  _closeAnvilUI() {
+    this.anvilUIOpen = false;
+    this.activeAnvil = null;
+    // Return items to inventory
+    if (this.anvilManager.input1) {
+      this.inventory.addBlock(this.anvilManager.input1.block);
+      this._buildHotbar();
+    }
+    if (this.anvilManager.input2) {
+      this.inventory.addBlock(this.anvilManager.input2.block);
+      this._buildHotbar();
+    }
+    this.anvilManager.input1 = null;
+    this.anvilManager.input2 = null;
+    this.anvilManager.output = null;
+    document.getElementById('anvil-panel').style.display = 'none';
+  }
+
+  _renderAnvilUI() {
+    const renderSlot = (slotEl, item) => {
+      slotEl.innerHTML = '';
+      slotEl.classList.remove('has-item');
+      if (item) {
+        slotEl.classList.add('has-item');
+        const colorDiv = document.createElement('div');
+        colorDiv.className = 'slot-color';
+        const c = MC_BLOCK_COLORS[item.block] || [0.5, 0.5, 0.5];
+        colorDiv.style.background = `rgb(${Math.floor(c[0]*255)},${Math.floor(c[1]*255)},${Math.floor(c[2]*255)})`;
+        slotEl.appendChild(colorDiv);
+        const name = document.createElement('span');
+        name.className = 'slot-name';
+        name.textContent = item.customName || MC_BLOCK_NAMES[item.block] || 'Item';
+        slotEl.appendChild(name);
+        if (item.count && item.count > 1) {
+          const count = document.createElement('span');
+          count.className = 'slot-count';
+          count.textContent = item.count;
+          slotEl.appendChild(count);
+        }
+      }
+    };
+    renderSlot(document.getElementById('anvil-input1'), this.anvilManager.input1);
+    renderSlot(document.getElementById('anvil-input2'), this.anvilManager.input2);
+    renderSlot(document.getElementById('anvil-output'), this.anvilManager.output);
+
+    // Update XP cost
+    const xpEl = document.getElementById('anvil-xp-cost');
+    const cost = this.anvilManager.xpCost;
+    const xpLevel = this.xpManager ? this.xpManager.level : 0;
+    if (cost > 0) {
+      xpEl.textContent = `Costo: ${cost} niveles XP`;
+      xpEl.style.color = xpLevel >= cost ? '#4a4' : '#a44';
+    } else {
+      xpEl.textContent = '';
+    }
+  }
+
+  _setupAnvilSlots() {
+    const input1El = document.getElementById('anvil-input1');
+    const input2El = document.getElementById('anvil-input2');
+    const outputEl = document.getElementById('anvil-output');
+    const renameEl = document.getElementById('anvil-rename');
+
+    // Clone to remove old listeners
+    const new1 = input1El.cloneNode(true);
+    const new2 = input2El.cloneNode(true);
+    const newOut = outputEl.cloneNode(true);
+    input1El.parentNode.replaceChild(new1, input1El);
+    input2El.parentNode.replaceChild(new2, input2El);
+    outputEl.parentNode.replaceChild(newOut, outputEl);
+
+    const setupInputSlot = (el, slotNum) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const held = this.inventory.getSelected();
+        if (e.button === 0 && held) {
+          // Place item
+          const item = slotNum === 1 ? this.anvilManager.input1 : this.anvilManager.input2;
+          if (item) {
+            this.inventory.addBlock(item.block);
+          }
+          const newItem = { block: held.block, count: 1, durability: held.durability, maxDurability: held.maxDurability, enchantments: held.enchantments, customName: held.customName };
+          if (slotNum === 1) this.anvilManager.input1 = newItem;
+          else this.anvilManager.input2 = newItem;
+          if (!this.inventory.creativeMode) {
+            this.inventory.removeSelected();
+            this._buildHotbar();
+          }
+        } else if (e.button === 2) {
+          // Remove item
+          const item = slotNum === 1 ? this.anvilManager.input1 : this.anvilManager.input2;
+          if (item) {
+            this.inventory.addBlock(item.block);
+            this._buildHotbar();
+            if (slotNum === 1) this.anvilManager.input1 = null;
+            else this.anvilManager.input2 = null;
+          }
+        }
+        this._updateAnvilResult();
+        this._renderAnvilUI();
+      });
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+
+    setupInputSlot(new1, 1);
+    setupInputSlot(new2, 2);
+
+    // Output slot: click to take result
+    newOut.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (this.anvilManager.output) {
+        const xpLevel = this.xpManager ? this.xpManager.level : 0;
+        if (xpLevel < this.anvilManager.xpCost) return;
+        // Apply result
+        if (this.xpManager) {
+          this.xpManager.addXP(-this.anvilManager.xpCost * this.xpManager.xpPerLevel);
+        }
+        this.inventory.addBlock(this.anvilManager.output.block);
+        this._buildHotbar();
+        // Consume inputs
+        this.anvilManager.input1 = null;
+        this.anvilManager.input2 = null;
+        this.anvilManager.output = null;
+        // Use anvil
+        if (this.activeAnvil) {
+          const broken = this.anvilManager.useAnvil(this.activeAnvil.x, this.activeAnvil.y, this.activeAnvil.z);
+          if (broken) {
+            this.world.setBlock(this.activeAnvil.x, this.activeAnvil.y, this.activeAnvil.z, BLOCK.AIR);
+            this.anvilManager.removeAnvil(this.activeAnvil.x, this.activeAnvil.y, this.activeAnvil.z);
+            this._closeAnvilUI();
+            return;
+          }
+        }
+        this._renderAnvilUI();
+      }
+    });
+
+    // Rename input
+    const newRename = renameEl.cloneNode(true);
+    renameEl.parentNode.replaceChild(newRename, renameEl);
+    newRename.addEventListener('input', (e) => {
+      this.anvilManager.renameText = e.target.value;
+      this._updateAnvilResult();
+      this._renderAnvilUI();
+    });
+  }
+
+  _updateAnvilResult() {
+    const xpLevel = this.xpManager ? this.xpManager.level : 0;
+    this.anvilManager.calculateResult(xpLevel);
+  }
+
+  _renderMapOverlay() {
+    const canvas = document.getElementById('map-canvas');
+    if (!canvas) return;
+    const yaw = this.player.rotation ? this.player.rotation.y : 0;
+    this.mapManager.renderToCanvas(canvas, this.player.position.x, this.player.position.z, yaw);
+    const coordsEl = document.getElementById('map-coords');
+    if (coordsEl) {
+      coordsEl.textContent = `X: ${Math.floor(this.player.position.x)}  Z: ${Math.floor(this.player.position.z)}`;
+    }
+  }
+
+  _closeMap() {
+    this.mapOpen = false;
+    document.getElementById('map-overlay').style.display = 'none';
+  }
+
   _setupFurnaceSlots() {
     const inputEl = document.getElementById('furnace-input');
     const fuelEl = document.getElementById('furnace-fuel');
@@ -2798,8 +3501,8 @@ class SurvivalGame {
         this.player.lastFallDistance = 0;
       }
 
-      // Block highlight
-      const target = this.player.raycast(5);
+      // Block highlight (reuse cached raycast from updateHUD)
+      const target = this._cachedRaycast || this.player.raycast(5);
       if (target) {
         this.blockHighlight.visible = true;
         this.blockHighlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
@@ -2817,12 +3520,14 @@ class SurvivalGame {
       const overlay = document.getElementById('underwater-overlay');
       if (underwater) {
         overlay.style.opacity = '1';
-        this.scene.fog = new THREE.Fog(0x1a4080, 0.5, 12);
+        if (!this._underwaterFog) this._underwaterFog = new THREE.Fog(0x1a4080, 0.5, 12);
+        this.scene.fog = this._underwaterFog;
       } else {
         overlay.style.opacity = '0';
         // Restore fog — DayNightCycle will update color dynamically
-        if (this.scene.fog && (this.scene.fog.near !== 30 || this.scene.fog.far !== 55)) {
-          this.scene.fog = new THREE.Fog(0x87ceeb, 30, 55);
+        if (this.scene.fog !== this._normalFog) {
+          if (!this._normalFog) this._normalFog = new THREE.Fog(0x87ceeb, 30, 55);
+          this.scene.fog = this._normalFog;
         }
       }
     }
@@ -2830,7 +3535,7 @@ class SurvivalGame {
     this.currentDt = dt;
 
     // Hold-to-mine
-    if (this.gameStarted && (this.mouseLeftDown || (this.touchControls && this.touchControls.breaking)) && (this.pointerLocked || (this.touchControls && this.touchControls.enabled)) && !this.inventoryOpen && !this.furnaceUIOpen && !this.enchantUIOpen && !this.tradeUIOpen) {
+    if (this.gameStarted && (this.mouseLeftDown || (this.touchControls && this.touchControls.breaking)) && (this.pointerLocked || (this.touchControls && this.touchControls.enabled)) && !this.inventoryOpen && !this.furnaceUIOpen && !this.brewingUIOpen && !this.anvilUIOpen && !this.mapOpen && !this.enchantUIOpen && !this.tradeUIOpen) {
       this._breakBlock();
     }
 
@@ -2842,11 +3547,15 @@ class SurvivalGame {
         Math.floor(this.player.position.z)
       );
       if (feetBlock === BLOCK.LAVA) {
-        this.lavaDamageTimer += dt;
-        if (this.lavaDamageTimer >= 1) {
-          this.healthSystem.takeDamage(4, 'Lava');
-          this._damageFlash();
+        if (this.player.fireResistant) {
           this.lavaDamageTimer = 0;
+        } else {
+          this.lavaDamageTimer += dt;
+          if (this.lavaDamageTimer >= 1) {
+            this.healthSystem.takeDamage(4, 'Lava');
+            this._damageFlash();
+            this.lavaDamageTimer = 0;
+          }
         }
       } else {
         this.lavaDamageTimer = 0;
@@ -2854,6 +3563,12 @@ class SurvivalGame {
     }
 
     this.dayNight.update(dt, this.player.position);
+    // Night vision: boost ambient light to full brightness
+    if (this.dayNight && this.dayNight.ambientLight) {
+      if (this.player.nightVision) {
+        this.dayNight.ambientLight.intensity = 0.8;
+      }
+    }
     if (this.particles) this.particles.update(dt);
     if (this.mobManager) {
       this.mobManager.dayFactor = Math.max(0, Math.sin(this.dayNight.time * Math.PI * 2));
@@ -2865,6 +3580,13 @@ class SurvivalGame {
       this.mobManager.pendingArrows = [];
     }
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    // Achievements
+    if (this.achievementManager) this.achievementManager.update(dt, this);
+    // Map
+    if (this.mapManager && this.gameStarted) {
+      this.mapManager.update(this.player.position.x, this.player.position.z, this.world);
+      if (this.mapOpen) this._renderMapOverlay();
+    }
     // Bow draw timer
     if (this.bowDrawing) {
       this.bowDrawTime = Math.min(1.5, this.bowDrawTime + dt);
@@ -2911,10 +3633,32 @@ class SurvivalGame {
     }
     if (this.furnaceManager) this.furnaceManager.update(dt);
     if (this.furnaceUIOpen) this._renderFurnaceUI();
+    if (this.brewingManager) this.brewingManager.update(dt);
+    if (this.brewingUIOpen) this._renderBrewingUI();
+    if (this.potionEffectManager) {
+      this.potionEffectManager.update(dt, this.player, this.healthSystem);
+      this._updatePotionEffectHUD();
+    }
+    // Shield update
+    if (this.shieldManager) {
+      this.shieldManager.update(dt);
+      // Apply shield speed multiplier
+      if (this.shieldBlocking && this.shieldManager.isBlocking) {
+        this.player.speedMultiplier = this.shieldManager.getSpeedMultiplier();
+      } else if (this.player.speedMultiplier === 0.5) {
+        this.player.speedMultiplier = 1.0;
+      }
+      // Shield bash
+      if (this.shieldBlocking && this.mobManager) {
+        const fwd = new THREE.Vector3(-Math.sin(this.player.yaw), 0, -Math.cos(this.player.yaw));
+        this.shieldManager.tryBash(this.mobManager.mobs, this.player.position, fwd);
+      }
+      this._updateShieldHUD();
+    }
     if (this.weatherManager) this.weatherManager.update(dt, this.player.position, this.world);
     if (this.healthSystem) {
       const sprinting = this.keys.shift && !this.player.flying;
-      this.healthSystem.update(dt, this.player.inWater, sprinting);
+      this.healthSystem.update(dt, this.player.inWater, sprinting, this.player.waterBreathing);
       this._updateHealthHUD();
       if (this.healthSystem.dead && !this._deathScreenShown) {
         this._showDeathScreen();

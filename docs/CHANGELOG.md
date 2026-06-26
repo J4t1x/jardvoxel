@@ -1,5 +1,162 @@
 # JardVoxel — Changelog
 
+## v5.0.0 — Touch Controls, Main Menu, Settings Expansion, Credits, Responsive HUD
+
+### SPEC-062: Touch Joystick Controls
+- **TouchJoystick** class: floating virtual joystick with zone-based touch area, knob visual, normalized output `{ x, y }`
+- Left joystick → movement (maps to WASD with proportional intensity)
+- Right joystick → camera look (yaw/pitch with configurable sensitivity)
+- 5 touch buttons: Jump (↑), Break (⛏), Place (+), Sprint (>>), Inventory (INV)
+- Multi-touch support: move + look simultaneously (2 fingers)
+- Toggle with key `J` for desktop testing
+- Auto-detection of touch devices (`'ontouchstart' in window` or `navigator.maxTouchPoints > 0`)
+- Dead zone (10px default) to prevent drift
+- Toast notification on toggle ("Joysticks: ON/OFF")
+- Persistence in `localStorage` (`jardvoxel_touch_controls`)
+- Viewport meta updated: `maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
+- Game loop modified to allow updates without `pointerLock` when touch is active
+- `PlayerController.update()` modified to accept analog `touchInput` parameter
+- CSS: `.joystick-base` (120px), `.joystick-knob` (60px), `.touch-btn` (70px), all with `touch-action: none`
+- Responsive touch button sizes for mobile (< 600px): 60px jump/break/place, 52px sprint/inv
+
+### SPEC-063: Game Menu + Settings Expansion
+- **Main Menu** (`#main-menu`): title with gradient, 3 buttons (Jugar, Opciones, Creditos), version + seed info
+- **Credits Screen** (`#credits-screen`): version, technologies (Three.js r160, Web Audio API, Vanilla JS, Web Workers), features list, development credit
+- **Settings Menu** with 4 tabs:
+  - **Graficos**: render distance (2-8), FOV (60-110), clouds toggle, fog toggle, shadows toggle, tone mapping toggle
+  - **Audio**: master volume, SFX volume, ambient volume, music volume, dynamic music toggle
+  - **Controles**: sensitivity (0.5-4), invert Y toggle, touch joysticks (auto/on/off), dead zone (5-30px), joystick size (80-160px), button size (50-90px)
+  - **Gameplay**: difficulty (Pacifico/Facil/Normal/Dificil), auto-save (off/30s/60s/120s/300s), show FPS/coords/minimap/clock/hint toggles
+- **Pause Screen** updated: 4 buttons (Continuar, Logros, Opciones, Menu Principal)
+- Settings object expanded from 4 to 20+ options, persisted in `localStorage` (`jardvoxel-settings`)
+- All settings apply in real-time (no restart required)
+- CSS: `.settings-tabs`, `.tab-btn`, `.tab-content`, `.toggle-switch` (custom CSS switch), `.setting-select`
+- Tab switching with scroll horizontal on mobile
+
+### Responsive HUD
+- **Mobile (< 600px)**: hotbar slots 38px, item names hidden, minimap 80px, inventory 4 columns (60px), craft slots 40px, settings 90vw max 400px, tabs scroll horizontal, touch buttons smaller (60px/52px)
+- **Tablet (600-1024px)**: hotbar slots 44px, inventory 6 columns (65px)
+- All interactive elements minimum 44x44px touch area
+- `touch-action: manipulation` on buttons, `user-select: none` on game UI
+
+### Additional HUD Elements
+- **Dimension Indicator**: shows Overworld/Nether in top-right area
+- **Shield HUD**: durability bar + text when shield equipped
+- **Potion Effects HUD**: active potion effect icons with countdown timers
+- **Achievement Toast**: slide-in notification from right edge
+
+### Module Architecture (28 JS files)
+- `jardvoxel-survival.html` (3887 lines) — main game file, imports 22 modules
+- `jardvoxel-survival-engine.js` — world generation core (splines, noise, biomes, caves, aquifers)
+- `jardvoxel-survival-mesher.js` — block definitions, colors, names, hardness, greedy meshing
+- `jardvoxel-survival-features.js` — trees, structures, vegetation, ore veins
+- `jardvoxel-survival-gameplay.js` — player controller, inventory, day/night, audio, physics
+- `jardvoxel-survival-crafting.js` — crafting manager (shaped + shapeless recipes)
+- `jardvoxel-survival-save.js` — IndexedDB save/load system
+- `jardvoxel-survival-particles.js` — particle system (block break, place, walk dust)
+- `jardvoxel-survival-mobs.js` — mob manager (passive + hostile mobs, AI, combat)
+- `jardvoxel-survival-health.js` — health/hunger system (10 hearts, 10 drums)
+- `jardvoxel-survival-furnace.js` — furnace manager (fuel, smelting recipes)
+- `jardvoxel-survival-weather.js` — weather manager (rain, snow, thunder, clear)
+- `jardvoxel-survival-tools.js` — tools + armor, equipment manager, durability
+- `jardvoxel-survival-enchanting.js` — XP manager, enchant manager, XP orbs
+- `jardvoxel-survival-villagers.js` — villager NPCs, trading manager, 4 professions
+- `jardvoxel-survival-fishing.js` — fishing manager (5-state machine, bobber, catch table)
+- `jardvoxel-survival-nether.js` — nether generator, portal manager, nether blocks
+- `jardvoxel-survival-redstone.js` — redstone manager (power propagation, BFS, lever, piston)
+- `jardvoxel-survival-chilltune.js` — procedural chiptune music engine (527 lines)
+- `jardvoxel-survival-brewing.js` — brewing manager, potion effects (484 lines)
+- `jardvoxel-survival-shields.js` — shield manager, shield item, blocking mechanics (216 lines)
+- `jardvoxel-survival-achievements.js` — achievement manager, 30 achievements (234 lines)
+- `jardvoxel-survival-anvil.js` — anvil manager, repair/rename/combine (225 lines)
+- `jardvoxel-survival-map.js` — map manager, cartography, compass (277 lines)
+- `jardvoxel-survival-worker.js` — web worker for chunk generation
+- `jardvoxel-engine.js` — original engine (used by `jardvoxel.html`)
+- `jardvoxel-worker.js` — original web worker (used by `jardvoxel.html`)
+
+### PRDs Referenced
+- `docs/PRD-TOUCH-JOYSTICK.md` — Touch joystick design (SPEC-062)
+- `docs/PRD-MOBILE-MENU.md` — Mobile playability + game menu (SPEC-062 + SPEC-063)
+
+## v4.2.0 — ChillTune Music, Brewing, Shields, Achievements, Anvil, Map & Cartography
+
+### SPEC-057: ChillTune Music Engine
+- **ChillTuneEngine**: procedural 8-bit chiptune music using Web Audio API (oscillators + filters + LFOs)
+- 5 modal scales: Dorian, Aeolian, Lydian, Phrygian, Pentatonic
+- 7 game states with unique musical config: exploring (60 BPM Dorian), building (65 BPM Lydian), mining (55 BPM Aeolian), combat (70 BPM Phrygian), night (50 BPM Aeolian), underwater (52 BPM Dorian), idle (45 BPM Pentatonic)
+- 3-layer synthesis: drone (continuous root note with LFO), melody (weighted random degree selection), arpeggio (building state only)
+- Smooth crossfade transitions (3-8s) between states — no abrupt cuts
+- Reverb node for spatial depth, breath LFO for organic feel
+- Scheduler with lookahead (30ms timer, 150ms schedule-ahead)
+- Independent music volume control (default 0.35), persisted in localStorage
+- Zero external dependencies — pure Web Audio API synthesis
+- `jardvoxel-survival-chilltune.js` (527 lines)
+
+### SPEC-062: Brewing & Potions
+- 15 new blocks/items (IDs 126-140): Brewing Stand, Glass Bottle, Cauldron, Water Bottle, Awkward Potion, 7 potion types, Splash Potion, Blaze Powder, Sugar
+- **BrewingManager**: 3-stage brewing system:
+  - Stage 1: Water Bottle + Nether Wart → Awkward Potion
+  - Stage 2: Awkward Potion + ingredient → Specific Potion (7 recipes)
+  - Stage 3: Potion + Gunpowder → Splash Potion
+- **PotionEffectManager**: 7 potion effects with apply/remove/tick callbacks:
+  - Speed (180s, +20% movement), Strength (180s, +3 damage), Instant Healing (4 HP), Night Vision (180s), Fire Resistance (180s), Regeneration (45s, 1 HP/s), Water Breathing (180s)
+- Brewing Stand crafting: cobblestone + blaze rod
+- Cauldron crafting: 7 iron ingots
+- Blaze Powder from blaze rods, Sugar from bamboo
+- `jardvoxel-survival-brewing.js` (484 lines)
+
+### SPEC-063: Shields & Combat Defense
+- 2 new blocks (IDs 151-152): Shield, Banner
+- **ShieldItem**: durability tracking (336 max), banner color customization, serialize/deserialize
+- **ShieldManager**: blocking mechanics with 120-degree frontal cone, shield disable on axe hit (10% chance, 5s disable), shield bash (2.0 range, 3.0 knockback)
+- Speed multiplier 0.5 while blocking
+- Shield crafting: 6 planks + 1 iron ingot
+- Banner crafting: 6 wool
+- `jardvoxel-survival-shields.js` (216 lines)
+
+### SPEC-064: Achievements System
+- 30 achievements across 8 categories: Mining (4), Building (3), Combat (4), Exploration (3), Crafting (5), Survival (4), Farming (2), Redstone (2), Brewing (2), Shields (2)
+- **AchievementManager**: stat tracking (blocksBroken, blocksPlaced, mobsKilled, distanceTraveled, foodsEaten, cropsHarvested, fishCaught, potionsBrewed, potionsDrunk, hitsBlocked)
+- Toast notification queue with slide-in animation
+- Achievement persistence via serialize/deserialize for save system
+- `jardvoxel-survival-achievements.js` (234 lines)
+
+### SPEC-065: Anvil & Item Repair
+- 1 new block (ID 153): Anvil
+- **AnvilManager**: 3 operations:
+  - Rename: custom name (max 30 chars), 1 XP level cost
+  - Material repair: 25% max durability per material unit, XP cost = material count
+  - Tool combination: merge durability + 10% bonus, merge enchantments
+- Anvil damage states (0-2) with 25 max uses
+- Anvil fall damage (2-6 HP) when dropped on entities
+- Repair materials: Wood→Planks, Stone→Cobblestone, Iron→Iron Ingot, Diamond→Diamond Ore
+- Anvil crafting: 3 iron ingots top + 1 center + 3 bottom (shaped)
+- `jardvoxel-survival-anvil.js` (225 lines)
+
+### SPEC-066: Map & Cartography
+- 3 new blocks (IDs 154-156): Map, Compass, Cartography Table
+- **MapManager**: map data with RGBA pixel buffer, 4 tier sizes (128/256/512/1024 blocks)
+- Block color mapping for 20+ block types in map rendering
+- Exploration tracking: unexplored areas show as black, updates every 4 blocks moved
+- Compass crafting: 4 iron ingots + redstone (cross pattern)
+- Map crafting: 8 paper + compass
+- Cartography Table crafting: 4 planks + 2 paper
+- Map upgrade via cartography table (tier scaling)
+- `jardvoxel-survival-map.js` (277 lines)
+
+### Bug Fixes
+- All 10 bugs from BUGS-FOUND.md audit resolved (3 critical, 3 moderate, 4 minor)
+- BUG-001: Worker seed mismatch — fixed with init message pattern
+- BUG-002: `_setBlockSafe` force parameter for structure placement
+- BUG-003: Survival mode inventory check/decrement on block place
+- BUG-004: `blockTypeToId` mud mapping added
+- BUG-005: Greedy meshing cross-chunk boundary face optimization
+- BUG-006: `VoxelChunk.isSolid` LAVA exclusion
+- BUG-007: Spline tangents computed from neighbors
+- BUG-008: Flying + ShiftLeft conflict resolved
+- BUG-009: Redundant flower check removed
+- BUG-010: 2D noise methods added to PerlinNoise3D, biome cache
+
 ## v4.1.0 — Tools, Armor, Enchanting, Villagers, Fishing, Nether, Redstone
 
 ### SPEC-051: Tools & Armor

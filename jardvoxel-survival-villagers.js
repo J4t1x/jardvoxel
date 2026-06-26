@@ -39,19 +39,19 @@ export const VILLAGER_PROFESSIONS = {
 // Trade definitions per profession
 export const TRADES = {
   farmer: [
-    { give: [MC_BLOCKS.WHEAT_CROP, 20], receive: { block: 103, count: 1 } }, // 20 wheat → 1 emerald
-    { give: [103, 1], receive: { block: MC_BLOCKS.BREAD, count: 3 } },       // 1 emerald → 3 bread
-    { give: [MC_BLOCKS.WHEAT_SEEDS, 10], receive: { block: 103, count: 1 } },
+    { give: [76, 20], receive: { block: 103, count: 1 } }, // 20 wheat → 1 emerald
+    { give: [103, 1], receive: { block: 79, count: 3 } },       // 1 emerald → 3 bread
+    { give: [75, 10], receive: { block: 103, count: 1 } },
   ],
   butcher: [
-    { give: [MC_BLOCKS.RAW_BEEF, 10], receive: { block: 103, count: 1 } },
-    { give: [103, 1], receive: { block: MC_BLOCKS.COOKED_BEEF, count: 5 } },
-    { give: [MC_BLOCKS.RAW_PORKCHOP, 10], receive: { block: 103, count: 1 } },
+    { give: [55, 10], receive: { block: 103, count: 1 } },
+    { give: [103, 1], receive: { block: 61, count: 5 } },
+    { give: [56, 10], receive: { block: 103, count: 1 } },
   ],
   blacksmith: [
-    { give: [MC_BLOCKS.IRON_INGOT, 4], receive: { block: 103, count: 1 } },
-    { give: [103, 3], receive: { block: MC_BLOCKS.IRON_INGOT, count: 2 } },
-    { give: [MC_BLOCKS.DIAMOND_ORE, 2], receive: { block: 103, count: 5 } },
+    { give: [65, 4], receive: { block: 103, count: 1 } },
+    { give: [103, 3], receive: { block: 65, count: 2 } },
+    { give: [20, 2], receive: { block: 103, count: 5 } },
   ],
   librarian: [
     { give: [102, 1], receive: { block: 103, count: 1 } }, // book → emerald

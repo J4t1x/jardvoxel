@@ -3,7 +3,7 @@
 // SPEC-042: Health & Hunger System
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS, MOB_BLOCK_IDS, FOOD_BLOCKS } from './jardvoxel-survival-mobs.js';
+import { MOB_BLOCK_IDS, FOOD_BLOCKS } from './jardvoxel-survival-mobs.js';
 
 export class HealthHungerSystem {
   constructor() {
@@ -63,7 +63,7 @@ export class HealthHungerSystem {
     return !!FOOD_BLOCKS[blockId];
   }
 
-  update(dt, inWater, sprinting) {
+  update(dt, inWater, sprinting, waterBreathing = false) {
     if (this.creativeMode || this.dead) return;
     this.damageFlash = Math.max(0, this.damageFlash - dt);
 
@@ -103,7 +103,7 @@ export class HealthHungerSystem {
     }
 
     // Drowning
-    if (inWater) {
+    if (inWater && !waterBreathing) {
       this.drownTimer += dt;
       if (this.drownTimer >= 30) {
         if (Math.floor(this.drownTimer) % 2 === 0) {

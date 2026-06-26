@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
-import { FISHING_BLOCKS, FISHING_COOKING } from './jardvoxel-survival-fishing.js';
+import { FISHING_BLOCKS } from './jardvoxel-survival-fishing.js';
 
 // Smelting recipes: input -> output + cook time (seconds)
 export const SMELTING_RECIPES = {

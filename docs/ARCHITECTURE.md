@@ -442,3 +442,223 @@ jardvoxel-survival-weather.js
 63: Cooked Chicken 64: Cooked Mutton  65: Iron Ingot
 66: Gold Ingot
 ```
+
+## Survival Systems v4.1.0 (SPEC-051 to SPEC-056)
+
+### Tools & Armor (SPEC-051)
+```
+jardvoxel-survival-tools.js
+  ├── ToolItem
+  │     ├── blockId, durability, maxDurability, enchantments
+  │     ├── Tool types: pickaxe, axe, shovel, sword
+  │     ├── Material tiers: wood (60), stone (130), iron (250), diamond (1560)
+  │     ├── Mining speed multiplier (2x-10x) when correct tool matches block
+  │     ├── Sword damage bonus by material (1-8)
+  │     ├── takeDamage() on use, isBroken()
+  │     └── serialize/deserialize
+  ├── EquipmentManager
+  │     ├── Equipped tool slot + 4 armor slots (helmet, chest, legs, boots)
+  │     ├── Armor damage reduction: 8%+12%+10%+4% (max 80% total)
+  │     ├── Durability consumption on mine and player hit
+  │     └── serialize/deserialize
+  ├── TOOL_MAP: blockId → { type, material }
+  ├── ARMOR_MAP: blockId → slot
+  └── ARMOR_SLOTS: ['helmet', 'chestplate', 'leggings', 'boots']
+```
+
+### Experience & Enchanting (SPEC-052)
+```
+jardvoxel-survival-enchanting.js
+  ├── XPManager
+  │     ├── XP orbs with gravity + float-to-player (3 blocks)
+  │     ├── Level system: cost = (level+1) × 10
+  │     ├── XP drops: coal(1), iron(2), gold(3), diamond(5)
+  │     └── serialize/deserialize
+  ├── EnchantManager
+  │     ├── 3 random options per roll at enchanting table
+  │     ├── 5 enchantments: Efficiency, Unbreaking, Sharpness, Protection, Fortune
+  │     └── One enchantment per item (simplified)
+  └── Blocks: Enchanting Table(100), Lapis Block(101), Book(102)
+```
+
+### Villager NPCs & Trading (SPEC-053)
+```
+jardvoxel-survival-villagers.js
+  ├── Villager
+  │     ├── Wandering AI, gravity, collision
+  │     ├── 4 professions: Farmer, Butcher, Blacksmith, Librarian
+  │     ├── Box-based 3D model (body, head, hat)
+  │     └── Profession colors + hat colors
+  ├── VillagerManager
+  │     ├── Spawn, update loop, nearby detection
+  │     └── serialize/deserialize
+  ├── TradingManager
+  │     ├── Trade UI with give/receive system
+  │     ├── Trade execution with inventory check
+  │     └── Profession-specific trade definitions
+  └── Items: Emerald(103), Villager Spawn Egg(104)
+```
+
+### Fishing System (SPEC-054)
+```
+jardvoxel-survival-fishing.js
+  ├── FishingManager
+  │     ├── 5-state machine: Idle → Casting → Waiting → Biting → Reeling
+  │     ├── Raycast to find water (max 30 blocks)
+  │     ├── Bobber mesh: arc cast, bobbing, dip on bite
+  │     ├── Random wait 3-15s, 1.5s bite window
+  │     └── Weighted catch table: Fish(60%), Pufferfish(15%), Bones(10%), Ink(8%), String(5%), Leather(2%)
+  └── Items: Fishing Rod(105), Raw Fish(106), Cooked Fish(107), Pufferfish(108), Ink Sac(109)
+```
+
+### Nether Dimension (SPEC-055)
+```
+jardvoxel-survival-nether.js
+  ├── NetherGenerator
+  │     ├── Noise-based terrain with netherrack floor/ceiling
+  │     ├── Soul sand patches, quartz ore, glowstone deposits
+  │     └── Lava pockets
+  ├── PortalManager
+  │     ├── Portal location tracking
+  │     └── Dimension switching (overworld ↔ nether)
+  └── Blocks (110-119): Netherrack, Nether Brick, Soul Sand, Glowstone,
+      Nether Quartz Ore, Lava, Portal, Quartz, Blaze Rod, Nether Wart
+```
+
+### Redstone Basics (SPEC-056)
+```
+jardvoxel-survival-redstone.js
+  ├── RedstoneManager
+  │     ├── Power propagation system with BFS queue
+  │     ├── Power level 0-15, decrements by 1 per dust block
+  │     ├── Lever toggle: activates/deactivates network
+  │     ├── 6-directional neighbor checking for dust
+  │     ├── isPowered() / getPower() queries
+  │     └── Piston activation + lamp toggle
+  └── Blocks (120-125): Redstone Dust, Redstone Torch, Lever,
+      Piston, Redstone Lamp, Redstone Repeater
+```
+
+## Survival Systems v4.2.0 (SPEC-057 to SPEC-066)
+
+### ChillTune Music Engine (SPEC-057)
+```
+jardvoxel-survival-chilltune.js
+  ├── ChillTuneEngine
+  │     ├── Procedural 8-bit chiptune via Web Audio API
+  │     ├── 5 modal scales: Dorian, Aeolian, Lydian, Phrygian, Pentatonic
+  │     ├── 7 game states: exploring, building, mining, combat, night, underwater, idle
+  │     ├── 3-layer synthesis: drone (root+LFO), melody (weighted random), arpeggio
+  │     ├── Crossfade transitions (3-8s), no abrupt cuts
+  │     ├── Reverb node + breath LFO for organic feel
+  │     ├── Scheduler: 30ms lookahead timer, 150ms schedule-ahead
+  │     ├── Independent music volume (default 0.35), localStorage persistence
+  │     └── Zero external dependencies (pure Web Audio API)
+  └── State detection: playerY, moving, inWater, inCombat, timeOfDay
+```
+
+### Brewing & Potions (SPEC-062)
+```
+jardvoxel-survival-brewing.js
+  ├── BrewingManager
+  │     ├── 3-stage brewing: Water Bottle → Awkward Potion → Specific Potion → Splash
+  │     ├── 7 stage-2 recipes (Speed, Strength, Healing, Night Vision, Fire Resistance, Regeneration, Water Breathing)
+  │     ├── Stage 3: Potion + Gunpowder → Splash Potion
+  │     └── Brew time: 20s per stage
+  ├── PotionEffectManager
+  │     ├── 7 effects with apply/remove/tick callbacks
+  │     ├── Speed (180s, +20% speed), Strength (180s, +3 dmg)
+  │     ├── Instant Healing (4 HP), Night Vision (180s)
+  │     ├── Fire Resistance (180s), Regeneration (45s, 1 HP/s)
+  │     └── Water Breathing (180s)
+  └── Blocks (126-140): Brewing Stand, Glass Bottle, Cauldron, Water Bottle,
+      Awkward Potion, 7 Potions, Splash Potion, Blaze Powder, Sugar
+```
+
+### Shields & Combat Defense (SPEC-063)
+```
+jardvoxel-survival-shields.js
+  ├── ShieldItem
+  │     ├── Durability tracking (336 max)
+  │     ├── Banner color customization
+  │     └── serialize/deserialize
+  ├── ShieldManager
+  │     ├── Blocking: 120-degree frontal cone
+  │     ├── Shield disable: 10% chance on axe hit, 5s disable
+  │     ├── Shield bash: 2.0 range, 3.0 knockback
+  │     ├── Speed multiplier 0.5 while blocking
+  │     └── tryBlockHit(attackDir) → boolean
+  └── Blocks: Shield(151), Banner(152)
+```
+
+### Achievements System (SPEC-064)
+```
+jardvoxel-survival-achievements.js
+  ├── AchievementManager
+  │     ├── 30 achievements across 8 categories
+  │     ├── Categories: mining, building, combat, exploration, crafting, survival, farming, redstone
+  │     ├── Stat tracking: blocksBroken, blocksPlaced, mobsKilled, distanceTraveled, foodsEaten, cropsHarvested, fishCaught, potionsBrewed, potionsDrunk, hitsBlocked
+  │     ├── Toast notification queue with slide-in animation
+  │     ├── unlock(id) → checks criteria, shows toast
+  │     └── serialize/deserialize for save system
+  └── ACHIEVEMENTS: 30 achievement definitions with icon, name, desc, category
+```
+
+### Anvil & Item Repair (SPEC-065)
+```
+jardvoxel-survival-anvil.js
+  ├── AnvilManager
+  │     ├── 3 operations: rename, material repair, tool combination
+  │     ├── Rename: custom name (max 30 chars), 1 XP level
+  │     ├── Material repair: 25% max durability per material unit
+  │     ├── Tool combination: merge durability + 10% bonus, merge enchantments
+  │     ├── Anvil damage states (0-2), 25 max uses
+  │     ├── Fall damage (2-6 HP) when dropped on entities
+  │     ├── REPAIR_MATERIALS: wood→planks, stone→cobblestone, iron→iron_ingot, diamond→diamond_ore
+  │     └── calculateResult(xpLevel) → output item or null
+  └── Block: Anvil(153)
+```
+
+### Map & Cartography (SPEC-066)
+```
+jardvoxel-survival-map.js
+  ├── MapManager
+  │     ├── Map data: RGBA pixel buffer (Uint8ClampedArray)
+  │     ├── 4 tier sizes: 128, 256, 512, 1024 blocks
+  │     ├── Block color mapping for 20+ block types
+  │     ├── Exploration tracking: unexplored = black, updates every 4 blocks
+  │     ├── createMap(centerX, centerZ, tier)
+  │     ├── updateFromWorld(world, playerX, playerZ) → render terrain to canvas
+  │     └── Map upgrade via cartography table
+  ├── Blocks: Map(154), Compass(155), Cartography Table(156)
+  └── Crafting: Compass (iron+redstone), Map (paper+compass), Cartography Table (planks+paper)
+```
+
+### Module Dependency Graph (v4.2.0)
+```
+jardvoxel-survival.html
+  ├── jardvoxel-survival-gameplay.js
+  │     ├── jardvoxel-survival-engine.js
+  │     ├── jardvoxel-survival-mesher.js
+  │     │     ├── jardvoxel-survival-tools.js
+  │     │     ├── jardvoxel-survival-enchanting.js
+  │     │     ├── jardvoxel-survival-villagers.js
+  │     │     ├── jardvoxel-survival-fishing.js
+  │     │     ├── jardvoxel-survival-nether.js
+  │     │     ├── jardvoxel-survival-redstone.js
+  │     │     ├── jardvoxel-survival-brewing.js → nether.js
+  │     │     ├── jardvoxel-survival-shields.js
+  │     │     ├── jardvoxel-survival-anvil.js → tools.js
+  │     │     └── jardvoxel-survival-map.js
+  │     └── jardvoxel-survival-features.js → nether.js
+  ├── jardvoxel-survival-crafting.js
+  ├── jardvoxel-survival-save.js
+  ├── jardvoxel-survival-particles.js
+  ├── jardvoxel-survival-mobs.js
+  ├── jardvoxel-survival-health.js
+  ├── jardvoxel-survival-furnace.js
+  ├── jardvoxel-survival-weather.js
+  ├── jardvoxel-survival-chilltune.js
+  ├── jardvoxel-survival-achievements.js
+  └── jardvoxel-survival-worker.js
+```

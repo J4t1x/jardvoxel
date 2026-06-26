@@ -9,6 +9,10 @@ import { ENCHANT_RECIPES } from './jardvoxel-survival-enchanting.js';
 import { FISHING_RECIPES } from './jardvoxel-survival-fishing.js';
 import { NETHER_RECIPES } from './jardvoxel-survival-nether.js';
 import { REDSTONE_RECIPES } from './jardvoxel-survival-redstone.js';
+import { BREWING_CRAFT_RECIPES, BREWING_BLOCKS } from './jardvoxel-survival-brewing.js';
+import { SHIELD_RECIPES, SHIELD_BLOCKS } from './jardvoxel-survival-shields.js';
+import { ANVIL_RECIPES, ANVIL_BLOCKS } from './jardvoxel-survival-anvil.js';
+import { MAP_RECIPES, MAP_BLOCKS } from './jardvoxel-survival-map.js';
 
 // Crafting Table block ID (extends MC_BLOCKS)
 export const CRAFTING_TABLE = 51;
@@ -109,6 +113,18 @@ export const RECIPES = [
 
   // Redstone (SPEC-056)
   ...REDSTONE_RECIPES,
+
+  // Brewing (SPEC-062)
+  ...BREWING_CRAFT_RECIPES,
+
+  // Shields (SPEC-063)
+  ...SHIELD_RECIPES,
+
+  // Anvil (SPEC-065)
+  ...ANVIL_RECIPES,
+
+  // Map & Cartography (SPEC-066)
+  ...MAP_RECIPES,
 ];
 
 // Tag mappings for pattern matching
@@ -128,6 +144,11 @@ const TAG_MAP = {
   'book': 102,
   'redstone_dust': 120,
   'quartz': 117,
+  'blaze_rod': 118,
+  'glass': MC_BLOCKS.GLASS,
+  'blaze_powder': BREWING_BLOCKS.BLAZE_POWDER,
+  'paper': MC_BLOCKS.BAMBOO,
+  'compass': MAP_BLOCKS.COMPASS,
 };
 
 function blockMatchesTag(block, tag) {

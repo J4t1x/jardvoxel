@@ -143,21 +143,214 @@ Los siguientes bloques usan patron de vetas procedural sobre fondo de stone:
 - Fluid springs generan lava en paredes de cuevas (y ≤ 10)
 - Lava lakes en superficie en areas muy bajas (raro)
 
-## Bloques del Motor survival (jardvoxel-survival-engine.js)
+## Bloques del Motor Survival (jardvoxel-survival-mesher.js)
 
-IDs simplificados:
+### Bloques Base (IDs 0-8)
 
-| ID | Tipo |
-|----|------|
-| 0 | air |
-| 1 | stone |
-| 2 | grass |
-| 3 | dirt |
-| 4 | sand |
-| 5 | water |
-| 6 | lava |
-| 7 | snow |
-| 8 | mud |
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 0 | Air | — | — |
+| 1 | Stone | 0.50, 0.50, 0.52 | 1.0 |
+| 2 | Grass | 0.35, 0.72, 0.25 | 0.3 |
+| 3 | Dirt | 0.55, 0.40, 0.25 | 0.3 |
+| 4 | Sand | 0.93, 0.83, 0.55 | 0.3 |
+| 5 | Water | 0.15, 0.40, 0.70 | — |
+| 6 | Lava | 0.90, 0.35, 0.05 | — |
+| 7 | Snow | 0.92, 0.92, 0.96 | 0.2 |
+| 8 | Mud | 0.40, 0.35, 0.20 | 0.3 |
+
+### Bloques Extendidos (IDs 9-79, SPEC-002/041/043)
+
+| ID | Nombre | Color RGB | Hardness | Spec |
+|----|--------|-----------|----------|------|
+| 9 | Oak Log | 0.45, 0.30, 0.15 | 0.8 | SPEC-002 |
+| 10 | Oak Leaves | 0.15, 0.50, 0.15 | 0.2 | SPEC-002 |
+| 11 | Birch Log | 0.82, 0.78, 0.62 | 0.8 | SPEC-002 |
+| 12 | Birch Leaves | 0.20, 0.55, 0.20 | 0.2 | SPEC-002 |
+| 13 | Spruce Log | 0.25, 0.18, 0.12 | 0.8 | SPEC-002 |
+| 14 | Spruce Leaves | 0.10, 0.35, 0.15 | 0.2 | SPEC-002 |
+| 15 | Jungle Log | 0.30, 0.25, 0.10 | 0.8 | SPEC-002 |
+| 16 | Jungle Leaves | 0.10, 0.52, 0.10 | 0.2 | SPEC-002 |
+| 17 | Coal Ore | 0.25, 0.25, 0.25 | 1.5 | SPEC-002 |
+| 18 | Iron Ore | 0.65, 0.55, 0.40 | 1.5 | SPEC-002 |
+| 19 | Gold Ore | 0.80, 0.65, 0.15 | 1.5 | SPEC-002 |
+| 20 | Diamond Ore | 0.30, 0.85, 0.85 | 1.8 | SPEC-002 |
+| 21 | Cobblestone | 0.45, 0.45, 0.47 | 1.0 | SPEC-002 |
+| 22 | Planks | 0.65, 0.45, 0.25 | 0.8 | SPEC-002 |
+| 23 | Glass | 0.80, 0.90, 0.95 | 0.3 | SPEC-002 |
+| 24 | Bricks | 0.60, 0.35, 0.30 | 1.0 | SPEC-002 |
+| 25 | Torch | 0.90, 0.55, 0.15 | 0.1 | SPEC-002 |
+| 26 | Lantern | 0.95, 0.75, 0.25 | 0.3 | SPEC-002 |
+| 27 | Cactus | 0.30, 0.55, 0.25 | 0.3 | SPEC-002 |
+| 28 | Flower Red | 0.85, 0.25, 0.20 | 0.1 | SPEC-002 |
+| 29 | Flower Yellow | 0.90, 0.80, 0.20 | 0.1 | SPEC-002 |
+| 30 | Tall Grass | 0.38, 0.62, 0.25 | 0.1 | SPEC-002 |
+| 31 | Fern | 0.30, 0.55, 0.20 | 0.1 | SPEC-002 |
+| 32 | Dead Bush | 0.50, 0.35, 0.20 | 0.1 | SPEC-002 |
+| 33 | Mossy Cobble | 0.35, 0.45, 0.30 | 1.0 | SPEC-002 |
+| 34 | Sandstone | 0.88, 0.78, 0.50 | 0.8 | SPEC-002 |
+| 35 | Gravel | 0.48, 0.45, 0.42 | 0.5 | SPEC-002 |
+| 36 | Clay | 0.70, 0.70, 0.75 | 0.5 | SPEC-002 |
+| 37 | Obsidian | 0.08, 0.06, 0.14 | 3.0 | SPEC-002 |
+| 38 | Bedrock | 0.20, 0.20, 0.22 | Infinity | SPEC-002 |
+| 39 | Snow Block | 0.92, 0.92, 0.96 | 0.2 | SPEC-002 |
+| 40 | Ice | 0.60, 0.80, 0.95 | 0.3 | SPEC-002 |
+| 41 | Packed Ice | 0.55, 0.75, 0.92 | 0.5 | SPEC-002 |
+| 42 | Mycelium | 0.55, 0.50, 0.58 | 0.3 | SPEC-002 |
+| 43 | Moss | 0.25, 0.45, 0.20 | 0.1 | SPEC-002 |
+| 44 | Bamboo | 0.55, 0.70, 0.25 | 0.1 | SPEC-002 |
+| 45 | Granite | 0.62, 0.40, 0.35 | 1.2 | SPEC-002 |
+| 46 | Andesite | 0.52, 0.52, 0.55 | 1.1 | SPEC-002 |
+| 47 | Diorite | 0.78, 0.75, 0.72 | 1.1 | SPEC-002 |
+| 48 | Bookshelf | 0.65, 0.45, 0.25 | 0.8 | SPEC-002 |
+| 49 | Pumpkin | 0.85, 0.55, 0.15 | 0.5 | SPEC-002 |
+| 50 | Melon | 0.55, 0.75, 0.30 | 0.5 | SPEC-002 |
+| 51 | Crafting Table | 0.60, 0.40, 0.20 | 1.0 | SPEC-002 |
+| 52 | Stick | 0.65, 0.45, 0.25 | 0.1 | SPEC-002 |
+| 53 | Furnace | 0.40, 0.40, 0.42 | 1.5 | SPEC-043 |
+| 54 | Leather | 0.70, 0.50, 0.30 | 0.1 | SPEC-041 |
+| 55 | Raw Beef | 0.80, 0.40, 0.30 | 0.1 | SPEC-041 |
+| 56 | Raw Porkchop | 0.90, 0.60, 0.50 | 0.1 | SPEC-041 |
+| 57 | Feather | 0.90, 0.90, 0.90 | 0.1 | SPEC-041 |
+| 58 | Raw Chicken | 0.85, 0.70, 0.50 | 0.1 | SPEC-041 |
+| 59 | Wool | 0.90, 0.90, 0.90 | 0.3 | SPEC-041 |
+| 60 | Raw Mutton | 0.85, 0.60, 0.50 | 0.1 | SPEC-041 |
+| 61 | Cooked Beef | 0.60, 0.35, 0.20 | 0.1 | SPEC-041 |
+| 62 | Cooked Porkchop | 0.70, 0.45, 0.30 | 0.1 | SPEC-041 |
+| 63 | Cooked Chicken | 0.90, 0.75, 0.50 | 0.1 | SPEC-041 |
+| 64 | Cooked Mutton | 0.70, 0.50, 0.35 | 0.1 | SPEC-041 |
+| 65 | Iron Ingot | 0.80, 0.80, 0.85 | 0.1 | SPEC-043 |
+| 66 | Gold Ingot | 0.85, 0.70, 0.20 | 0.1 | SPEC-043 |
+| 67 | Rotten Flesh | 0.60, 0.50, 0.40 | 0.1 | SPEC-041 |
+| 68 | Bones | 0.85, 0.85, 0.80 | 0.1 | SPEC-041 |
+| 69 | Arrow | 0.70, 0.70, 0.65 | 0.1 | SPEC-041 |
+| 70 | Gunpowder | 0.30, 0.30, 0.30 | 0.1 | SPEC-041 |
+| 71 | String | 0.85, 0.80, 0.70 | 0.1 | SPEC-041 |
+| 72 | Bow | 0.55, 0.40, 0.25 | 0.1 | SPEC-041 |
+| 73 | *(reserved)* | — | — | — |
+| 74 | Bed | 0.80, 0.50, 0.40 | 0.1 | SPEC-044 |
+| 75 | Wheat Seeds | 0.60, 0.50, 0.20 | 0.1 | SPEC-044 |
+| 76 | Wheat Crop | 0.80, 0.70, 0.20 | 0.1 | SPEC-044 |
+| 77 | Farmland | 0.50, 0.35, 0.20 | 0.5 | SPEC-044 |
+| 78 | Hoe | 0.65, 0.45, 0.25 | 0.1 | SPEC-044 |
+| 79 | Bread | 0.80, 0.65, 0.35 | 0.1 | SPEC-044 |
+
+### Tools & Armor (IDs 80-99, SPEC-051)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 80 | Wood Pickaxe | 0.65, 0.45, 0.25 | 0.2 |
+| 81 | Stone Pickaxe | 0.50, 0.50, 0.52 | 0.2 |
+| 82 | Iron Pickaxe | 0.80, 0.80, 0.85 | 0.2 |
+| 83 | Diamond Pickaxe | 0.30, 0.85, 0.85 | 0.2 |
+| 84 | Wood Axe | 0.65, 0.45, 0.25 | 0.2 |
+| 85 | Stone Axe | 0.50, 0.50, 0.52 | 0.2 |
+| 86 | Iron Axe | 0.80, 0.80, 0.85 | 0.2 |
+| 87 | Diamond Axe | 0.30, 0.85, 0.85 | 0.2 |
+| 88 | Wood Shovel | 0.65, 0.45, 0.25 | 0.2 |
+| 89 | Stone Shovel | 0.50, 0.50, 0.52 | 0.2 |
+| 90 | Iron Shovel | 0.80, 0.80, 0.85 | 0.2 |
+| 91 | Diamond Shovel | 0.30, 0.85, 0.85 | 0.2 |
+| 92 | Wood Sword | 0.65, 0.45, 0.25 | 0.2 |
+| 93 | Stone Sword | 0.50, 0.50, 0.52 | 0.2 |
+| 94 | Iron Sword | 0.80, 0.80, 0.85 | 0.2 |
+| 95 | Diamond Sword | 0.30, 0.85, 0.85 | 0.2 |
+| 96 | Iron Helmet | 0.75, 0.75, 0.80 | 0.3 |
+| 97 | Iron Chestplate | 0.75, 0.75, 0.80 | 0.3 |
+| 98 | Iron Leggings | 0.75, 0.75, 0.80 | 0.3 |
+| 99 | Iron Boots | 0.75, 0.75, 0.80 | 0.3 |
+
+### Enchanting (IDs 100-102, SPEC-052)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 100 | Enchanting Table | 0.30, 0.10, 0.50 | 2.0 |
+| 101 | Lapis Block | 0.15, 0.30, 0.80 | 1.0 |
+| 102 | Book | 0.85, 0.75, 0.50 | 0.2 |
+
+### Villager Items (IDs 103-104, SPEC-053)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 103 | Emerald | 0.10, 0.80, 0.50 | 0.2 |
+| 104 | Villager Spawn Egg | 0.90, 0.70, 0.30 | 0.1 |
+
+### Fishing Items (IDs 105-109, SPEC-054)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 105 | Fishing Rod | 0.45, 0.35, 0.20 | 0.1 |
+| 106 | Raw Fish | 0.70, 0.60, 0.40 | 0.1 |
+| 107 | Cooked Fish | 0.85, 0.75, 0.50 | 0.1 |
+| 108 | Pufferfish | 0.80, 0.70, 0.10 | 0.1 |
+| 109 | Ink Sac | 0.10, 0.10, 0.10 | 0.1 |
+
+### Nether Blocks (IDs 110-119, SPEC-055)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 110 | Netherrack | 0.35, 0.15, 0.15 | 0.5 |
+| 111 | Nether Brick | 0.25, 0.10, 0.10 | 1.0 |
+| 112 | Soul Sand | 0.30, 0.25, 0.15 | 0.5 |
+| 113 | Glowstone | 0.90, 0.75, 0.30 | 0.3 |
+| 114 | Nether Quartz Ore | 0.40, 0.35, 0.30 | 1.0 |
+| 115 | Lava (Nether) | 0.80, 0.30, 0.10 | — |
+| 116 | Obsidian Portal | 0.20, 0.10, 0.40 | — |
+| 117 | Quartz | 0.85, 0.85, 0.80 | 0.5 |
+| 118 | Blaze Rod | 0.80, 0.50, 0.15 | 0.1 |
+| 119 | Nether Wart | 0.60, 0.15, 0.15 | 0.1 |
+
+### Redstone Blocks (IDs 120-125, SPEC-056)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 120 | Redstone Dust | 0.70, 0.10, 0.10 | 0.1 |
+| 121 | Redstone Torch | 0.90, 0.20, 0.10 | 0.1 |
+| 122 | Lever | 0.50, 0.35, 0.20 | 0.1 |
+| 123 | Piston | 0.60, 0.55, 0.45 | 1.5 |
+| 124 | Redstone Lamp | 0.85, 0.70, 0.30 | 0.3 |
+| 125 | Redstone Repeater | 0.70, 0.15, 0.15 | 0.1 |
+
+### Brewing & Potions (IDs 126-140, SPEC-062)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 126 | Brewing Stand | 0.40, 0.35, 0.30 | 0.5 |
+| 127 | Glass Bottle | 0.85, 0.90, 0.95 | 0.1 |
+| 128 | Cauldron | 0.35, 0.35, 0.38 | 1.5 |
+| 129 | Water Bottle | 0.50, 0.60, 0.80 | 0.1 |
+| 130 | Awkward Potion | 0.70, 0.50, 0.50 | 0.1 |
+| 131 | Potion of Speed | 0.30, 0.85, 0.30 | 0.1 |
+| 132 | Potion of Strength | 0.85, 0.30, 0.30 | 0.1 |
+| 133 | Potion of Healing | 0.90, 0.30, 0.50 | 0.1 |
+| 134 | Potion of Night Vision | 0.30, 0.40, 0.90 | 0.1 |
+| 135 | Potion of Fire Resistance | 0.85, 0.50, 0.20 | 0.1 |
+| 136 | Potion of Regeneration | 0.90, 0.70, 0.30 | 0.1 |
+| 137 | Splash Potion of Healing | 0.90, 0.30, 0.50 | 0.1 |
+| 138 | Potion of Water Breathing | 0.30, 0.60, 0.90 | 0.1 |
+| 139 | Blaze Powder | 0.90, 0.60, 0.20 | 0.1 |
+| 140 | Sugar | 0.95, 0.90, 0.80 | 0.1 |
+
+### Shields & Banners (IDs 151-152, SPEC-063)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 151 | Shield | 0.50, 0.35, 0.20 | 0.1 |
+| 152 | Banner | 0.80, 0.20, 0.20 | 0.1 |
+
+### Anvil (ID 153, SPEC-065)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 153 | Anvil | 0.30, 0.30, 0.32 | 5.0 |
+
+### Map & Cartography (IDs 154-156, SPEC-066)
+
+| ID | Nombre | Color RGB | Hardness |
+|----|--------|-----------|----------|
+| 154 | Map | 0.85, 0.80, 0.60 | 0.1 |
+| 155 | Compass | 0.80, 0.80, 0.85 | 0.1 |
+| 156 | Cartography Table | 0.65, 0.45, 0.25 | 1.0 |
 
 ## Shading de Caras
 
