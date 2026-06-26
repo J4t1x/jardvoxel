@@ -62,6 +62,25 @@ export class SurvivalWorld {
         this._rebuildChunkMesh(cx, cz - 1);
         this._rebuildChunkMesh(cx, cz + 1);
       };
+      this.worker.onerror = (err) => {
+        console.warn('Worker error, falling back to sync:', err.message || err);
+        this.worker = null;
+        this.workerSupported = false;
+        // Re-process all pending chunks synchronously
+        const pending = Array.from(this.pendingChunks);
+        this.pendingChunks.clear();
+        for (const key of pending) {
+          const [cx, cz] = key.split(',').map(Number);
+          const chunk = this._getOrCreateChunk(cx, cz);
+          generateChunkWithFeatures(chunk, this);
+          if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
+          this._rebuildChunkMesh(cx, cz);
+          this._rebuildChunkMesh(cx - 1, cz);
+          this._rebuildChunkMesh(cx + 1, cz);
+          this._rebuildChunkMesh(cx, cz - 1);
+          this._rebuildChunkMesh(cx, cz + 1);
+        }
+      };
       this.worker.postMessage({ type: 'init', seed: this.seed });
     } catch (err) {
       console.warn('Worker init failed, falling back to sync:', err);

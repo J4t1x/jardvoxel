@@ -3,6 +3,7 @@
 // Fishing rod, bobber, catches, cooking
 // ═══════════════════════════════════════════════════════════
 
+import * as THREE from 'three';
 // MC_BLOCKS values inlined to avoid circular dependency with mesher.js
 
 // New block IDs for fishing items

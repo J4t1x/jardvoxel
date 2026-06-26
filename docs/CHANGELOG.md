@@ -1,5 +1,28 @@
 # JardVoxel — Changelog
 
+## v5.0.1 — 26 Junio 2026 — Mobile Menu System for jardvoxel.html (SPEC-063)
+
+### SPEC-063: Game Menu + Settings Expansion — jardvoxel.html
+- **Main Menu** (`#main-menu`): pantalla inicial con título gradient, 3 botones (Jugar, Opciones, Créditos), versión + seed
+- **Settings Menu** (`#settings-menu`) con 4 tabs funcionales:
+  - **Gráficos**: render distance (2-8), FOV (60-110), clouds toggle, fog toggle, shadows toggle, tone mapping toggle
+  - **Audio**: volumen master (0-1), volumen efectos (0-1), volumen ambiente (0-1)
+  - **Controles**: sensibilidad (0.5-4), invertir eje Y toggle
+  - **Gameplay**: dificultad (Pacífico/Fácil/Normal/Difícil), auto-save (off/30s/60s/120s/300s), mostrar FPS/coords/minimapa/reloj/hint toggles
+- **Credits Screen** (`#credits-screen`): versión, tecnologías (Three.js r160, Web Audio API, Vanilla JS, Web Workers), características, desarrollo
+- **Pause Screen** actualizado: 3 botones (Continuar, Opciones, Menú Principal) con confirmación al salir
+- **Settings object** expandido de 4 a 20+ opciones, persistido en `localStorage` (`jardvoxel-settings`)
+- Todos los settings aplican en tiempo real (sliders con evento `input`)
+- **CSS**: `.toggle-switch` (custom CSS switch), `.settings-tabs`, `.tab-btn`, `.tab-content`, `.setting-row`
+- **Responsive HUD**:
+  - Mobile (<600px): hotbar 38px, nombres ocultos, inventario 4 columnas, minimap 80px, tabs scroll horizontal
+  - Tablet (600-1024px): hotbar 44px, inventario 6 columnas
+- Todos los botones mínimo 44px touch area, `touch-action: manipulation`
+- Navegación fluida: main-menu → settings → volver, pause → settings → volver, main-menu ← pause con confirmación
+- `_initMenuSystem()`, `_wireUpSettings()`, `_applyAllSettings()`, `_applyHUDVisibility()`, `_loadSettings()`, `_saveSettings()`
+- `initControls()` modificado: pause screen solo se muestra si `gameStarted === true`
+- Init flow: loading → main-menu (en vez de pause-screen directo)
+
 ## v5.0.0 — Touch Controls, Main Menu, Settings Expansion, Credits, Responsive HUD
 
 ### SPEC-062: Touch Joystick Controls

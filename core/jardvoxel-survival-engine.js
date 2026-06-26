@@ -3,8 +3,6 @@
 // Based on Voxel Wiki: https://voxel-wiki.dev/w/World_generation
 // ═══════════════════════════════════════════════════════════
 
-import * as THREE from 'three';
-
 // ═══════════════════════════════════════════════════════════
 // PRNG — Xorshift128+ (seeded, reproducible)
 // ═══════════════════════════════════════════════════════════

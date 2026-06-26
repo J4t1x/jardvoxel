@@ -680,34 +680,34 @@ canvas{display:block}
 import * as THREE from 'three';
 import {
   SurvivalWorld, PlayerController, Inventory, DayNightCycle, GameAudio,
-} from './jardvoxel-survival-gameplay.js';
-import { generateChunkWithFeatures } from './jardvoxel-survival-features.js';
+} from './core/jardvoxel-survival-gameplay.js';
+import { generateChunkWithFeatures } from './core/jardvoxel-survival-features.js';
 import {
   MC_BLOCKS, MC_BLOCK_COLORS, MC_BLOCK_NAMES, MC_BLOCK_HARDNESS,
   MC_PLACEABLE_BLOCKS, BLOCK,
-} from './jardvoxel-survival-mesher.js';
+} from './core/jardvoxel-survival-mesher.js';
 import {
   BIOMES, BIOME_COLORS, WORLD_MIN_Y, SEA_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
-} from './jardvoxel-survival-engine.js';
-import { CraftingManager } from './jardvoxel-survival-crafting.js';
-import { SaveManager } from './jardvoxel-survival-save.js';
-import { ParticleSystem } from './jardvoxel-survival-particles.js';
-import { MobManager } from './jardvoxel-survival-mobs.js';
-import { HealthHungerSystem } from './jardvoxel-survival-health.js';
-import { FurnaceManager, SMELTING_RECIPES, FUEL_TYPES } from './jardvoxel-survival-furnace.js';
-import { WeatherManager, WEATHER } from './jardvoxel-survival-weather.js';
-import { EquipmentManager, ToolItem, isToolBlock, isArmorBlock, TOOL_MAP, ARMOR_MAP, ARMOR_SLOTS } from './jardvoxel-survival-tools.js';
-import { XPManager, EnchantManager, getXPDropForBlock, ENCHANT_BLOCKS, ENCHANTMENTS, ENCHANT_LIST } from './jardvoxel-survival-enchanting.js';
-import { VillagerManager, TradingManager, VILLAGER_BLOCKS, VILLAGER_PROFESSIONS } from './jardvoxel-survival-villagers.js';
-import { FishingManager, FISHING_BLOCKS } from './jardvoxel-survival-fishing.js';
-import { PortalManager, NetherGenerator, NETHER_BLOCKS } from './jardvoxel-survival-nether.js';
-import { RedstoneManager, REDSTONE_BLOCKS } from './jardvoxel-survival-redstone.js';
-import { ChillTuneEngine } from './jardvoxel-survival-chilltune.js';
-import { BrewingManager, PotionEffectManager, BREWING_BLOCKS, BREWING_RECIPES, POTION_EFFECTS } from './jardvoxel-survival-brewing.js';
-import { ShieldManager, ShieldItem, SHIELD_BLOCKS, SHIELD_RECIPES } from './jardvoxel-survival-shields.js';
-import { AchievementManager, ACHIEVEMENTS } from './jardvoxel-survival-achievements.js';
-import { AnvilManager, ANVIL_BLOCKS, ANVIL_RECIPES } from './jardvoxel-survival-anvil.js';
-import { MapManager, MAP_BLOCKS, MAP_RECIPES, MAP_ITEMS } from './jardvoxel-survival-map.js';
+} from './core/jardvoxel-survival-engine.js';
+import { CraftingManager } from './core/jardvoxel-survival-crafting.js';
+import { SaveManager } from './core/jardvoxel-survival-save.js';
+import { ParticleSystem } from './core/jardvoxel-survival-particles.js';
+import { MobManager } from './core/jardvoxel-survival-mobs.js';
+import { HealthHungerSystem } from './core/jardvoxel-survival-health.js';
+import { FurnaceManager, SMELTING_RECIPES, FUEL_TYPES } from './core/jardvoxel-survival-furnace.js';
+import { WeatherManager, WEATHER } from './core/jardvoxel-survival-weather.js';
+import { EquipmentManager, ToolItem, isToolBlock, isArmorBlock, TOOL_MAP, ARMOR_MAP, ARMOR_SLOTS } from './core/jardvoxel-survival-tools.js';
+import { XPManager, EnchantManager, getXPDropForBlock, ENCHANT_BLOCKS, ENCHANTMENTS, ENCHANT_LIST } from './core/jardvoxel-survival-enchanting.js';
+import { VillagerManager, TradingManager, VILLAGER_BLOCKS, VILLAGER_PROFESSIONS } from './core/jardvoxel-survival-villagers.js';
+import { FishingManager, FISHING_BLOCKS } from './core/jardvoxel-survival-fishing.js';
+import { PortalManager, NetherGenerator, NETHER_BLOCKS } from './core/jardvoxel-survival-nether.js';
+import { RedstoneManager, REDSTONE_BLOCKS } from './core/jardvoxel-survival-redstone.js';
+import { ChillTuneEngine } from './core/jardvoxel-survival-chilltune.js';
+import { BrewingManager, PotionEffectManager, BREWING_BLOCKS, BREWING_RECIPES, POTION_EFFECTS } from './core/jardvoxel-survival-brewing.js';
+import { ShieldManager, ShieldItem, SHIELD_BLOCKS, SHIELD_RECIPES } from './core/jardvoxel-survival-shields.js';
+import { AchievementManager, ACHIEVEMENTS } from './core/jardvoxel-survival-achievements.js';
+import { AnvilManager, ANVIL_BLOCKS, ANVIL_RECIPES } from './core/jardvoxel-survival-anvil.js';
+import { MapManager, MAP_BLOCKS, MAP_RECIPES, MAP_ITEMS } from './core/jardvoxel-survival-map.js';
 
 const BIOME_NAMES = {
   [BIOMES.OCEAN]: 'Ocean', [BIOMES.DEEP_OCEAN]: 'Deep Ocean',
@@ -1024,37 +1024,18 @@ class SurvivalGame {
     this.saveManager = new SaveManager();
     this.blockModifications = new Map();
     this.saveLoaded = false;
-    this.particles = null;
-    this.mobManager = null;
-    this.healthSystem = null;
     this.eatTimer = 0;
-    this.furnaceManager = null;
     this.furnaceUIOpen = false;
     this.activeFurnace = null;
-    this.weatherManager = null;
-    this.equipment = null;
     this.armorSlotsOpen = false;
-    this.xpManager = null;
-    this.enchantManager = null;
     this.enchantUIOpen = false;
     this.xpOrbMeshes = [];
-    this.villagerManager = null;
-    this.tradingManager = null;
     this.tradeUIOpen = false;
-    this.fishingManager = null;
-    this.portalManager = null;
-    this.redstoneManager = null;
-    this.brewingManager = null;
-    this.potionEffectManager = null;
     this.brewingUIOpen = false;
     this.activeBrewingStand = null;
-    this.shieldManager = null;
     this.shieldBlocking = false;
-    this.achievementManager = null;
-    this.anvilManager = null;
     this.anvilUIOpen = false;
     this.activeAnvil = null;
-    this.mapManager = null;
     this.mapOpen = false;
     this.gameStarted = false;
     this.settingsMenuReturnTo = 'main';
@@ -1409,17 +1390,66 @@ class SurvivalGame {
     // Map
     this.mapManager = new MapManager();
 
-    // Spawn a test villager near spawn
-    this.villagerManager.spawnVillager(3, 80, 3, 'farmer');
+    // Generate spawn chunk asynchronously to avoid blocking
+    this._generateSpawnChunkAsync();
+  }
 
-    // Generate spawn chunk synchronously
+  async _generateSpawnChunkAsync() {
+    // Show loading message
+    const loadingMsg = document.getElementById('loading-message');
+    if (loadingMsg) loadingMsg.textContent = 'Generando mundo...';
+
+    // Generate spawn chunk in batches to avoid blocking
     const spawnChunk = this.world._getOrCreateChunk(0, 0);
-    generateChunkWithFeatures(spawnChunk, this.world);
+    
+    // Generate terrain in batches (split by Y layers)
+    const BATCH_SIZE = 64; // Process 64 Y-levels at a time
+    for (let yStart = 0; yStart < 384; yStart += BATCH_SIZE) {
+      await new Promise(resolve => setTimeout(resolve, 0)); // Yield to browser
+      
+      const offsetX = spawnChunk.cx * 16;
+      const offsetZ = spawnChunk.cz * 16;
+      const yEnd = Math.min(yStart + BATCH_SIZE, 384);
+      
+      for (let x = 0; x < 16; x++) {
+        for (let z = 0; z < 16; z++) {
+          for (let y = yStart; y < yEnd; y++) {
+            const worldX = offsetX + x;
+            const worldY = -64 + y;
+            const worldZ = offsetZ + z;
+            const blockType = spawnChunk.worldGen.getBlockType(worldX, worldY, worldZ);
+            const blockId = spawnChunk.blockTypeToId(blockType);
+            const idx = x + z * 16 + y * 16 * 16;
+            spawnChunk.blocks[idx] = blockId;
+          }
+        }
+      }
+      
+      // Update progress
+      const progress = Math.floor((yEnd / 384) * 100);
+      if (loadingMsg) loadingMsg.textContent = `Generando mundo... ${progress}%`;
+    }
+    
     spawnChunk.generated = true;
+    
+    // Generate features (trees, ores, etc.)
+    if (loadingMsg) loadingMsg.textContent = 'Generando vegetación...';
+    await new Promise(resolve => setTimeout(resolve, 0));
+    generateChunkWithFeatures(spawnChunk, this.world);
+    
+    // Build mesh
+    if (loadingMsg) loadingMsg.textContent = 'Construyendo geometría...';
+    await new Promise(resolve => setTimeout(resolve, 0));
     this._applyChunkModifications(0, 0);
     this.world._rebuildChunkMesh(0, 0);
+    
+    // Spawn player and villager
     this.player.spawn();
     this._applySaveData();
+    this.villagerManager.spawnVillager(3, 80, 3, 'farmer');
+
+    // Update loading message
+    if (loadingMsg) loadingMsg.textContent = 'Click para jugar';
   }
 
   initUI() {

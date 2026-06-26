@@ -216,5 +216,3 @@ export class FurnaceManager {
     }
   }
 }
-
-export { SMELTING_RECIPES, FUEL_TYPES };

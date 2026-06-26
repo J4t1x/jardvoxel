@@ -3,7 +3,7 @@
 // Map item, compass, cartography table, map rendering
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS, BLOCK, MC_BLOCK_COLORS } from './jardvoxel-survival-mesher.js';
+// MC_BLOCKS/BLOCK values inlined to avoid circular dependency with mesher.js
 
 // New block IDs
 export const MAP_BLOCKS = {
@@ -61,38 +61,42 @@ export const MAP_RECIPES = [
 export const MAP_TIER_SIZES = [128, 256, 512, 1024];
 
 // Block color mapping for map rendering (simplified)
+// Inlined block IDs to avoid circular dependency
+const BLOCK_AIR = 0;
+const BLOCK_WATER = 5;
+
 const BLOCK_MAP_COLORS = {
-  [BLOCK.GRASS]: [0x4a, 0x8a, 0x3a],
-  [BLOCK.STONE]: [0x80, 0x80, 0x80],
-  [BLOCK.DIRT]: [0x6a, 0x4a, 0x2a],
-  [BLOCK.SAND]: [0xe0, 0xd0, 0x80],
-  [BLOCK.WATER]: [0x20, 0x40, 0xa0],
-  [BLOCK.SNOW]: [0xf0, 0xf0, 0xff],
-  [BLOCK.LAVA]: [0xff, 0x40, 0x00],
-  [MC_BLOCKS.OAK_LOG]: [0x6a, 0x4a, 0x2a],
-  [MC_BLOCKS.OAK_LEAVES]: [0x3a, 0x6a, 0x2a],
-  [MC_BLOCKS.BIRCH_LOG]: [0xd0, 0xc0, 0xa0],
-  [MC_BLOCKS.BIRCH_LEAVES]: [0x5a, 0x8a, 0x3a],
-  [MC_BLOCKS.SPRUCE_LOG]: [0x4a, 0x3a, 0x2a],
-  [MC_BLOCKS.SPRUCE_LEAVES]: [0x2a, 0x5a, 0x3a],
-  [MC_BLOCKS.JUNGLE_LOG]: [0x6a, 0x4a, 0x2a],
-  [MC_BLOCKS.JUNGLE_LEAVES]: [0x3a, 0x7a, 0x2a],
-  [MC_BLOCKS.PLANKS]: [0xb0, 0x90, 0x60],
-  [MC_BLOCKS.COBBLESTONE]: [0x70, 0x70, 0x70],
-  [MC_BLOCKS.GLASS]: [0xa0, 0xc0, 0xe0],
-  [MC_BLOCKS.BRICKS]: [0x80, 0x40, 0x30],
-  [MC_BLOCKS.SANDSTONE]: [0xd0, 0xc0, 0x80],
-  [MC_BLOCKS.OBSIDIAN]: [0x1a, 0x1a, 0x2a],
-  [MC_BLOCKS.IRON_ORE]: [0xa0, 0xa0, 0xa0],
-  [MC_BLOCKS.COAL_ORE]: [0x50, 0x50, 0x50],
-  [MC_BLOCKS.DIAMOND_ORE]: [0x40, 0xc0, 0xc0],
-  [MC_BLOCKS.GOLD_ORE]: [0xd0, 0xb0, 0x20],
-  [MC_BLOCKS.GRAVEL]: [0x70, 0x60, 0x60],
-  [MC_BLOCKS.TORCH]: [0xff, 0xc0, 0x40],
-  [MC_BLOCKS.ICE]: [0x80, 0xb0, 0xe0],
-  [MC_BLOCKS.GRANITE]: [0x90, 0x60, 0x50],
-  [MC_BLOCKS.ANDESITE]: [0x70, 0x70, 0x78],
-  [MC_BLOCKS.DIORITE]: [0xa0, 0xa0, 0xa8],
+  2: [0x4a, 0x8a, 0x3a], // GRASS
+  1: [0x80, 0x80, 0x80], // STONE
+  3: [0x6a, 0x4a, 0x2a], // DIRT
+  4: [0xe0, 0xd0, 0x80], // SAND
+  5: [0x20, 0x40, 0xa0], // WATER
+  7: [0xf0, 0xf0, 0xff], // SNOW
+  6: [0xff, 0x40, 0x00], // LAVA
+  9: [0x6a, 0x4a, 0x2a], // OAK_LOG
+  10: [0x3a, 0x6a, 0x2a], // OAK_LEAVES
+  11: [0xd0, 0xc0, 0xa0], // BIRCH_LOG
+  12: [0x5a, 0x8a, 0x3a], // BIRCH_LEAVES
+  13: [0x4a, 0x3a, 0x2a], // SPRUCE_LOG
+  14: [0x2a, 0x5a, 0x3a], // SPRUCE_LEAVES
+  15: [0x6a, 0x4a, 0x2a], // JUNGLE_LOG
+  16: [0x3a, 0x7a, 0x2a], // JUNGLE_LEAVES
+  22: [0xb0, 0x90, 0x60], // PLANKS
+  21: [0x70, 0x70, 0x70], // COBBLESTONE
+  23: [0xa0, 0xc0, 0xe0], // GLASS
+  24: [0x80, 0x40, 0x30], // BRICKS
+  34: [0xd0, 0xc0, 0x80], // SANDSTONE
+  37: [0x1a, 0x1a, 0x2a], // OBSIDIAN
+  18: [0xa0, 0xa0, 0xa0], // IRON_ORE
+  17: [0x50, 0x50, 0x50], // COAL_ORE
+  20: [0x40, 0xc0, 0xc0], // DIAMOND_ORE
+  19: [0xd0, 0xb0, 0x20], // GOLD_ORE
+  35: [0x70, 0x60, 0x60], // GRAVEL
+  25: [0xff, 0xc0, 0x40], // TORCH
+  40: [0x80, 0xb0, 0xe0], // ICE
+  45: [0x90, 0x60, 0x50], // GRANITE
+  46: [0x70, 0x70, 0x78], // ANDESITE
+  47: [0xa0, 0xa0, 0xa8], // DIORITE
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -159,15 +163,15 @@ export class MapManager {
         if (mapX < 0 || mapX >= map.size || mapZ < 0 || mapZ >= map.size) continue;
 
         // Find top non-air block
-        let topBlock = BLOCK.AIR;
+        let topBlock = BLOCK_AIR;
         for (let y = 100; y >= 0; y--) {
           const b = world.getBlock(x, y, z);
-          if (b !== BLOCK.AIR && b !== BLOCK.WATER) {
+          if (b !== BLOCK_AIR && b !== BLOCK_WATER) {
             topBlock = b;
             break;
           }
-          if (b === BLOCK.WATER) {
-            topBlock = BLOCK.WATER;
+          if (b === BLOCK_WATER) {
+            topBlock = BLOCK_WATER;
             // Keep looking for solid below water
           }
         }

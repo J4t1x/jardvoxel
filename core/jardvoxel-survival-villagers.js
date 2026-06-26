@@ -3,6 +3,7 @@
 // Villager entities, trading system, trades UI
 // ═══════════════════════════════════════════════════════════
 
+import * as THREE from 'three';
 import { MC_BLOCKS } from './jardvoxel-survival-mesher.js';
 
 // New block IDs for villager-related items

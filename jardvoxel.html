@@ -67,6 +67,82 @@ canvas{display:block}
 #death-screen p{color:#ff8888;margin:0.3rem 0}
 #death-screen button{margin-top:1.5rem;padding:12px 32px;font-size:1rem;background:#ff4444;color:#fff;border:none;border-radius:8px;cursor:pointer;pointer-events:auto}
 #death-screen button:hover{background:#cc3333}
+
+/* SPEC-063: Main Menu */
+#main-menu{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:50;pointer-events:auto}
+#main-menu.hidden{display:none}
+#main-menu h1{font-size:2.5rem;margin-bottom:0.5rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+#main-menu .subtitle{color:#8888aa;font-size:0.9rem;margin-bottom:2rem}
+#main-menu .menu-buttons{display:flex;flex-direction:column;gap:1rem;min-width:200px}
+#main-menu button{padding:12px 32px;font-size:1rem;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;transition:background 0.2s;min-height:44px;touch-action:manipulation}
+#main-menu button:hover{background:#6d28d9}
+#main-menu .game-info{margin-top:2rem;color:#666;font-size:0.75rem}
+
+/* SPEC-063: Settings Menu with Tabs */
+#settings-menu{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:50;pointer-events:auto}
+#settings-menu.show{display:flex}
+#settings-menu h2{font-size:1.8rem;margin-bottom:1rem;color:#7C3AED}
+.settings-container{background:rgba(20,20,40,0.9);border-radius:12px;padding:1.5rem;max-width:500px;width:90vw;max-height:80vh;overflow-y:auto}
+.settings-tabs{display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:2px solid #333;padding-bottom:0.5rem}
+.tab-btn{padding:8px 16px;background:transparent;color:#888;border:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:0.85rem;transition:all 0.2s;min-height:44px;touch-action:manipulation;user-select:none}
+.tab-btn.active{background:#7C3AED;color:#fff}
+.tab-btn:hover{color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.setting-row{margin-bottom:1.2rem}
+.setting-row label{display:block;color:#aaa;font-size:0.8rem;margin-bottom:0.4rem}
+.setting-row input[type="range"]{width:100%;accent-color:#7C3AED;height:6px;cursor:pointer}
+.setting-row select{width:100%;padding:8px;background:#1a1a2a;color:#fff;border:1px solid #444;border-radius:6px;font-size:0.85rem;cursor:pointer}
+.setting-row .value-display{display:inline-block;color:#00ff88;font-size:0.8rem;margin-left:0.5rem}
+.toggle-switch{position:relative;display:inline-block;width:50px;height:24px;margin-left:0.5rem}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#444;border-radius:24px;transition:0.3s}
+.toggle-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s}
+input:checked + .toggle-slider{background:#7C3AED}
+input:checked + .toggle-slider:before{transform:translateX(26px)}
+#settings-back{margin-top:1rem;padding:10px 24px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;min-height:44px;touch-action:manipulation}
+#settings-back:hover{background:#555}
+
+/* SPEC-063: Credits Screen */
+#credits-screen{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:50;pointer-events:auto;overflow-y:auto;padding:2rem}
+#credits-screen.show{display:flex}
+#credits-screen h2{font-size:2rem;margin-bottom:0.5rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+#credits-screen .version{color:#888;font-size:0.8rem;margin-bottom:2rem}
+.credits-content{max-width:600px;width:90vw;background:rgba(20,20,40,0.9);border-radius:12px;padding:2rem;max-height:60vh;overflow-y:auto}
+.credits-content h3{color:#7C3AED;font-size:1.2rem;margin-top:1.5rem;margin-bottom:0.8rem}
+.credits-content h3:first-child{margin-top:0}
+.credits-content ul{list-style:none;padding-left:0}
+.credits-content li{color:#aaa;font-size:0.85rem;margin-bottom:0.5rem;padding-left:1rem;position:relative}
+.credits-content li:before{content:"▸";position:absolute;left:0;color:#7C3AED}
+.credits-content p{color:#aaa;font-size:0.85rem;line-height:1.6}
+#credits-back{margin-top:1.5rem;padding:10px 24px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;min-height:44px;touch-action:manipulation}
+#credits-back:hover{background:#6d28d9}
+
+/* SPEC-063: Responsive HUD - Mobile */
+@media (max-width: 600px) {
+  .hotbar-slot{width:38px;height:38px}
+  .hotbar-slot .slot-block{width:22px;height:22px}
+  .hotbar-slot .slot-name{display:none}
+  .hotbar-slot .slot-num{font-size:0.45rem}
+  #info{font-size:0.65rem;padding:6px 8px}
+  #block-info{font-size:0.65rem;padding:6px 8px}
+  #controls-hint{display:none}
+  #minimap{width:80px;height:80px;bottom:70px}
+  #inventory-grid{grid-template-columns:repeat(4,60px);max-height:50vh}
+  .inv-item{width:60px;height:60px}
+  .inv-item-color{width:28px;height:28px}
+  #settings-menu h2{font-size:1.4rem}
+  #main-menu h1{font-size:1.8rem}
+  .settings-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab-btn{white-space:nowrap;flex-shrink:0}
+  .settings-container{width:95vw;padding:1rem}
+}
+
+/* SPEC-063: Responsive HUD - Tablet */
+@media (min-width: 600px) and (max-width: 1024px) {
+  .hotbar-slot{width:44px;height:44px}
+  #inventory-grid{grid-template-columns:repeat(6,65px)}
+}
 </style>
 </head>
 <body>
@@ -109,12 +185,210 @@ canvas{display:block}
   <p id="inventory-hint">Click en un bloque para asignarlo al slot seleccionado · E para cerrar</p>
 </div>
 
+<!-- SPEC-063: Main Menu -->
+<div id="main-menu">
+  <h1>JardVoxel Survival</h1>
+  <p class="subtitle">Mundo voxel con generación procedural</p>
+  <div class="menu-buttons">
+    <button id="play-btn">Jugar</button>
+    <button id="options-btn">Opciones</button>
+    <button id="credits-btn">Créditos</button>
+  </div>
+  <div class="game-info">
+    <p>v5.0.0 · Seed: <span id="seed-display">--</span></p>
+  </div>
+</div>
+
+<!-- SPEC-063: Settings Menu with Tabs -->
+<div id="settings-menu">
+  <div class="settings-container">
+    <h2>Opciones</h2>
+    <div class="settings-tabs">
+      <button class="tab-btn active" data-tab="graphics">Gráficos</button>
+      <button class="tab-btn" data-tab="audio">Audio</button>
+      <button class="tab-btn" data-tab="controls">Controles</button>
+      <button class="tab-btn" data-tab="gameplay">Gameplay</button>
+    </div>
+    
+    <!-- Tab: Graphics -->
+    <div class="tab-content active" id="tab-graphics">
+      <div class="setting-row">
+        <label>Render Distance: <span class="value-display" id="val-render">3</span></label>
+        <input type="range" id="set-render" min="2" max="8" value="3" step="1">
+      </div>
+      <div class="setting-row">
+        <label>FOV: <span class="value-display" id="val-fov">75</span></label>
+        <input type="range" id="set-fov" min="60" max="110" value="75" step="1">
+      </div>
+      <div class="setting-row">
+        <label>Nubes
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-clouds" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Niebla
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-fog" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Sombras
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-shadows" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Tone Mapping
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-tonemapping" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Tab: Audio -->
+    <div class="tab-content" id="tab-audio">
+      <div class="setting-row">
+        <label>Volumen Master: <span class="value-display" id="val-volume">0.5</span></label>
+        <input type="range" id="set-volume" min="0" max="1" value="0.5" step="0.1">
+      </div>
+      <div class="setting-row">
+        <label>Volumen Efectos: <span class="value-display" id="val-sfx">0.8</span></label>
+        <input type="range" id="set-sfx" min="0" max="1" value="0.8" step="0.1">
+      </div>
+      <div class="setting-row">
+        <label>Volumen Ambiente: <span class="value-display" id="val-ambient">0.3</span></label>
+        <input type="range" id="set-ambient" min="0" max="1" value="0.3" step="0.1">
+      </div>
+    </div>
+    
+    <!-- Tab: Controls -->
+    <div class="tab-content" id="tab-controls">
+      <div class="setting-row">
+        <label>Sensibilidad: <span class="value-display" id="val-sensitivity">2.0</span></label>
+        <input type="range" id="set-sensitivity" min="0.5" max="4" value="2.0" step="0.1">
+      </div>
+      <div class="setting-row">
+        <label>Invertir Eje Y
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-invert-y">
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Tab: Gameplay -->
+    <div class="tab-content" id="tab-gameplay">
+      <div class="setting-row">
+        <label>Dificultad</label>
+        <select id="set-difficulty">
+          <option value="peaceful">Pacífico</option>
+          <option value="easy">Fácil</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difícil</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Auto-save</label>
+        <select id="set-autosave">
+          <option value="0">Desactivado</option>
+          <option value="30">30 segundos</option>
+          <option value="60" selected>60 segundos</option>
+          <option value="120">2 minutos</option>
+          <option value="300">5 minutos</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Mostrar FPS
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-show-fps" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Mostrar Coordenadas
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-show-coords" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Mostrar Minimapa
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-show-minimap" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Mostrar Reloj
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-show-clock" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Mostrar Hint de Controles
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-show-hint" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+    </div>
+    
+    <button id="settings-back">Volver</button>
+  </div>
+</div>
+
+<!-- SPEC-063: Credits Screen -->
+<div id="credits-screen">
+  <h2>JardVoxel Survival</h2>
+  <p class="version">v5.0.0</p>
+  <div class="credits-content">
+    <h3>Tecnologías</h3>
+    <ul>
+      <li>Three.js r160 — Renderizado 3D WebGL</li>
+      <li>Web Audio API — Audio procedural sintetizado</li>
+      <li>Vanilla JS — Sin frameworks, sin build tools</li>
+      <li>Web Workers — Generación de chunks en background</li>
+    </ul>
+    <h3>Características</h3>
+    <ul>
+      <li>17 biomas con generación procedural</li>
+      <li>60+ tipos de bloques</li>
+      <li>Ciclo día/noche con sol, luna, estrellas, nubes</li>
+      <li>Agua animada con olas y profundidad</li>
+      <li>Sistema de inventario y crafting</li>
+      <li>Modos creativo y supervivencia</li>
+      <li>Física de colisión y gravedad</li>
+      <li>Sistema de minería con progreso</li>
+    </ul>
+    <h3>Desarrollo</h3>
+    <p>Jard Dev Harness — SDD + automatización</p>
+  </div>
+  <button id="credits-back">Volver</button>
+</div>
+
 <div id="pause-screen">
   <h2>JardVoxel</h2>
   <p>Mundo voxel con cuevas, biomas, arboles y minerales</p>
-  <p>Seed: <span id="seed-display">--</span></p>
-  <p style="margin-top:1rem;color:#00ff88">Click para jugar</p>
+  <p>Seed: <span id="seed-display-pause">--</span></p>
   <button id="resume-btn">Continuar</button>
+  <button id="pause-options-btn">Opciones</button>
+  <button id="main-menu-btn">Menú Principal</button>
 </div>
 
 <script type="importmap">
@@ -132,7 +406,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import {
   WorldGenerator, ChunkManager, VoxelChunk, WATER_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
   BLOCKS, BLOCK_COLORS, BLOCK_NAMES, BIOME_NAMES, BLOCK_HARDNESS, PLACEABLE_BLOCKS
-} from './jardvoxel-engine.js';
+} from './core/jardvoxel-engine.js';
 
 // ═══════════════════════════════════════════════════════════
 // Game — Voxel world with mining, building, day/night
@@ -202,6 +476,34 @@ class Game {
     // SPEC-035: Minimap canvas
     this.minimapCtx = document.getElementById('minimap-canvas').getContext('2d');
     this.dead = false;
+
+    // SPEC-063: Settings with expanded options
+    this.settings = {
+      // Graphics
+      renderDistance: 3,
+      fov: 75,
+      clouds: true,
+      fog: true,
+      shadows: true,
+      toneMapping: true,
+      // Audio
+      volume: 0.5,
+      sfxVolume: 0.8,
+      ambientVolume: 0.3,
+      // Controls
+      sensitivity: 2.0,
+      invertY: false,
+      // Gameplay
+      difficulty: 'normal',
+      autoSaveInterval: 60,
+      showFPS: true,
+      showCoords: true,
+      showMinimap: true,
+      showClock: true,
+      showControlsHint: true,
+    };
+    this._loadSettings();
+    this._initMenuSystem();
 
     // Start
     this.spawnPlayer();
@@ -343,7 +645,8 @@ class Game {
       pauseScreen.classList.remove('show');
     });
     this.controls.addEventListener('unlock', () => {
-      if (loading.style.display !== 'flex') {
+      // SPEC-063: Only show pause screen if game has started
+      if (loading.style.display !== 'flex' && this.gameStarted) {
         pauseScreen.classList.add('show');
       }
     });
@@ -358,7 +661,7 @@ class Game {
     });
 
     document.body.addEventListener('click', () => {
-      if (!this.controls.isLocked && loading.style.display === 'none') {
+      if (!this.controls.isLocked && loading.style.display === 'none' && this.gameStarted) {
         this.controls.lock();
       }
     });
@@ -1129,6 +1432,273 @@ class Game {
     }
   }
 
+  // SPEC-063: Menu System
+  _initMenuSystem() {
+    this.menuContext = 'main'; // 'main' | 'pause'
+    this.gameStarted = false;
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
+      });
+    });
+
+    // Main menu buttons
+    document.getElementById('play-btn').addEventListener('click', () => this._startGame());
+    document.getElementById('options-btn').addEventListener('click', () => this._openSettings('main'));
+    document.getElementById('credits-btn').addEventListener('click', () => this._openCredits());
+
+    // Pause screen buttons
+    document.getElementById('pause-options-btn').addEventListener('click', () => this._openSettings('pause'));
+    document.getElementById('main-menu-btn').addEventListener('click', () => this._returnToMainMenu());
+
+    // Settings back button
+    document.getElementById('settings-back').addEventListener('click', () => this._closeSettings());
+
+    // Credits back button
+    document.getElementById('credits-back').addEventListener('click', () => this._closeCredits());
+
+    // Wire up all settings controls
+    this._wireUpSettings();
+    this._applyAllSettings();
+  }
+
+  _startGame() {
+    document.getElementById('main-menu').classList.add('hidden');
+    this.gameStarted = true;
+    this.controls.lock();
+  }
+
+  _openSettings(context) {
+    this.menuContext = context;
+    document.getElementById('settings-menu').classList.add('show');
+    if (context === 'main') {
+      document.getElementById('main-menu').classList.add('hidden');
+    }
+  }
+
+  _closeSettings() {
+    document.getElementById('settings-menu').classList.remove('show');
+    if (this.menuContext === 'main') {
+      document.getElementById('main-menu').classList.remove('hidden');
+    }
+  }
+
+  _openCredits() {
+    document.getElementById('credits-screen').classList.add('show');
+    document.getElementById('main-menu').classList.add('hidden');
+  }
+
+  _closeCredits() {
+    document.getElementById('credits-screen').classList.remove('show');
+    document.getElementById('main-menu').classList.remove('hidden');
+  }
+
+  _returnToMainMenu() {
+    if (confirm('¿Volver al menú principal? El progreso no guardado se perderá.')) {
+      document.getElementById('pause-screen').classList.remove('show');
+      document.getElementById('main-menu').classList.remove('hidden');
+      this.gameStarted = false;
+    }
+  }
+
+  _wireUpSettings() {
+    // Graphics
+    const renderInput = document.getElementById('set-render');
+    renderInput.addEventListener('input', (e) => {
+      this.settings.renderDistance = parseInt(e.target.value);
+      document.getElementById('val-render').textContent = e.target.value;
+      this.chunkMgr.renderDistance = this.settings.renderDistance;
+      this._saveSettings();
+    });
+
+    const fovInput = document.getElementById('set-fov');
+    fovInput.addEventListener('input', (e) => {
+      this.settings.fov = parseInt(e.target.value);
+      document.getElementById('val-fov').textContent = e.target.value;
+      this.camera.fov = this.settings.fov;
+      this.camera.updateProjectionMatrix();
+      this._saveSettings();
+    });
+
+    document.getElementById('set-clouds').addEventListener('change', (e) => {
+      this.settings.clouds = e.target.checked;
+      this.cloudMeshes.forEach(m => m.visible = this.settings.clouds);
+      this._saveSettings();
+    });
+
+    document.getElementById('set-fog').addEventListener('change', (e) => {
+      this.settings.fog = e.target.checked;
+      this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, 120) : null;
+      this._saveSettings();
+    });
+
+    document.getElementById('set-shadows').addEventListener('change', (e) => {
+      this.settings.shadows = e.target.checked;
+      this.renderer.shadowMap.enabled = this.settings.shadows;
+      this._saveSettings();
+    });
+
+    document.getElementById('set-tonemapping').addEventListener('change', (e) => {
+      this.settings.toneMapping = e.target.checked;
+      this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+      this._saveSettings();
+    });
+
+    // Audio
+    const volumeInput = document.getElementById('set-volume');
+    volumeInput.addEventListener('input', (e) => {
+      this.settings.volume = parseFloat(e.target.value);
+      document.getElementById('val-volume').textContent = e.target.value;
+      this._saveSettings();
+    });
+
+    const sfxInput = document.getElementById('set-sfx');
+    sfxInput.addEventListener('input', (e) => {
+      this.settings.sfxVolume = parseFloat(e.target.value);
+      document.getElementById('val-sfx').textContent = e.target.value;
+      this._saveSettings();
+    });
+
+    const ambientInput = document.getElementById('set-ambient');
+    ambientInput.addEventListener('input', (e) => {
+      this.settings.ambientVolume = parseFloat(e.target.value);
+      document.getElementById('val-ambient').textContent = e.target.value;
+      this._saveSettings();
+    });
+
+    // Controls
+    const sensitivityInput = document.getElementById('set-sensitivity');
+    sensitivityInput.addEventListener('input', (e) => {
+      this.settings.sensitivity = parseFloat(e.target.value);
+      document.getElementById('val-sensitivity').textContent = e.target.value;
+      this._saveSettings();
+    });
+
+    document.getElementById('set-invert-y').addEventListener('change', (e) => {
+      this.settings.invertY = e.target.checked;
+      this._saveSettings();
+    });
+
+    // Gameplay
+    document.getElementById('set-difficulty').addEventListener('change', (e) => {
+      this.settings.difficulty = e.target.value;
+      this._saveSettings();
+    });
+
+    document.getElementById('set-autosave').addEventListener('change', (e) => {
+      this.settings.autoSaveInterval = parseInt(e.target.value);
+      this._saveSettings();
+    });
+
+    document.getElementById('set-show-fps').addEventListener('change', (e) => {
+      this.settings.showFPS = e.target.checked;
+      this._applyHUDVisibility();
+      this._saveSettings();
+    });
+
+    document.getElementById('set-show-coords').addEventListener('change', (e) => {
+      this.settings.showCoords = e.target.checked;
+      this._applyHUDVisibility();
+      this._saveSettings();
+    });
+
+    document.getElementById('set-show-minimap').addEventListener('change', (e) => {
+      this.settings.showMinimap = e.target.checked;
+      this._applyHUDVisibility();
+      this._saveSettings();
+    });
+
+    document.getElementById('set-show-clock').addEventListener('change', (e) => {
+      this.settings.showClock = e.target.checked;
+      this._applyHUDVisibility();
+      this._saveSettings();
+    });
+
+    document.getElementById('set-show-hint').addEventListener('change', (e) => {
+      this.settings.showControlsHint = e.target.checked;
+      this._applyHUDVisibility();
+      this._saveSettings();
+    });
+  }
+
+  _applyAllSettings() {
+    // Apply graphics
+    this.chunkMgr.renderDistance = this.settings.renderDistance;
+    this.camera.fov = this.settings.fov;
+    this.camera.updateProjectionMatrix();
+    if (this.cloudMeshes) this.cloudMeshes.forEach(m => m.visible = this.settings.clouds);
+    this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, 120) : null;
+    this.renderer.shadowMap.enabled = this.settings.shadows;
+    this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+
+    // Apply HUD visibility
+    this._applyHUDVisibility();
+
+    // Update UI controls
+    document.getElementById('set-render').value = this.settings.renderDistance;
+    document.getElementById('val-render').textContent = this.settings.renderDistance;
+    document.getElementById('set-fov').value = this.settings.fov;
+    document.getElementById('val-fov').textContent = this.settings.fov;
+    document.getElementById('set-clouds').checked = this.settings.clouds;
+    document.getElementById('set-fog').checked = this.settings.fog;
+    document.getElementById('set-shadows').checked = this.settings.shadows;
+    document.getElementById('set-tonemapping').checked = this.settings.toneMapping;
+    document.getElementById('set-volume').value = this.settings.volume;
+    document.getElementById('val-volume').textContent = this.settings.volume;
+    document.getElementById('set-sfx').value = this.settings.sfxVolume;
+    document.getElementById('val-sfx').textContent = this.settings.sfxVolume;
+    document.getElementById('set-ambient').value = this.settings.ambientVolume;
+    document.getElementById('val-ambient').textContent = this.settings.ambientVolume;
+    document.getElementById('set-sensitivity').value = this.settings.sensitivity;
+    document.getElementById('val-sensitivity').textContent = this.settings.sensitivity;
+    document.getElementById('set-invert-y').checked = this.settings.invertY;
+    document.getElementById('set-difficulty').value = this.settings.difficulty;
+    document.getElementById('set-autosave').value = this.settings.autoSaveInterval;
+    document.getElementById('set-show-fps').checked = this.settings.showFPS;
+    document.getElementById('set-show-coords').checked = this.settings.showCoords;
+    document.getElementById('set-show-minimap').checked = this.settings.showMinimap;
+    document.getElementById('set-show-clock').checked = this.settings.showClock;
+    document.getElementById('set-show-hint').checked = this.settings.showControlsHint;
+  }
+
+  _applyHUDVisibility() {
+    const info = document.getElementById('info');
+    if (this.settings.showFPS || this.settings.showCoords) {
+      info.style.display = 'block';
+    } else {
+      info.style.display = 'none';
+    }
+    document.getElementById('minimap').style.display = this.settings.showMinimap ? 'block' : 'none';
+    document.getElementById('clock').style.display = this.settings.showClock ? 'block' : 'none';
+    document.getElementById('controls-hint').style.display = this.settings.showControlsHint ? 'block' : 'none';
+  }
+
+  _loadSettings() {
+    try {
+      const saved = localStorage.getItem('jardvoxel-settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        this.settings = { ...this.settings, ...parsed };
+      }
+    } catch (e) {
+      console.warn('[Settings] Failed to load:', e);
+    }
+  }
+
+  _saveSettings() {
+    try {
+      localStorage.setItem('jardvoxel-settings', JSON.stringify(this.settings));
+    } catch (e) {
+      console.warn('[Settings] Failed to save:', e);
+    }
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
 
@@ -1191,7 +1761,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error('[JardVoxel] Loading timeout — forcing hide');
       loading.style.opacity = '0';
       loading.style.display = 'none';
-      document.getElementById('pause-screen').classList.add('show');
+      document.getElementById('main-menu').classList.remove('hidden');
     }
   }, 10000);
 
@@ -1200,12 +1770,14 @@ window.addEventListener('DOMContentLoaded', () => {
       const game = new Game();
       window._game = game;
       document.getElementById('seed-display').textContent = game.seed;
+      document.getElementById('seed-display-pause').textContent = game.seed;
 
       const loading = document.getElementById('loading');
       loading.style.opacity = '0';
       setTimeout(() => { loading.style.display = 'none'; }, 1000);
 
-      document.getElementById('pause-screen').classList.add('show');
+      // SPEC-063: Show main menu instead of pause screen
+      document.getElementById('main-menu').classList.remove('hidden');
       clearTimeout(safetyTimer);
     } catch (err) {
       console.error('[JardVoxel] Init failed:', err);
