@@ -9,7 +9,7 @@
 html,body{height:100%;overflow:hidden;background:#1a1a2e;font-family:'Courier New',monospace;color:#fff}
 canvas{display:block}
 
-#loading{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s;pointer-events:none}
+#loading{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s;pointer-events:auto;cursor:default}
 #loading h1{font-size:2.5rem;margin-bottom:0.5rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 #loading .subtitle{color:#8888aa;font-size:0.9rem;margin-bottom:1rem}
 #loading .seed-info{color:#00ff88;font-size:0.8rem;margin-top:0.5rem}
@@ -218,15 +218,7 @@ canvas{display:block}
 #map-canvas{border:4px solid #555;border-radius:8px;image-rendering:pixelated;max-width:70vw;max-height:70vh;background:#000}
 #map-coords{color:#aaa;font-size:0.85rem;margin-top:0.5rem;font-family:monospace}
 
-/* ===== Main Menu ===== */
-#main-menu{position:fixed;inset:0;background:linear-gradient(135deg,#0d0d1a,#1a0a3d);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:auto}
-#main-menu h1{font-size:2.8rem;margin-bottom:0.3rem;background:linear-gradient(90deg,#7C3AED,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-#main-menu .subtitle{color:#8888aa;font-size:0.9rem;margin-bottom:2rem}
-#main-menu .menu-btns{display:flex;flex-direction:column;gap:0.8rem;align-items:center}
-#main-menu .menu-btn{padding:14px 48px;font-size:1.1rem;background:#7C3AED;color:#fff;border:none;border-radius:10px;cursor:pointer;pointer-events:auto;transition:background 0.2s,transform 0.1s;min-height:44px;min-width:200px}
-#main-menu .menu-btn:hover{background:#6d28d9;transform:translateY(-2px)}
-#main-menu .menu-btn:active{transform:scale(0.97)}
-#main-menu .menu-info{margin-top:2rem;color:#555577;font-size:0.75rem;text-align:center}
+/* Main menu removed - game starts directly */
 
 /* ===== Settings Menu ===== */
 #settings-menu{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:45;pointer-events:auto}
@@ -295,7 +287,6 @@ canvas{display:block}
   .tab-btn{white-space:nowrap;flex-shrink:0}
   #pause-screen h2{font-size:1.4rem}
   #settings-menu h2{font-size:1.4rem}
-  #main-menu h1{font-size:2rem}
   .touch-btn.jump{width:60px;height:60px;right:15px;bottom:80px}
   .touch-btn.break{width:60px;height:60px;right:85px;bottom:150px}
   .touch-btn.place{width:60px;height:60px;right:15px;bottom:150px}
@@ -314,7 +305,7 @@ canvas{display:block}
   <h1>JardVoxel Survival</h1>
   <p class="subtitle">Generacion procedural estilo voxel</p>
   <div class="spinner"></div>
-  <p>Generando mundo...</p>
+  <p id="loading-message">Generando mundo...</p>
   <p class="seed-info">Seed: <span id="seed-display">--</span></p>
 </div>
 
@@ -483,19 +474,6 @@ canvas{display:block}
   <p style="margin-top:1rem;color:#888;font-size:0.75rem">Click en un bloque del inventario para asignarlo · ESC para cerrar</p>
 </div>
 
-<div id="main-menu">
-  <h1>JardVoxel Survival</h1>
-  <p class="subtitle">Mundo voxel con generacion procedural</p>
-  <div class="menu-btns">
-    <button class="menu-btn" id="menu-play">Jugar</button>
-    <button class="menu-btn" id="menu-options">Opciones</button>
-    <button class="menu-btn" id="menu-credits">Creditos</button>
-  </div>
-  <div class="menu-info">
-    v5.0.0 · 17 biomas · 60+ bloques · Controles touch<br>
-    Seed: <span id="menu-seed">--</span>
-  </div>
-</div>
 
 <div id="settings-menu">
   <h2>Opciones</h2>
@@ -1447,35 +1425,36 @@ class SurvivalGame {
   initUI() {
     document.getElementById('seed-display').textContent = this.seed;
     document.getElementById('pause-seed').textContent = this.seed;
-    document.getElementById('menu-seed').textContent = this.seed;
     this._buildHotbar();
 
     const pauseScreen = document.getElementById('pause-screen');
-    const mainMenu = document.getElementById('main-menu');
     const settingsMenu = document.getElementById('settings-menu');
     const creditsScreen = document.getElementById('credits-screen');
 
-    // Start game directly — no main menu
-    mainMenu.style.display = 'none';
+    // Start game directly in survival mode
     pauseScreen.style.display = 'none';
-    this.gameStarted = true;
+    this.gameMode = 'survival';
+    this.inventory.creativeMode = false;
+    this.healthSystem.setCreativeMode(false);
+    document.getElementById('mode-indicator').textContent = 'Supervivencia';
+    
+    // Change loading message to prompt click
+    const loadingMsg = document.getElementById('loading-message');
+    if (loadingMsg) loadingMsg.textContent = 'Click para jugar';
     const loadingEl = document.getElementById('loading');
-    if (loadingEl) { loadingEl.style.opacity = '0'; loadingEl.style.pointerEvents = 'none'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
+    if (loadingEl) loadingEl.style.cursor = 'pointer';
+    
+    // Request pointer lock to start game
     if (this.touchControls && this.touchControls.enabled) {
-      // Touch mode — no pointer lock needed
+      // Touch mode — start immediately
+      this.gameStarted = true;
+      if (loadingEl) { loadingEl.style.opacity = '0'; loadingEl.style.pointerEvents = 'none'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
     } else {
-      document.body.requestPointerLock();
+      // Desktop — wait for click to request pointer lock
+      loadingEl.addEventListener('click', () => {
+        document.body.requestPointerLock();
+      }, { once: true });
     }
-
-    // Options/credits accessible from pause screen only
-    document.getElementById('menu-options').addEventListener('click', () => {
-      this.settingsMenuReturnTo = 'main';
-      settingsMenu.classList.add('show');
-    });
-
-    document.getElementById('menu-credits').addEventListener('click', () => {
-      creditsScreen.classList.add('show');
-    });
 
     // Credits back — return to pause screen
     document.getElementById('credits-back').addEventListener('click', () => {
@@ -1541,8 +1520,13 @@ class SurvivalGame {
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === document.body;
       if (this.pointerLocked) {
+        // Start game on first pointer lock
+        if (!this.gameStarted) {
+          this.gameStarted = true;
+          const loadingEl = document.getElementById('loading');
+          if (loadingEl) { loadingEl.style.opacity = '0'; loadingEl.style.pointerEvents = 'none'; setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 1000); }
+        }
         pauseScreen.style.display = 'none';
-        mainMenu.style.display = 'none';
         this.audio.init();
         if (!this.chilltune.ctx) {
           this.chilltune.init(this.audio.ctx, this.audio.masterGain);
@@ -1895,6 +1879,7 @@ class SurvivalGame {
       }
     }
   }
+
 
   _buildHotbar() {
     const hotbar = document.getElementById('hotbar');
