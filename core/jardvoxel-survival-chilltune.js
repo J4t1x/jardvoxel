@@ -1,39 +1,40 @@
-// ChillTuneEngine — Sistema de musica 8-bit dinamica relajante para JardVoxel
-// SPEC-035: PRD-CHILLTUNE-MUSIC
-// Genera musica procedural chiptune con escalas modales, transiciones suaves y
-// deteccion automatica de estado de juego para inducir calma y tranquilidad.
+// ChillTuneEngine — Deep Space Ambient Music Engine for JardVoxel
+// SPEC-035: PRD-CHILLTUNE-MUSIC v8.0 — Cinematic Sci-Fi Atmosphere
+// Genera musica ambient espacial procedural con pads largos, reverb profundo,
+// texturas etéreas y movimiento lento para relajación y focus profundo.
 
 // === Escalas modales (frecuencias en Hz) ===
+// v7.0: Escalas suaves y relajantes — sin escalas oscuras
 const SCALES = {
-  dorian:     [293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25],
-  aeolian:    [220.00, 246.94, 261.63, 293.66, 329.63, 349.23, 415.30],
-  lydian:     [349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 659.25],
-  phrygian:   [164.81, 174.61, 196.00, 220.00, 246.94, 261.63, 329.63],
-  pentatonic: [293.66, 329.63, 392.00, 440.00, 523.25],
-  chromatic:  [261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99, 392.00, 415.30, 440.00, 466.16, 493.88],
+  pentatonic:  [293.66, 329.63, 392.00, 440.00, 523.25],           // C major pentatonic — alegre, seguro
+  pentatonic_minor: [261.63, 293.66, 329.63, 392.00, 440.00],      // A minor pentatonic — suave, nostálgico (uso mínimo)
+  dorian:      [293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25], // D dorian — cálido, jazz
+  lydian:      [349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 659.25], // F lydian — brillante, soñador
+  ionian:      [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88], // C major — puro, luminoso
+  mixolydian:  [293.66, 329.63, 349.23, 392.00, 440.00, 466.16, 523.25], // D mixolydian — folk cálido
 };
 
 // === SPEC-083: Biome scale mapping (8 scales) ===
 export const BIOME_SCALES = {
-  plains:        { scale: 'pentatonic', bpm: 60, filterFreq: 2000 },
-  forest:        { scale: 'dorian',     bpm: 55, filterFreq: 1800 },
-  desert:        { scale: 'phrygian',   bpm: 58, filterFreq: 1600 },
-  mountains:     { scale: 'lydian',     bpm: 65, filterFreq: 2200 },
-  swamp:         { scale: 'chromatic',  bpm: 48, filterFreq: 800  },
-  mystic_grove:  { scale: 'lydian',     bpm: 62, filterFreq: 2400, arpeggios: true },
-  ocean:         { scale: 'aeolian',    bpm: 52, filterFreq: 1000 },
-  caves:         { scale: 'chromatic',  bpm: 45, filterFreq: 600,  drone: true },
-  jungle:        { scale: 'dorian',     bpm: 60, filterFreq: 1800 },
-  taiga:         { scale: 'aeolian',    bpm: 50, filterFreq: 1200 },
-  snowy_plains:  { scale: 'pentatonic', bpm: 48, filterFreq: 1400 },
-  savanna:       { scale: 'pentatonic', bpm: 60, filterFreq: 1800 },
-  cherry_grove:  { scale: 'lydian',     bpm: 58, filterFreq: 2200 },
-  autumn_forest: { scale: 'dorian',     bpm: 54, filterFreq: 1600 },
-  beach:         { scale: 'aeolian',    bpm: 55, filterFreq: 1200 },
+  plains:        { scale: 'lydian',          bpm: 36, filterFreq: 2200 },
+  forest:        { scale: 'lydian',          bpm: 34, filterFreq: 2000 },
+  desert:        { scale: 'lydian',          bpm: 32, filterFreq: 2000 },
+  mountains:     { scale: 'lydian',          bpm: 30, filterFreq: 2400 },
+  swamp:         { scale: 'lydian',          bpm: 30, filterFreq: 1800 },
+  mystic_grove:  { scale: 'lydian',          bpm: 32, filterFreq: 2400 },
+  ocean:         { scale: 'lydian',          bpm: 30, filterFreq: 2000 },
+  caves:         { scale: 'lydian',          bpm: 28, filterFreq: 1600, drone: true },
+  jungle:        { scale: 'lydian',          bpm: 34, filterFreq: 2200 },
+  taiga:         { scale: 'lydian',          bpm: 30, filterFreq: 2000 },
+  snowy_plains:  { scale: 'lydian',          bpm: 28, filterFreq: 2200 },
+  savanna:       { scale: 'lydian',          bpm: 34, filterFreq: 2200 },
+  cherry_grove:  { scale: 'lydian',          bpm: 32, filterFreq: 2400 },
+  autumn_forest: { scale: 'lydian',          bpm: 32, filterFreq: 2200 },
+  beach:         { scale: 'lydian',          bpm: 32, filterFreq: 2200 },
   // SPEC-099: Wellness biomes
-  zen_garden:    { scale: 'pentatonic', bpm: 42, filterFreq: 1800 },
-  bamboo_grove:  { scale: 'pentatonic', bpm: 50, filterFreq: 2000 },
-  aurora_tundra: { scale: 'lydian',     bpm: 44, filterFreq: 1600 },
+  zen_garden:    { scale: 'lydian',          bpm: 26, filterFreq: 2000 },
+  bamboo_grove:  { scale: 'lydian',          bpm: 30, filterFreq: 2200 },
+  aurora_tundra: { scale: 'lydian',          bpm: 26, filterFreq: 2000 },
 };
 
 // === SPEC-099: 8-phase circadian cycle (replaces 4-phase) ===
@@ -44,8 +45,8 @@ export const TIME_PHASES = {
   afternoon: { start: 0.50, end: 0.65, bpmMod: 0,   filterMod: 0,    brightness: 0.95 },
   dusk:      { start: 0.65, end: 0.75, bpmMod: -3,  filterMod: -100, brightness: 0.7,  descending: true },
   twilight:  { start: 0.75, end: 0.80, bpmMod: -5,  filterMod: -200, brightness: 0.5 },
-  night:     { start: 0.80, end: 0.95, bpmMod: -8,  filterMod: -400, brightness: 0.4,  minimalist: true },
-  midnight:  { start: 0.95, end: 0.20, bpmMod: -10, filterMod: -500, brightness: 0.3,  minimalist: true },
+  night:     { start: 0.80, end: 0.95, bpmMod: -5,  filterMod: -200, brightness: 0.6,  minimalist: true },
+  midnight:  { start: 0.95, end: 0.20, bpmMod: -7,  filterMod: -300, brightness: 0.5,  minimalist: true },
 };
 
 // Backward compat alias
@@ -59,28 +60,28 @@ export const WEATHER_EFFECTS = {
   thunder: { percussion: false, melodyAttenuation: 0.1, silence: true,  dramaticImpacts: true },
 };
 
-// === SPEC-083: Event stingers ===
+// === SPEC-083: Event stingers — Peaceful & Relaxing ===
 export const EVENT_STINGERS = {
-  structure_discovery: { notes: [523.25, 659.25, 783.99], duration: 0.6, type: 'triangle', vol: 0.08 },
-  new_biome:           { notes: [440.00, 523.25, 659.25, 783.99], duration: 0.8, type: 'sine', vol: 0.06 },
-  combat_enter:        { notes: [164.81, 196.00, 220.00], duration: 0.4, type: 'square', vol: 0.05 },
-  archaeological:      { notes: [659.25, 783.99, 987.77, 1174.66], duration: 1.0, type: 'triangle', vol: 0.07 },
-  npc_death:           { notes: [220.00, 196.00, 174.61, 164.81], duration: 1.5, type: 'sine', vol: 0.05 },
-  legendary:           { notes: [349.23, 440.00, 523.25, 659.25, 783.99], duration: 1.2, type: 'triangle', vol: 0.09 },
-  village_approach:    { notes: [392.00, 493.88, 587.33], duration: 0.5, type: 'sine', vol: 0.05 },
+  structure_discovery: { notes: [349.23, 392.00, 440.00], duration: 1.2, type: 'sine', vol: 0.04 },
+  new_biome:           { notes: [293.66, 349.23, 392.00, 440.00], duration: 1.5, type: 'sine', vol: 0.04 },
+  combat_enter:        { notes: [392.00, 440.00, 493.88], duration: 0.8, type: 'sine', vol: 0.03 },
+  archaeological:      { notes: [349.23, 392.00, 440.00, 523.25], duration: 1.8, type: 'sine', vol: 0.04 },
+  npc_death:           { notes: [392.00, 349.23, 329.63], duration: 1.5, type: 'sine', vol: 0.02 },
+  legendary:           { notes: [293.66, 329.63, 392.00, 440.00, 523.25], duration: 2.0, type: 'sine', vol: 0.05 },
+  village_approach:    { notes: [329.63, 392.00, 440.00], duration: 1.0, type: 'sine', vol: 0.04 },
 };
 
 // === Configuracion de estados musicales ===
 const STATE_CONFIG = {
-  exploring:  { bpm: 60, scale: 'dorian',     layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2000 },
-  building:   { bpm: 65, scale: 'lydian',     layers: ['drone', 'melody', 'arpeggio'],  droneRoot: 0, filterFreq: 1800 },
-  mining:     { bpm: 55, scale: 'aeolian',    layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 1200 },
-  combat:     { bpm: 70, scale: 'phrygian',   layers: ['drone', 'melody', 'pulse'],     droneRoot: 0, filterFreq: 2200 },
-  night:      { bpm: 50, scale: 'aeolian',    layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 1000 },
-  underwater: { bpm: 52, scale: 'dorian',     layers: ['drone', 'melody', 'arpeggio'],  droneRoot: 0, filterFreq: 600  },
-  idle:       { bpm: 45, scale: 'pentatonic', layers: ['drone'],                        droneRoot: 0, filterFreq: 800  },
-  // SPEC-099: Contemplation mode — deep stillness in meditation spaces
-  contemplation: { bpm: 40, scale: 'pentatonic', layers: ['drone'], droneRoot: 0, filterFreq: 600 },
+  exploring:  { bpm: 36, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2200 },
+  building:   { bpm: 38, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2200 },
+  mining:     { bpm: 34, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2000 },
+  combat:     { bpm: 40, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2200 },
+  night:      { bpm: 30, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 2000 },
+  underwater: { bpm: 32, scale: 'lydian',          layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 1800 },
+  idle:       { bpm: 26, scale: 'lydian',          layers: ['drone'],                        droneRoot: 0, filterFreq: 1800 },
+  // SPEC-099: Contemplation mode — deep space stillness
+  contemplation: { bpm: 24, scale: 'lydian', layers: ['drone'], droneRoot: 0, filterFreq: 1600 },
 };
 
 // Pesos para seleccion de grado en la escala (grado 3 = quinta, mas probable)
@@ -92,7 +93,7 @@ export class ChillTuneEngine {
     this.musicGain = null;
     this.reverbNode = null;
     this.enabled = true;
-    this.volume = 0.35;
+    this.volume = 0.18;
 
     this.currentState = 'exploring';
     this.targetState = 'exploring';
@@ -112,7 +113,7 @@ export class ChillTuneEngine {
     this.lookahead = 30;
     this.schedulerTimer = null;
 
-    this.crossfadeDuration = 2; // SPEC-083: 2s crossfade
+    this.crossfadeDuration = 6; // Deep space: 6s crossfade para transiciones suaves
     this.lastStateChange = 0;
     this.melodyRestCounter = 0;
 
@@ -272,17 +273,20 @@ export class ChillTuneEngine {
     const state = this.currentState;
 
     // Probabilidad de silencio (espacio negativo = relajacion)
-    let restProb = 0.15;
-    if (state === 'idle') restProb = 0.8;
-    else if (state === 'night') restProb = 0.35;
-    else if (state === 'mining') restProb = 0.25;
-    else if (state === 'exploring') restProb = 0.2;
+    let restProb = 0.75;
+    if (state === 'idle') restProb = 0.96;
+    else if (state === 'night') restProb = 0.85;
+    else if (state === 'mining') restProb = 0.78;
+    else if (state === 'exploring') restProb = 0.75;
+    else if (state === 'combat') restProb = 0.65;
+    else if (state === 'contemplation') restProb = 0.98;
+    else if (state === 'underwater') restProb = 0.82;
 
     if (Math.random() < restProb) return 0;
 
-    // Forzar descanso cada 4-8 notas para respiracion natural
+    // Forzar descanso cada 2-4 notas para espacios largos (ambient)
     this.melodyRestCounter++;
-    if (this.melodyRestCounter >= 4 + Math.floor(Math.random() * 4)) {
+    if (this.melodyRestCounter >= 2 + Math.floor(Math.random() * 2)) {
       this.melodyRestCounter = 0;
       return 0;
     }
@@ -363,36 +367,36 @@ export class ChillTuneEngine {
     if (!this.ctx || this.droneOsc) return;
     const cfg = STATE_CONFIG[this.currentState];
     const scale = SCALES[cfg.scale];
-    const rootFreq = scale[cfg.droneRoot] * 0.25; // 2 octavas abajo
+    const rootFreq = scale[cfg.droneRoot] * 0.5; // 1 octava abajo — cálido, no tenebroso
 
     this.droneOsc = this.ctx.createOscillator();
     this.droneGain = this.ctx.createGain();
     const droneFilter = this.ctx.createBiquadFilter();
 
-    this.droneOsc.type = 'triangle';
+    this.droneOsc.type = 'sine';
     this.droneOsc.frequency.value = rootFreq;
 
     droneFilter.type = 'lowpass';
-    droneFilter.frequency.value = 400;
+    droneFilter.frequency.value = 800; // Cálido y profundo
 
     this.droneGain.gain.value = 0;
 
     this.droneOsc.connect(droneFilter).connect(this.droneGain).connect(this.musicGain);
     this.droneOsc.start();
 
-    // LFO de volumen (efecto respiracion)
+    // LFO de frecuencia (sutil shimmer espacial, NO volumen)
     this.droneLFO = this.ctx.createOscillator();
     this.droneLFO.type = 'sine';
-    this.droneLFO.frequency.value = 0.15; // ~6.6s per cycle
+    this.droneLFO.frequency.value = 0.03; // ~33s per cycle — movimiento glacial
     const lfoGain = this.ctx.createGain();
-    lfoGain.gain.value = 0.03;
-    this.droneLFO.connect(lfoGain).connect(this.droneGain.gain);
+    lfoGain.gain.value = 2; // ±2Hz shimmer sutil
+    this.droneLFO.connect(lfoGain).connect(this.droneOsc.frequency);
     this.droneLFO.start();
 
     // Fade in drone
     const now = this.ctx.currentTime;
     this.droneGain.gain.setValueAtTime(0, now);
-    this.droneGain.gain.linearRampToValueAtTime(0.08, now + 4);
+    this.droneGain.gain.linearRampToValueAtTime(0.03, now + 12); // Pad estático y sutil
   }
 
   _stopDrone() {
@@ -419,7 +423,7 @@ export class ChillTuneEngine {
     if (!this.droneOsc || !this.ctx) return;
     const cfg = STATE_CONFIG[this.currentState];
     const scale = SCALES[cfg.scale];
-    const rootFreq = scale[cfg.droneRoot] * 0.25;
+    const rootFreq = scale[cfg.droneRoot] * 0.5; // Una octava abajo — cálido, no sub-grave tenebroso
     const now = this.ctx.currentTime;
     this.droneOsc.frequency.cancelScheduledValues(now);
     this.droneOsc.frequency.setValueAtTime(this.droneOsc.frequency.value, now);
@@ -447,25 +451,25 @@ export class ChillTuneEngine {
 
     // Melody: notas en barras pares, espaciadas
     if (layers.includes('melody')) {
-      // Tocar melodia cada 2-4 barras para espacio
-      const melodyInterval = this.currentState === 'idle' ? 8 : (this.currentState === 'night' ? 6 : 4);
+      // Tocar melodia cada 16-32 barras para espacios ultra-largos (deep ambient)
+      const melodyInterval = this.currentState === 'idle' ? 32 : (this.currentState === 'night' ? 24 : 16);
       if (bar % melodyInterval === 0) {
         const noteFreq = this._generateMelodyNote();
         if (noteFreq > 0) {
-          const dur = bl * (this.currentState === 'idle' ? 16 : (this.currentState === 'night' ? 12 : 8));
-          const vol = this.currentState === 'combat' ? 0.06 : 0.05;
+          const dur = bl * (this.currentState === 'idle' ? 48 : (this.currentState === 'night' ? 36 : 24));
+          const vol = this.currentState === 'combat' ? 0.03 : 0.025;
           this._playNote(noteFreq, time, dur, 'sine', vol, cfg.filterFreq, true);
         }
       }
     }
 
-    // Arpeggio: cada 8-16 barras
-    if (layers.includes('arpeggio')) {
-      const arpInterval = this.currentState === 'underwater' ? 8 : 12;
-      if (bar % arpInterval === 0 && Math.random() < 0.6) {
-        this._playArpeggio(time, 0.035);
-      }
-    }
+    // Arpeggio: deshabilitado para ambient puro (solo drone + melody sparse)
+    // if (layers.includes('arpeggio')) {
+    //   const arpInterval = this.currentState === 'underwater' ? 8 : 12;
+    //   if (bar % arpInterval === 0 && Math.random() < 0.6) {
+    //     this._playArpeggio(time, 0.035);
+    //   }
+    // }
 
     // Pulse sutil para combat (muy suave)
     if (layers.includes('pulse')) {
@@ -527,12 +531,12 @@ export class ChillTuneEngine {
   _createReverb() {
     if (!this.ctx) return null;
     const delay = this.ctx.createDelay(1.0);
-    delay.delayTime.value = 0.4;
+    delay.delayTime.value = 0.6;
     const feedback = this.ctx.createGain();
-    feedback.gain.value = 0.3;
+    feedback.gain.value = 0.4;
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 1200;
+    filter.frequency.value = 2400;
     delay.connect(filter).connect(feedback).connect(delay);
     // Input is the delay node itself; output also from delay
     return delay;
