@@ -1,7 +1,10 @@
 // ═══════════════════════════════════════════════════════════
 // JardVoxel Survival Engine — Full World Generation Pipeline
 // Based on Voxel Wiki: https://voxel-wiki.dev/w/World_generation
+// v6.0: Simplex Noise + Domain Warping + Coherent Biomes
 // ═══════════════════════════════════════════════════════════
+
+import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer } from './jardvoxel-survival-noise.js';
 
 // ═══════════════════════════════════════════════════════════
 // PRNG — Xorshift128+ (seeded, reproducible)
@@ -206,71 +209,94 @@ export const BIOMES = {
   RIVER: 'river',
   MYSTIC_GROVE: 'mystic_grove',
   AUTUMN_FOREST: 'autumn_forest',
+  // SPEC-099: Wellness biomes
+  ZEN_GARDEN: 'zen_garden',
+  BAMBOO_GROVE: 'bamboo_grove',
+  AURORA_TUNDRA: 'aurora_tundra',
 };
 
 export const BIOME_COLORS = {
-  [BIOMES.OCEAN]: [0.15, 0.35, 0.65],
-  [BIOMES.DEEP_OCEAN]: [0.1, 0.25, 0.55],
-  [BIOMES.BEACH]: [0.93, 0.83, 0.55],
-  [BIOMES.PLAINS]: [0.35, 0.72, 0.25],
-  [BIOMES.FOREST]: [0.15, 0.45, 0.15],
-  [BIOMES.JUNGLE]: [0.1, 0.52, 0.1],
-  [BIOMES.DESERT]: [0.92, 0.75, 0.35],
-  [BIOMES.SAVANNA]: [0.75, 0.65, 0.35],
-  [BIOMES.TAIGA]: [0.25, 0.55, 0.35],
-  [BIOMES.SNOWY_PLAINS]: [0.92, 0.92, 0.96],
-  [BIOMES.MOUNTAINS]: [0.55, 0.5, 0.45],
-  [BIOMES.SNOWY_PEAKS]: [0.95, 0.95, 0.98],
-  [BIOMES.STONY_PEAKS]: [0.45, 0.45, 0.45],
-  [BIOMES.MEADOW]: [0.45, 0.75, 0.35],
-  [BIOMES.CHERRY_GROVE]: [0.85, 0.55, 0.75],
-  [BIOMES.SWAMP]: [0.35, 0.45, 0.25],
-  [BIOMES.RIVER]: [0.25, 0.45, 0.75],
-  [BIOMES.MYSTIC_GROVE]: [0.35, 0.25, 0.55],
-  [BIOMES.AUTUMN_FOREST]: [0.65, 0.35, 0.15],
+  [BIOMES.OCEAN]: [0.12, 0.45, 0.75],           // Azul océano más vibrante
+  [BIOMES.DEEP_OCEAN]: [0.08, 0.28, 0.62],      // Azul profundo intenso
+  [BIOMES.BEACH]: [0.96, 0.92, 0.75],           // Arena dorada suave
+  [BIOMES.PLAINS]: [0.45, 0.85, 0.38],          // Verde pradera brillante
+  [BIOMES.FOREST]: [0.28, 0.72, 0.32],          // Verde bosque rico
+  [BIOMES.JUNGLE]: [0.32, 0.88, 0.42],          // Verde selva exuberante
+  [BIOMES.DESERT]: [0.98, 0.85, 0.52],          // Dorado desierto cálido
+  [BIOMES.SAVANNA]: [0.78, 0.82, 0.45],         // Amarillo savana seco
+  [BIOMES.TAIGA]: [0.38, 0.75, 0.48],           // Verde taiga fresco
+  [BIOMES.SNOWY_PLAINS]: [0.96, 0.97, 0.99],    // Blanco nieve puro
+  [BIOMES.MOUNTAINS]: [0.58, 0.60, 0.64],       // Gris montaña natural
+  [BIOMES.SNOWY_PEAKS]: [0.98, 0.99, 1.0],      // Blanco picos brillante
+  [BIOMES.STONY_PEAKS]: [0.65, 0.66, 0.70],     // Gris piedra sólido
+  [BIOMES.MEADOW]: [0.52, 0.85, 0.42],          // Verde prado vibrante
+  [BIOMES.CHERRY_GROVE]: [0.92, 0.65, 0.82],    // Rosa cerezo suave
+  [BIOMES.SWAMP]: [0.28, 0.62, 0.35],           // Verde pantano oscuro
+  [BIOMES.RIVER]: [0.25, 0.55, 0.68],           // Azul río cristalino
+  [BIOMES.MYSTIC_GROVE]: [0.48, 0.38, 0.72],    // Púrpura místico
+  [BIOMES.AUTUMN_FOREST]: [0.85, 0.52, 0.28],   // Naranja otoño cálido
+  // SPEC-099: Wellness biomes - Colores zen premium
+  [BIOMES.ZEN_GARDEN]: [0.88, 0.82, 0.68],      // Beige zen sereno
+  [BIOMES.BAMBOO_GROVE]: [0.55, 0.82, 0.45],    // Verde bambú fresco
+  [BIOMES.AURORA_TUNDRA]: [0.68, 0.78, 0.95],   // Azul aurora etéreo
 };
 
 export class WorldGenPipeline {
   constructor(seed) {
     this.seed = seed;
     
-    // 3D Noise for terrain density
-    this.densityNoise = new PerlinNoise3D(seed);
+    // v6.0: Simplex Noise replaces PerlinNoise3D
+    this.densityNoise = new SimplexNoise(seed);
     
-    // 2D Noises for spline parameters
-    this.continentalnessNoise = new PerlinNoise3D(seed + 100);
-    this.erosionNoise = new PerlinNoise3D(seed + 200);
-    this.weirdnessNoise = new PerlinNoise3D(seed + 300);
+    // 2D Noises for spline parameters (Simplex)
+    this.continentalnessNoise = new SimplexNoise(seed + 100);
+    this.erosionNoise = new SimplexNoise(seed + 200);
+    this.weirdnessNoise = new SimplexNoise(seed + 300);
     
     // Temperature & Humidity for biomes
-    this.temperatureNoise = new PerlinNoise3D(seed + 400);
-    this.humidityNoise = new PerlinNoise3D(seed + 500);
+    this.temperatureNoise = new SimplexNoise(seed + 400);
+    this.humidityNoise = new SimplexNoise(seed + 500);
     
     // Cave noises
-    this.cheeseNoise = new PerlinNoise3D(seed + 600);
-    this.spaghettiNoise = new PerlinNoise3D(seed + 700);
-    this.noodleNoise = new PerlinNoise3D(seed + 800);
+    this.cheeseNoise = new SimplexNoise(seed + 600);
+    this.spaghettiNoise = new SimplexNoise(seed + 700);
+    this.noodleNoise = new SimplexNoise(seed + 800);
     
     // Aquifer noises
-    this.aquiferNoise = new PerlinNoise3D(seed + 900);
-    this.barrierNoise = new PerlinNoise3D(seed + 1000);
+    this.aquiferNoise = new SimplexNoise(seed + 900);
+    this.barrierNoise = new SimplexNoise(seed + 1000);
     
-    // Splines for terrain shaping (simplified worldgen splines)
+    // v6.0: Domain Warper for organic patterns
+    this.warper = new DomainWarper(seed);
+    
+    // v6.0: Advanced terrain splines
+    this.terrainSplines = new TerrainSplines();
+    
+    // v6.0: Biome blender for smooth transitions
+    this.biomeBlender = new BiomeBlender(this);
+    
+    // v6.0: Biome terrain modulator
+    this.biomeModulator = new BiomeTerrainModulator(seed);
+    
+    // v6.0: Feature placer for coherent distribution
+    this.featurePlacer = new FeaturePlacer(seed);
+    
+    // Legacy splines (kept for backward compat)
     this.continentalnessSpline = new Spline([
-      {x: -1.0, y: -0.5}, // Deep ocean
-      {x: -0.2, y: 0.0},  // Ocean
-      {x: 0.0, y: 0.1},   // Coast
-      {x: 0.3, y: 0.3},   // Inland
-      {x: 0.6, y: 0.6},   // Mountains base
-      {x: 1.0, y: 1.0},   // High mountains
+      {x: -1.0, y: -0.5},
+      {x: -0.2, y: 0.0},
+      {x: 0.0, y: 0.1},
+      {x: 0.3, y: 0.3},
+      {x: 0.6, y: 0.6},
+      {x: 1.0, y: 1.0},
     ]);
     
     this.erosionSpline = new Spline([
-      {x: -1.0, y: 1.0},  // Jagged
+      {x: -1.0, y: 1.0},
       {x: -0.5, y: 0.7},
       {x: 0.0, y: 0.3},
       {x: 0.5, y: 0.1},
-      {x: 1.0, y: 0.0},   // Flat
+      {x: 1.0, y: 0.0},
     ]);
     
     // Cache
@@ -287,19 +313,46 @@ export class WorldGenPipeline {
     return ix * 4194304 + iz * 1048576 + iy;
   }
   
-  // Step 1: Calculate continentalness (land vs ocean)
+  // Step 1: Calculate continentalness (land vs ocean) — v6.0 with domain warping
   getContinentalness(x, z) {
-    return this.continentalnessNoise.fbm2D(x, z, 4, 0.5, 2.0, 0.0005);
+    const cfg = NOISE_CONFIGS.continentalness;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.continentalnessNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
   }
   
-  // Step 2: Calculate erosion (flat vs jagged)
+  // Step 2: Calculate erosion (flat vs jagged) — v6.0 with domain warping
   getErosion(x, z) {
-    return this.erosionNoise.fbm2D(x, z, 4, 0.5, 2.0, 0.001);
+    const cfg = NOISE_CONFIGS.erosion;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.erosionNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
   }
   
-  // Step 3: Calculate weirdness (peaks vs valleys)
+  // Step 3: Calculate weirdness (peaks vs valleys) — v6.0 with domain warping
   getWeirdness(x, z) {
-    return this.weirdnessNoise.fbm2D(x, z, 4, 0.5, 2.0, 0.0015);
+    const cfg = NOISE_CONFIGS.weirdness;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.weirdnessNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
+  }
+  
+  // v6.0: Calculate peaks/valleys with calibrated config
+  getPeaksValleys(x, z) {
+    const cfg = NOISE_CONFIGS.peaksValleys;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.weirdnessNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
+  }
+  
+  // v6.0: Temperature with domain warping
+  getTemperature(x, z) {
+    const cfg = NOISE_CONFIGS.temperature;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.temperatureNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
+  }
+  
+  // v6.0: Humidity with domain warping
+  getHumidity(x, z) {
+    const cfg = NOISE_CONFIGS.humidity;
+    const warped = this.warper.warp2D(x, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    return this.humidityNoise.fbm2D(warped.x, warped.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
   }
   
   // Cached spline params for getBiome optimization
@@ -329,7 +382,35 @@ export class WorldGenPipeline {
     return weirdness; // Simplified: positive = peaks, negative = valleys
   }
   
-  // Step 5: Calculate base height using splines (cached per x,z)
+  // v6.0: Lightweight biome estimate without calling getBaseHeight (breaks circular dep)
+  _estimateBiome(cont, erosion, pv, weirdness, temp, humid, baseHeight) {
+    if (cont < -0.3) return BIOMES.DEEP_OCEAN;
+    if (cont < 0.0) return BIOMES.OCEAN;
+    if (baseHeight < SEA_LEVEL + 3) return BIOMES.BEACH;
+    if (pv < -0.5 && cont > 0.0 && cont < 0.5 && baseHeight < SEA_LEVEL + 2) return BIOMES.RIVER;
+    if (baseHeight > SEA_LEVEL + 100) {
+      if (temp < 0.2) return BIOMES.SNOWY_PEAKS;
+      if (erosion < -0.3) return BIOMES.STONY_PEAKS;
+      return BIOMES.MOUNTAINS;
+    }
+    if (baseHeight > SEA_LEVEL + 60) {
+      if (temp < 0.3) return BIOMES.SNOWY_PLAINS;
+      return BIOMES.MEADOW;
+    }
+    if (temp < 0.2) return BIOMES.SNOWY_PLAINS;
+    if (temp < 0.4) return BIOMES.TAIGA;
+    if (temp > 0.8) {
+      if (humid < 0.3) return BIOMES.DESERT;
+      if (humid > 0.7) return BIOMES.JUNGLE;
+      return BIOMES.SAVANNA;
+    }
+    if (humid > 0.6) return BIOMES.FOREST;
+    if (humid < 0.3 && erosion > 0.3) return BIOMES.PLAINS;
+    if (humid > 0.5) return BIOMES.SWAMP;
+    return BIOMES.PLAINS;
+  }
+  
+  // Step 5: Calculate base height using v6.0 TerrainSplines (cached per x,z)
   getBaseHeight(x, z) {
     const ix = Math.floor(x) & 0x1FFFFF;
     const iz = Math.floor(z) & 0x1FFFFF;
@@ -339,20 +420,15 @@ export class WorldGenPipeline {
     }
     const { cont, erosion, weirdness, pv } = this._getSplineParams(x, z);
     
-    // Apply splines
-    const contHeight = this.continentalnessSpline.evaluate(cont);
-    const erosionFactor = this.erosionSpline.evaluate(erosion);
+    // v6.0: Use advanced TerrainSplines
+    let baseHeight = this.terrainSplines.getHeight(cont, erosion, pv, weirdness);
     
-    // Base height calculation
-    let baseHeight = SEA_LEVEL + contHeight * 150;
-    
-    // Erosion flattens terrain
-    baseHeight *= (1 - erosionFactor * 0.5);
-    
-    // PV adds peaks and valleys
-    if (cont > 0.3) { // Only on land
-      baseHeight += pv * 40 * (1 - erosionFactor);
-    }
+    // v6.0: Apply biome-specific modulation using lightweight biome estimate
+    // (avoid calling getBiome which calls getBaseHeight → circular recursion)
+    const temp = this.getTemperature(x, z);
+    const humid = this.getHumidity(x, z);
+    const estimatedBiome = this._estimateBiome(cont, erosion, pv, weirdness, temp, humid, baseHeight);
+    baseHeight = this.biomeModulator.modulate(baseHeight, x, z, estimatedBiome);
     
     // Rivers in valleys
     if (pv < -0.5 && cont > -0.2 && cont < 0.5) {
@@ -368,7 +444,7 @@ export class WorldGenPipeline {
     return baseHeight;
   }
   
-  // Step 6: Calculate 3D density (solid vs air)
+  // Step 6: Calculate 3D density (solid vs air) — v6.0 with domain warping
   getDensity(x, y, z) {
     const key = this._cacheKey(x, y, z);
     if (this.cache.has(key)) {
@@ -380,8 +456,10 @@ export class WorldGenPipeline {
     // Height bias (squeezing)
     const heightBias = (baseHeight - y) * 0.05;
     
-    // 3D noise for overhangs and caves
-    const noise3D = this.densityNoise.fbm3D(x, y, z, 4, 0.5, 2.0, 0.01);
+    // v6.0: 3D noise with domain warping for organic caves
+    const cfg = NOISE_CONFIGS.density3D;
+    const warped3D = this.warper.warp3D(x, y, z, cfg.warpStrength, cfg.warpScale, cfg.warpOctaves);
+    const noise3D = this.densityNoise.fbm3D(warped3D.x, warped3D.y, warped3D.z, cfg.octaves, cfg.persistence, cfg.lacunarity, cfg.scale);
     
     // Combine
     let density = noise3D + heightBias;
@@ -449,15 +527,19 @@ export class WorldGenPipeline {
 
     if (density > 0) {
       // Surface layer: check if block above is air (density <= 0)
+      const biome = this.getBiome(x, z);
       // Use fast check: if y+1 > baseHeight + 15, it's definitely air
       if (y + 1 > baseHeight + 15) {
-        const biome = this.getBiome(x, z);
         return this.getSurfaceBlock(biome, y);
       }
       const densityAbove = this.getDensity(x, y + 1, z);
       if (densityAbove <= 0) {
-        const biome = this.getBiome(x, z);
         return this.getSurfaceBlock(biome, y);
+      }
+      // SPEC-BIOME-OVERHAUL: Use subsurface blocks for layers near surface
+      const surfaceY = Math.ceil(baseHeight);
+      if (y >= surfaceY - 5) {
+        return this.getSubsurfaceBlock(biome, y, surfaceY);
       }
       return 'stone';
     }
@@ -492,22 +574,63 @@ export class WorldGenPipeline {
     return y < localLevel ? 'water' : 'air';
   }
   
-  // Step 10: Get surface block based on biome
+  // Step 10: Get surface block based on biome — SPEC-BIOME-OVERHAUL
   getSurfaceBlock(biome, y) {
     if (y < SEA_LEVEL - 10) return 'stone';
-    
+
     switch (biome) {
       case BIOMES.DESERT: return 'sand';
       case BIOMES.BEACH: return 'sand';
       case BIOMES.SNOWY_PLAINS:
       case BIOMES.SNOWY_PEAKS: return 'snow';
-      case BIOMES.STONY_PEAKS: return 'stone';
+      case BIOMES.STONY_PEAKS: return 'calcite';
+      case BIOMES.MOUNTAINS: return 'stone';
       case BIOMES.SWAMP: return 'mud';
+      case BIOMES.SAVANNA: return 'coarse_dirt';
+      case BIOMES.MEADOW: return 'grass';
+      case BIOMES.CHERRY_GROVE: return 'grass';
+      case BIOMES.MYSTIC_GROVE: return 'mycelium';
+      case BIOMES.AUTUMN_FOREST: return 'grass';
+      case BIOMES.TAIGA: return 'grass';
+      case BIOMES.JUNGLE: return 'grass';
+      case BIOMES.FOREST: return 'grass';
+      case BIOMES.PLAINS: return 'grass';
+      case BIOMES.RIVER: return 'sand';
+      // SPEC-099: Wellness biomes
+      case BIOMES.ZEN_GARDEN: return 'sand';
+      case BIOMES.BAMBOO_GROVE: return 'grass';
+      case BIOMES.AURORA_TUNDRA: return 'snow';
       default: return 'grass';
     }
   }
+
+  // SPEC-BIOME-OVERHAUL: Get subsurface block based on biome
+  getSubsurfaceBlock(biome, y, surfaceY) {
+    const depth = surfaceY - y;
+    if (depth <= 0) return this.getSurfaceBlock(biome, y);
+
+    switch (biome) {
+      case BIOMES.DESERT:
+      case BIOMES.BEACH:
+        return depth <= 3 ? 'sand' : 'sandstone';
+      case BIOMES.STONY_PEAKS:
+      case BIOMES.MOUNTAINS:
+        return 'stone';
+      case BIOMES.SNOWY_PLAINS:
+      case BIOMES.SNOWY_PEAKS:
+        return depth <= 2 ? 'snow_block' : 'stone';
+      case BIOMES.SWAMP:
+        return depth <= 2 ? 'mud' : 'dirt';
+      case BIOMES.SAVANNA:
+        return depth <= 3 ? 'coarse_dirt' : 'dirt';
+      case BIOMES.MYSTIC_GROVE:
+        return depth <= 2 ? 'mycelium' : 'dirt';
+      default:
+        return depth <= 3 ? 'dirt' : 'stone';
+    }
+  }
   
-  // Step 11: Determine biome
+  // Step 11: Determine biome — v6.0 with calibrated noise
   getBiome(x, z) {
     const ix = Math.floor(x) & 0x1FFFFF;
     const iz = Math.floor(z) & 0x1FFFFF;
@@ -517,8 +640,9 @@ export class WorldGenPipeline {
     }
     const { cont, erosion, pv } = this._getSplineParams(x, z);
     
-    const temp = this.temperatureNoise.fbm2D(x, z, 3, 0.5, 2.0, 0.002);
-    const humid = this.humidityNoise.fbm2D(x, z, 3, 0.5, 2.0, 0.002);
+    // v6.0: Use calibrated temperature/humidity with domain warping
+    const temp = this.getTemperature(x, z);
+    const humid = this.getHumidity(x, z);
     
     const baseHeight = this.getBaseHeight(x, z);
     
@@ -569,7 +693,21 @@ export class WorldGenPipeline {
     }
     if (humid < 0.3 && erosion > 0.3) { this._biomeCache.set(key, BIOMES.PLAINS); return BIOMES.PLAINS; }
     if (humid > 0.5) { this._biomeCache.set(key, BIOMES.SWAMP); return BIOMES.SWAMP; }
-    
+
+    // SPEC-099: Wellness biomes — rare, require specific conditions
+    if (temp > 0.4 && temp < 0.6 && humid > 0.5 && humid < 0.65 && weirdness > 0.3 && cont > 0.2) {
+      this._biomeCache.set(key, BIOMES.ZEN_GARDEN);
+      return BIOMES.ZEN_GARDEN;
+    }
+    if (temp > 0.6 && temp < 0.8 && humid > 0.7 && weirdness > 0.4) {
+      this._biomeCache.set(key, BIOMES.BAMBOO_GROVE);
+      return BIOMES.BAMBOO_GROVE;
+    }
+    if (temp < 0.15 && humid > 0.4 && weirdness > 0.5 && baseHeight > SEA_LEVEL + 30) {
+      this._biomeCache.set(key, BIOMES.AURORA_TUNDRA);
+      return BIOMES.AURORA_TUNDRA;
+    }
+
     this._biomeCache.set(key, BIOMES.PLAINS);
     return BIOMES.PLAINS;
   }
@@ -584,7 +722,13 @@ export class WorldGenPipeline {
 // ═══════════════════════════════════════════════════════════
 // Voxel Chunk — 16x384x16 blocks
 // ═══════════════════════════════════════════════════════════
-const BLOCK_TYPE_TO_ID = { air: 0, stone: 1, grass: 2, dirt: 3, sand: 4, water: 5, lava: 6, snow: 7, mud: 8 };
+const BLOCK_TYPE_TO_ID = {
+  air: 0, stone: 1, grass: 2, dirt: 3, sand: 4, water: 5, lava: 6, snow: 7, mud: 8,
+  // SPEC-BIOME-OVERHAUL: extended terrain blocks
+  red_sand: 171, terracotta: 172, calcite: 173, coarse_dirt: 174,
+  snow_block: 39, ice: 40, packed_ice: 41, granite: 45, andesite: 46, diorite: 47,
+  sandstone: 34, gravel: 22, clay: 23, mossy_cobble: 19, moss: 43, mycelium: 42,
+};
 
 export class VoxelChunk {
   constructor(cx, cz, worldGen) {

@@ -10,7 +10,8 @@ jardvoxel/
 ├── jardvoxel-engine.js         # Motor clasico (terreno, chunks, greedy meshing, estructuras)
 ├── jardvoxel-worker.js         # Web Worker para generacion de chunks off-main-thread
 ├── jardvoxel-survival.html     # Juego survival (UI + game loop + imports modulares)
-├── jardvoxel-survival-engine.js  # Motor survival (pipeline, noise, biomas, chunks)
+├── jardvoxel-survival-engine.js  # Motor survival (pipeline, WorldGen, biomas, chunks)
+├── jardvoxel-survival-noise.js   # Sistema de ruido v6.0 (Simplex, Warping, Splines, Blending)
 ├── jardvoxel-survival-mesher.js  # Mesher (greedy meshing, AO, water, block registry)
 ├── jardvoxel-survival-gameplay.js # World, PlayerController, Inventory, DayNight, Audio
 ├── jardvoxel-survival-features.js # Arboles, ores, estructuras, decoracion
@@ -59,7 +60,10 @@ jardvoxel/
     ├── IMPROVEMENTS-ROADMAP.md # Roadmap de mejoras (SPEC-025 a SPEC-066)
     ├── PRD-CHILLTUNE-MUSIC.md  # PRD: Sistema de musica 8-bit dinamica
     ├── PRD-TOUCH-JOYSTICK.md   # PRD: Joysticks touch para moviles
-    └── PRD-MOBILE-MENU.md      # PRD: Menu de juego + opciones
+    ├── PRD-MOBILE-MENU.md      # PRD: Menu de juego + opciones
+    ├── SPEC-099-WELLNESS-SYSTEM.md # SPEC: Sistema de Bienestar y Relajacion v7.0
+    ├── WELLNESS-IMPLEMENTATION-PLAN.md # Plan ejecutable 24h (3 dias)
+    └── WELLNESS-EXECUTIVE-SUMMARY.md # Resumen ejecutivo visual
 ```
 
 ## Documentos
@@ -76,6 +80,9 @@ jardvoxel/
 | [PRD-CHILLTUNE-MUSIC.md](./PRD-CHILLTUNE-MUSIC.md) | PRD: Sistema de musica 8-bit dinamica relajante |
 | [PRD-TOUCH-JOYSTICK.md](./PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles (pendiente) |
 | [PRD-MOBILE-MENU.md](./PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones (pendiente) |
+| [SPEC-099-WELLNESS-SYSTEM.md](./SPEC-099-WELLNESS-SYSTEM.md) | 🆕 SPEC: Sistema de Bienestar y Relajacion v7.0 |
+| [WELLNESS-IMPLEMENTATION-PLAN.md](./WELLNESS-IMPLEMENTATION-PLAN.md) | 🆕 Plan ejecutable 24h (3 dias @ 8h/dia) |
+| [WELLNESS-EXECUTIVE-SUMMARY.md](./WELLNESS-EXECUTIVE-SUMMARY.md) | 🆕 Resumen ejecutivo visual |
 | [TESTING.md](./TESTING.md) | Suite de tests del core: 163 tests con Vitest |
 
 ## Stack Tecnologico
@@ -92,8 +99,18 @@ Abrir `jardvoxel.html` en un navegador moderno (Chrome/Firefox/Edge). Click en l
 
 ## Features
 
+### Sistema de Generación v6.0 (SPEC-091 a SPEC-098)
+- **Simplex Noise** — Reemplaza Perlin con mejor performance (O(n²) vs O(n³))
+- **Domain Warping** — Coastlines irregulares, montañas orgánicas, biomas naturales
+- **Terrain Splines** — Modelado complejo inspirado en Minecraft 1.18+
+- **Biome Blending** — Transiciones suaves de 8-16 bloques entre biomas
+- **Biome Terrain Modulation** — Cada bioma con características únicas (dunas, crestas, colinas)
+- **Coherent Feature Placement** — Árboles y features en clusters naturales
+- **Hydraulic Erosion** — Erosión post-generación para terreno natural (opcional)
+
+### Core Features
 - **157 bloques** con colores, hardness, transparencia y emisivos
-- **16 biomas** con temperatura, humedad y altura
+- **19 biomas** con temperatura, humedad, altura y transiciones suaves
 - **6 tipos de arboles** por bioma (Oak, Jungle, Spruce, Mangrove, Dead, Savanna)
 - **14 estructuras** (village, temple, mineshaft, monument, jungle temple, shipwreck, igloo, etc.)
 - **Cuevas**: spaghetti, cheese, noodle, carver tunnels, ravines
@@ -166,11 +183,16 @@ npx vitest              # watch mode
 
 ## Estado
 
-- **Version:** 5.1.0
-- **Estado:** Jugable con gameplay completo + core test suite (163 tests)
+- **Version:** 6.0.0 — Advanced Noise Generation & Coherent Biomes
+- **Fecha:** 28 Junio 2026
+- **Estado:** Jugable con gameplay completo + sistema de generación v6.0 + core test suite (163 tests)
 - **Dependencias:** Three.js (CDN), Vitest (dev)
-- **Tamaño:** ~500KB total (28 archivos JS + 2 HTML + docs + tests)
-- **Specs completadas:** SPEC-025 a SPEC-067 (43 specs)
+- **Tamaño:** ~550KB total (29 archivos JS + 2 HTML + docs + tests)
+- **Specs completadas:** SPEC-025 a SPEC-098 (74 specs)
+  - **v6.0 Noise System:** SPEC-091 a SPEC-098 (8 specs)
+  - **v5.0 Living World:** SPEC-070 a SPEC-090 (21 specs)
+  - **v4.x Core Features:** SPEC-025 a SPEC-067 (43 specs)
 - **Bugs resueltos:** 10/10 (BUG-001 a BUG-010)
 - **Tests core:** 163 tests en 9 archivos (Vitest + jsdom)
-- **PRDs pendientes:** Touch Joystick (SPEC-062 mobile), Game Menu (SPEC-063 mobile)
+- **PRDs completados:** Noise Generation 6.0, JardVoxel 5.0, ChillTune Music
+- **PRDs pendientes:** Touch Joystick (mobile), Game Menu (mobile)

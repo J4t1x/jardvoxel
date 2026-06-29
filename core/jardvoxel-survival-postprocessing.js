@@ -26,13 +26,13 @@ export class PostprocessingManager {
     this.ssaoPass = null;
     this.bloomPass = null;
     this.outputPass = null;
-    this.quality = QUALITY.HIGH;
+    this.quality = QUALITY.MEDIUM;
     this._enabled = true;
     this._fpsHistory = [];
     this._fpsCheckTimer = 0;
     this._size = new THREE.Vector2(
-      renderer.domElement.width,
-      renderer.domElement.height
+      Math.max(renderer.domElement.width, 1),
+      Math.max(renderer.domElement.height, 1)
     );
 
     this._init();
@@ -62,7 +62,7 @@ export class PostprocessingManager {
     this.outputPass = new OutputPass();
     this.composer.addPass(this.outputPass);
 
-    this.setQuality(QUALITY.HIGH);
+    this.setQuality(QUALITY.MEDIUM);
   }
 
   setQuality(quality) {
@@ -106,15 +106,17 @@ export class PostprocessingManager {
   }
 
   resize(width, height) {
-    this._size.set(width, height);
+    const w = Math.max(width || 1, 1);
+    const h = Math.max(height || 1, 1);
+    this._size.set(w, h);
     if (this.composer) {
-      this.composer.setSize(width, height);
+      this.composer.setSize(w, h);
     }
     if (this.ssaoPass) {
-      this.ssaoPass.setSize(width, height);
+      this.ssaoPass.setSize(w, h);
     }
     if (this.bloomPass) {
-      this.bloomPass.setSize(width, height);
+      this.bloomPass.setSize(w, h);
     }
   }
 

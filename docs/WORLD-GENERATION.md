@@ -1,87 +1,201 @@
 # JardVoxel — Generacion Procedural de Mundo
 
-## Ruido Perlin
+**Versión:** 6.0 — Advanced Noise Generation & Coherent Biomes  
+**Fecha:** 28 Junio 2026  
+**Specs:** SPEC-091 through SPEC-098  
 
-El motor usa **Perlin Noise 2D y 3D** con semilla reproducible (Xorshift128+ PRNG).
+## Sistema de Ruido v6.0
 
-### Ruidos del WorldGenerator
+El motor usa **Simplex Noise 2D y 3D** (no Perlin) con semilla reproducible (Xorshift128+ PRNG) y **Domain Warping** para patrones orgánicos.
 
-| Ruido | Seed offset | Funcion | Escala |
-|-------|-------------|---------|--------|
-| `heightNoise` | +0 | Altura base del terreno | 0.005 (5 octaves) |
-| `detailNoise` | +100 | Detalle fino | 0.02 (3 octaves) |
-| `tempNoise` | +200 | Temperatura (biomas) | 0.003 (3 octaves) |
-| `humidNoise` | +300 | Humedad (biomas) | 0.003 (3 octaves) |
-| `continentalNoise` | +400 | Continentalidad (océano vs tierra) | 0.0008 (4 octaves) |
-| `erosionNoise` | +500 | Erosion (plano vs montañoso) | 0.002 (4 octaves) |
-| `caveNoise` | +600 | Cuevas spaghetti + cheese | 0.05 / 0.03 |
-| `caveNoise2` | +700 | Cuevas spaghetti (2do campo) | 0.08 |
-| `oreNoise` | +800 | Distribucion de minerales (legacy) | 0.1 |
-| `riverNoise` | +1000 | Rios sinuosos | 0.002 (2 octaves) |
-| `ravineNoise` | +1100 | Ravinas (cortes verticales) | 0.02 |
-| `densityNoise` | +1300 | 3D overhangs en biomas montañosos | 0.015 (3 octaves) |
-| `noodleNoise` | +1400 | Noodle caves (tuneles delgados) | 0.06 (2 octaves) |
-| `noodleNoise2` | +1401 | Noodle caves (2do campo offset) | 0.06 (2 octaves) |
-| `aquiferNoise` | +1500 | Aquifer: local fluid level por celda 16-block | 0.5 |
-| `aquiferBarrier` | +1501 | Aquifer: barrier noise (separa fluido de aire) | 0.04 / 0.06 |
-| `carverNoise` | +1600 | Carver: tunel principal sinuoso | 0.015 (3 octaves) |
-| `carverNoise2` | +1601 | Carver: tunel secundario (branch) | 0.025 (2 octaves) |
-| `oreToggleNoise` | +1700 | Ore veins: tipo de mineral | 0.08 |
-| `oreRidgeNoise` | +1701 | Ore veins: skip si > 0.2 | 0.06 |
-| `oreGapNoise` | +1702 | Ore veins: densidad ore-to-filler | 0.12 |
-| `lavaLakeNoise` | +1800 | Lava lakes en superficie baja | 0.01 |
-| `springNoise` | +1801 | Fluid springs en paredes de cuevas | 0.1 |
-| `freezeNoise` | +1900 | Freeze top layer (hielo en agua fria) | 0.03 |
-| `stoneVarNoise` | +2000 | Stone variants (granite/andesite/diorite) | 0.02 / 0.01 |
+### Ventajas de Simplex sobre Perlin:
+- ✅ Menos artefactos direccionales
+- ✅ Mejor performance (O(n²) vs O(n³) en 3D)
+- ✅ Gradientes más uniformes
+- ✅ Patrones más orgánicos y naturales
 
-## Altura del Terreno
+### Componentes del Sistema v6.0:
 
+1. **SimplexNoise** (SPEC-091) — Generador de ruido base
+2. **DomainWarper** (SPEC-092) — Rompe regularidad del ruido
+3. **NOISE_CONFIGS** (SPEC-093) — Parámetros calibrados por capa
+4. **TerrainSplines** (SPEC-094) — Modelado complejo de terreno
+5. **BiomeBlender** (SPEC-095) — Transiciones suaves entre biomas
+6. **BiomeTerrainModulator** (SPEC-096) — Modulación específica por bioma
+7. **FeaturePlacer** (SPEC-097) — Distribución coherente de features
+8. **HydraulicErosion** (SPEC-098) — Erosión post-generación (opcional)
+
+### Capas de Ruido v6.0 (SPEC-093)
+
+Todas las capas usan **Simplex Noise** con **Domain Warping** aplicado antes del sampling.
+
+| Capa | Warp Strength | Octaves | Persistence | Lacunarity | Scale | Función |
+|------|---------------|---------|-------------|------------|-------|---------|
+| **Continentalness** | 80 | 6 | 0.5 | 2.0 | 0.0005 | Océano vs tierra |
+| **Erosion** | 40 | 5 | 0.55 | 2.2 | 0.0008 | Plano vs montañoso |
+| **PeaksValleys** | 30 | 4 | 0.6 | 2.5 | 0.0012 | Picos y valles |
+| **Weirdness** | 20 | 3 | 0.5 | 2.0 | 0.0015 | Variación extraña |
+| **Temperature** | 60 | 4 | 0.5 | 2.0 | 0.0005 | Temperatura (biomas) |
+| **Humidity** | 60 | 4 | 0.5 | 2.0 | 0.0005 | Humedad (biomas) |
+| **Density3D** | 15 | 5 | 0.5 | 2.0 | 0.008 | Cuevas y overhangs |
+
+### Domain Warping (SPEC-092)
+
+Cada capa aplica warping antes de samplear el ruido:
+
+```javascript
+// Sin warping (v5.0)
+const value = noise.fbm2D(x, z, octaves, persistence, lacunarity, scale);
+
+// Con warping (v6.0)
+const warped = warper.warp2D(x, z, strength, warpScale, warpOctaves);
+const value = noise.fbm2D(warped.x, warped.z, octaves, persistence, lacunarity, scale);
 ```
+
+**Efectos del warping:**
+- Coastlines irregulares con bahías y penínsulas naturales
+- Montañas con formas orgánicas (no conos perfectos)
+- Biomas con fronteras naturales (no líneas rectas)
+- Ríos con curvas naturales
+- Cuevas con formas complejas
+
+## Altura del Terreno v6.0 (SPEC-094)
+
+El sistema usa **splines** para modelado complejo de terreno, inspirado en Minecraft 1.18+.
+
+### Pipeline de Generación:
+
+```javascript
 getHeight(x, z):
-  1. continental = fbm(x, z, 4 octaves, scale 0.0008)
-  2. base = fbm(x, z, 5 octaves, scale 0.005)
-  3. erosion = fbm(x, z, 4 octaves, scale 0.002)
-  4. detail = fbm(x, z, 3 octaves, scale 0.02)
-  5. river = fbm(x, z, 2 octaves, scale 0.002)
-
-  Si continental < 0.38:
-    h = WATER_LEVEL - 3 + (continental - 0.38) * 60  → Oceano profundo
-  Sino:
-    h = (continental - 0.38) * 80 + WATER_LEVEL
-    h += (base - 0.5) * 20      → variacion de altura
-    h += (erosion - 0.5) * 15   → aplanamiento
-    h += (detail - 0.5) * 4     → detalle fino
-    Si continental > 0.6:
-      h += (continental - 0.6)^2 * 120  → montañas
-
-  Si rio cerca (|river - 0.5| < 0.02) y h > WATER_LEVEL - 2:
-    h = WATER_LEVEL - 1  → rio al nivel del mar
-
-  Clamp: 1 ≤ h ≤ CHUNK_HEIGHT - 5 (59)
+  // 1. Samplear capas de ruido con domain warping
+  continental = getContinentalness(x, z)  // con warp strength 80
+  erosion = getErosion(x, z)              // con warp strength 40
+  peaksValleys = getPeaksValleys(x, z)    // con warp strength 30
+  weirdness = getWeirdness(x, z)          // con warp strength 20
+  
+  // 2. Evaluar splines (interpolación suave)
+  baseHeight = continentalnessSpline.evaluate(continental)
+  erosionOffset = erosionSpline.evaluate(erosion)
+  peaksOffset = peaksValleysSpline.evaluate(peaksValleys)
+  
+  // 3. Combinar con pesos
+  finalHeight = baseHeight + erosionOffset * 0.7 + peaksOffset * 0.5
+  
+  // 4. Aplicar weirdness (variación extraña)
+  finalHeight += weirdness * 8
+  
+  // 5. Clamp
+  finalHeight = clamp(finalHeight, 1, CHUNK_HEIGHT - 5)
 ```
 
-## Biomas
+### Splines Definidos (SPEC-094):
 
-16 biomas determinados por temperatura, humedad, altura y continentalidad:
+**Continentalness Spline:**
+- `-1.0 → 32` (océano profundo)
+- `-0.2 → 58` (costa)
+- `0.0 → 63` (nivel del mar)
+- `0.3 → 75` (tierras bajas)
+- `0.6 → 95` (tierras altas)
+- `1.0 → 120` (montañas)
 
-| Bioma | Condicion | Color caracteristico |
-|-------|-----------|---------------------|
-| Ocean | height < WATER_LEVEL - 2, temp ≥ 0.25 | Azul |
-| Frozen Ocean | height < WATER_LEVEL - 2, temp < 0.25 | Azul claro |
-| Beach | height < WATER_LEVEL + 2 | Arena |
-| River | rio cerca, height ≤ WATER_LEVEL | Arena |
-| Snowy Peaks | height > 50 | Nieve |
-| Mountain | height > 38 | Roca |
-| Tundra | temp < 0.20 | Nieve |
-| Taiga | temp < 0.35, humid > 0.40 | Bosque con nieve |
-| Desert | temp > 0.70, humid < 0.20 | Arena |
-| Badlands | temp > 0.70, humid < 0.20, continental > 0.50 | Arena roja |
-| Savanna | temp > 0.65, humid < 0.35 | Tierra seca |
-| Jungle | temp > 0.55, humid > 0.60 | Bosque denso |
-| Mangrove | humid > 0.70, height ≤ WATER_LEVEL + 3 | Tierra pantanosa |
-| Swamp | humid > 0.55, height < WATER_LEVEL + 8 | Pantano |
-| Forest | humid > 0.50 | Bosque |
-| Plains | default | Pasto |
+**Erosion Spline:**
+- `-1.0 → -15` (muy erosionado, valles)
+- `-0.5 → -8`
+- `0.0 → 0` (neutral)
+- `0.5 → 10`
+- `1.0 → 25` (poco erosionado, picos)
+
+**Peaks/Valleys Spline:**
+- `-1.0 → -20` (valles profundos)
+- `-0.3 → -5`
+- `0.0 → 0` (neutral)
+- `0.3 → 8`
+- `1.0 → 30` (picos altos)
+
+## Biomas v6.0 (SPEC-095, SPEC-096)
+
+19 biomas con **transiciones suaves** (8-16 bloques) usando BiomeBlender.
+
+### Sistema de Blending (SPEC-095):
+
+En lugar de fronteras duras, cada posición calcula un **blend de múltiples biomas**:
+
+```javascript
+getBiomeAt(x, z):
+  // 1. Samplear capas con warping
+  temp = getTemperature(x, z)      // warp strength 60
+  humid = getHumidity(x, z)        // warp strength 60
+  height = getHeight(x, z)
+  continental = getContinentalness(x, z)
+  
+  // 2. Calcular distancias a todos los biomas
+  biomeWeights = {}
+  for (biome in BIOMES) {
+    distance = calculateBiomeDistance(temp, humid, height, continental, biome)
+    weight = max(0, 1 - distance / BLEND_RADIUS)  // BLEND_RADIUS = 12
+    if (weight > 0) biomeWeights[biome] = weight
+  }
+  
+  // 3. Normalizar pesos (suma = 1.0)
+  totalWeight = sum(biomeWeights.values)
+  for (biome in biomeWeights) {
+    biomeWeights[biome] /= totalWeight
+  }
+  
+  return biomeWeights  // { plains: 0.6, forest: 0.3, meadow: 0.1 }
+```
+
+### Biomas Disponibles:
+
+| Bioma | Condiciones | Modulación de Terreno (SPEC-096) |
+|-------|-------------|----------------------------------|
+| **Ocean** | height < 58, temp ≥ 0.25 | Suavizado (-5 a -15) |
+| **Deep Ocean** | height < 45 | Suavizado fuerte (-10 a -25) |
+| **Beach** | height 58-65 | Aplanado (±2) |
+| **Plains** | temp 0.3-0.7, humid 0.3-0.6 | Suave ondulación (±3) |
+| **Forest** | temp 0.3-0.6, humid 0.5-0.8 | Colinas suaves (+5 a +15) |
+| **Jungle** | temp > 0.6, humid > 0.7 | Colinas pronunciadas (+10 a +25) |
+| **Desert** | temp > 0.7, humid < 0.3 | Dunas (+8 a +20) |
+| **Savanna** | temp 0.6-0.8, humid 0.2-0.4 | Mesetas (+5 a +12) |
+| **Taiga** | temp 0.2-0.4, humid > 0.4 | Colinas boscosas (+8 a +18) |
+| **Snowy Plains** | temp < 0.25, height < 75 | Plano nevado (±2) |
+| **Mountains** | height > 85 | Picos extremos (+20 a +50) |
+| **Snowy Peaks** | height > 95, temp < 0.3 | Picos nevados (+25 a +60) |
+| **Stony Peaks** | height > 90, temp > 0.3 | Picos rocosos (+20 a +45) |
+| **Meadow** | height 70-85, humid > 0.5 | Praderas onduladas (+3 a +8) |
+| **Cherry Grove** | temp 0.4-0.6, humid 0.6-0.8 | Colinas florales (+5 a +12) |
+| **Swamp** | humid > 0.7, height 60-68 | Pantanoso (-2 a +3) |
+| **River** | Detectado por noise especial | Cauce (-5 a -10) |
+| **Mystic Grove** | Raro, weirdness > 0.7 | Formaciones extrañas (+10 a +30) |
+| **Autumn Forest** | temp 0.4-0.6, humid 0.4-0.6 | Colinas otoñales (+6 a +14) |
+
+### Modulación de Terreno por Bioma (SPEC-096):
+
+Cada bioma aplica un **noise adicional** para crear características únicas:
+
+```javascript
+BIOME_TERRAIN_MODULATION = {
+  mountains: {
+    scale: 0.008,
+    octaves: 4,
+    amplitude: 35,
+    type: 'ridged'  // Crestas pronunciadas
+  },
+  jungle: {
+    scale: 0.012,
+    octaves: 3,
+    amplitude: 18,
+    type: 'billowy'  // Colinas redondeadas
+  },
+  desert: {
+    scale: 0.015,
+    octaves: 2,
+    amplitude: 12,
+    type: 'dunes'  // Dunas sinuosas
+  }
+  // ... etc
+}
+```
 
 ## Cuevas
 

@@ -110,61 +110,66 @@ export const VEGETATION_BLOCKS = {
   BERRY_BUSH: 167, VINES: 168, LILY_PAD: 169, CORAL_FAN: 170,
 };
 
+// SPEC-BIOME-OVERHAUL: Terrain blocks (171-175)
+export const TERRAIN_BLOCKS = {
+  RED_SAND: 171, TERRACOTTA: 172, CALCITE: 173, COARSE_DIRT: 174, SPRUCE_WOOD: 175,
+};
+
 // ── Consolidated colors (all blocks) ──
 
 export const ALL_BLOCK_COLORS = {
-  // Base blocks
-  [BLOCK.STONE]: [0.50, 0.50, 0.52],
-  [BLOCK.GRASS]: [0.35, 0.72, 0.25],
-  [BLOCK.DIRT]: [0.55, 0.40, 0.25],
-  [BLOCK.SAND]: [0.93, 0.83, 0.55],
-  [BLOCK.WATER]: [0.15, 0.40, 0.70],
-  [BLOCK.LAVA]: [0.90, 0.35, 0.05],
-  [BLOCK.SNOW]: [0.92, 0.92, 0.96],
-  [BLOCK.MUD]: [0.40, 0.35, 0.20],
-  // Extended blocks
-  [MC_BLOCKS.OAK_LOG]: [0.45, 0.30, 0.15],
-  [MC_BLOCKS.OAK_LEAVES]: [0.15, 0.50, 0.15],
-  [MC_BLOCKS.BIRCH_LOG]: [0.82, 0.78, 0.62],
-  [MC_BLOCKS.BIRCH_LEAVES]: [0.20, 0.55, 0.20],
-  [MC_BLOCKS.SPRUCE_LOG]: [0.25, 0.18, 0.12],
-  [MC_BLOCKS.SPRUCE_LEAVES]: [0.10, 0.35, 0.15],
-  [MC_BLOCKS.JUNGLE_LOG]: [0.30, 0.25, 0.10],
-  [MC_BLOCKS.JUNGLE_LEAVES]: [0.10, 0.52, 0.10],
-  [MC_BLOCKS.COAL_ORE]: [0.25, 0.25, 0.25],
-  [MC_BLOCKS.IRON_ORE]: [0.65, 0.55, 0.40],
-  [MC_BLOCKS.GOLD_ORE]: [0.80, 0.65, 0.15],
-  [MC_BLOCKS.DIAMOND_ORE]: [0.30, 0.85, 0.85],
-  [MC_BLOCKS.COBBLESTONE]: [0.45, 0.45, 0.47],
-  [MC_BLOCKS.PLANKS]: [0.65, 0.45, 0.25],
-  [MC_BLOCKS.GLASS]: [0.80, 0.90, 0.95],
-  [MC_BLOCKS.BRICKS]: [0.60, 0.35, 0.30],
-  [MC_BLOCKS.TORCH]: [0.90, 0.55, 0.15],
-  [MC_BLOCKS.LANTERN]: [0.95, 0.75, 0.25],
-  [MC_BLOCKS.CACTUS]: [0.30, 0.55, 0.25],
-  [MC_BLOCKS.FLOWER_RED]: [0.85, 0.25, 0.20],
-  [MC_BLOCKS.FLOWER_YELLOW]: [0.90, 0.80, 0.20],
-  [MC_BLOCKS.TALL_GRASS]: [0.38, 0.62, 0.25],
-  [MC_BLOCKS.FERN]: [0.30, 0.55, 0.20],
-  [MC_BLOCKS.DEAD_BUSH]: [0.50, 0.35, 0.20],
-  [MC_BLOCKS.MOSSY_COBBLE]: [0.35, 0.45, 0.30],
-  [MC_BLOCKS.SANDSTONE]: [0.88, 0.78, 0.50],
-  [MC_BLOCKS.GRAVEL]: [0.48, 0.45, 0.42],
-  [MC_BLOCKS.CLAY]: [0.70, 0.70, 0.75],
+  // Base blocks — Colores premium vibrantes y realistas
+  [BLOCK.STONE]: [0.62, 0.62, 0.66],           // Gris piedra natural
+  [BLOCK.GRASS]: [0.48, 0.88, 0.42],           // Verde césped vibrante
+  [BLOCK.DIRT]: [0.65, 0.48, 0.32],            // Marrón tierra rico
+  [BLOCK.SAND]: [0.96, 0.90, 0.72],            // Arena dorada suave
+  [BLOCK.WATER]: [0.15, 0.48, 0.78],           // Azul agua cristalina
+  [BLOCK.LAVA]: [0.95, 0.42, 0.12],            // Naranja lava incandescente
+  [BLOCK.SNOW]: [0.97, 0.98, 0.99],            // Blanco nieve puro
+  [BLOCK.MUD]: [0.45, 0.38, 0.25],             // Marrón barro oscuro
+  // Extended blocks — Colores naturales mejorados
+  [MC_BLOCKS.OAK_LOG]: [0.52, 0.36, 0.20],     // Marrón roble cálido
+  [MC_BLOCKS.OAK_LEAVES]: [0.28, 0.68, 0.28],  // Verde hojas roble
+  [MC_BLOCKS.BIRCH_LOG]: [0.92, 0.88, 0.75],   // Beige abedul claro
+  [MC_BLOCKS.BIRCH_LEAVES]: [0.32, 0.72, 0.32], // Verde hojas abedul
+  [MC_BLOCKS.SPRUCE_LOG]: [0.32, 0.24, 0.18],  // Marrón abeto oscuro
+  [MC_BLOCKS.SPRUCE_LEAVES]: [0.22, 0.52, 0.26], // Verde hojas abeto
+  [MC_BLOCKS.JUNGLE_LOG]: [0.38, 0.32, 0.16],  // Marrón selva profundo
+  [MC_BLOCKS.JUNGLE_LEAVES]: [0.22, 0.72, 0.22], // Verde hojas selva
+  [MC_BLOCKS.COAL_ORE]: [0.28, 0.28, 0.30],    // Gris carbón oscuro
+  [MC_BLOCKS.IRON_ORE]: [0.72, 0.62, 0.48],    // Beige hierro
+  [MC_BLOCKS.GOLD_ORE]: [0.88, 0.72, 0.22],    // Dorado oro brillante
+  [MC_BLOCKS.DIAMOND_ORE]: [0.38, 0.92, 0.92], // Cian diamante brillante
+  [MC_BLOCKS.COBBLESTONE]: [0.52, 0.52, 0.55], // Gris adoquín
+  [MC_BLOCKS.PLANKS]: [0.72, 0.52, 0.32],      // Marrón tablas cálido
+  [MC_BLOCKS.GLASS]: [0.85, 0.93, 0.97],       // Azul vidrio transparente
+  [MC_BLOCKS.BRICKS]: [0.68, 0.42, 0.38],      // Rojo ladrillo
+  [MC_BLOCKS.TORCH]: [0.95, 0.65, 0.25],       // Naranja antorcha cálido
+  [MC_BLOCKS.LANTERN]: [0.98, 0.82, 0.35],     // Amarillo linterna brillante
+  [MC_BLOCKS.CACTUS]: [0.42, 0.72, 0.38],      // Verde cactus
+  [MC_BLOCKS.FLOWER_RED]: [0.95, 0.38, 0.32],  // Rojo flor vibrante
+  [MC_BLOCKS.FLOWER_YELLOW]: [0.95, 0.85, 0.25],
+  [MC_BLOCKS.TALL_GRASS]: [0.45, 0.75, 0.35],
+  [MC_BLOCKS.FERN]: [0.25, 0.50, 0.20],
+  [MC_BLOCKS.DEAD_BUSH]: [0.55, 0.40, 0.25],
+  [MC_BLOCKS.MOSSY_COBBLE]: [0.40, 0.50, 0.35],
+  [MC_BLOCKS.SANDSTONE]: [0.92, 0.82, 0.55],
+  [MC_BLOCKS.GRAVEL]: [0.55, 0.52, 0.48],
+  [MC_BLOCKS.CLAY]: [0.60, 0.65, 0.70],
   [MC_BLOCKS.OBSIDIAN]: [0.08, 0.06, 0.14],
   [MC_BLOCKS.BEDROCK]: [0.20, 0.20, 0.22],
-  [MC_BLOCKS.SNOW_BLOCK]: [0.92, 0.92, 0.96],
-  [MC_BLOCKS.ICE]: [0.60, 0.80, 0.95],
-  [MC_BLOCKS.PACKED_ICE]: [0.55, 0.75, 0.92],
-  [MC_BLOCKS.MYCELIUM]: [0.55, 0.50, 0.58],
-  [MC_BLOCKS.MOSS]: [0.25, 0.45, 0.20],
-  [MC_BLOCKS.BAMBOO]: [0.55, 0.70, 0.25],
-  [MC_BLOCKS.GRANITE]: [0.62, 0.40, 0.35],
-  [MC_BLOCKS.ANDESITE]: [0.52, 0.52, 0.55],
-  [MC_BLOCKS.DIORITE]: [0.78, 0.75, 0.72],
+  [MC_BLOCKS.SNOW_BLOCK]: [0.98, 0.98, 1.0],
+  [MC_BLOCKS.ICE]: [0.70, 0.88, 0.98],
+  [MC_BLOCKS.PACKED_ICE]: [0.60, 0.82, 0.95],
+  [MC_BLOCKS.MYCELIUM]: [0.60, 0.55, 0.62],
+  [MC_BLOCKS.MOSS]: [0.30, 0.55, 0.25],
+  [MC_BLOCKS.BAMBOO]: [0.60, 0.80, 0.30],
+  [MC_BLOCKS.GRANITE]: [0.68, 0.45, 0.40],
+  [MC_BLOCKS.ANDESITE]: [0.58, 0.58, 0.62],
+  [MC_BLOCKS.DIORITE]: [0.82, 0.80, 0.78],
   [MC_BLOCKS.BOOKSHELF]: [0.65, 0.45, 0.25],
   [MC_BLOCKS.PUMPKIN]: [0.85, 0.55, 0.15],
-  [MC_BLOCKS.MELON]: [0.55, 0.75, 0.30],
+  [MC_BLOCKS.MELON]: [0.60, 0.85, 0.35],
   [MC_BLOCKS.CRAFTING_TABLE]: [0.55, 0.38, 0.20],
   [MC_BLOCKS.STICK]: [0.65, 0.45, 0.25],
   [MC_BLOCKS.FURNACE]: [0.45, 0.45, 0.47],
@@ -232,6 +237,12 @@ export const ALL_BLOCK_COLORS = {
   163: [0.85, 0.30, 0.35], 164: [0.95, 0.85, 0.20],
   165: [0.80, 0.20, 0.20], 166: [0.55, 0.40, 0.25],
   167: [0.50, 0.30, 0.20], 168: [0.25, 0.45, 0.15], 169: [0.35, 0.55, 0.25], 170: [0.90, 0.55, 0.55],
+  // SPEC-BIOME-OVERHAUL: Terrain blocks (171-175)
+  171: [0.85, 0.50, 0.25],  // RED_SAND
+  172: [0.75, 0.50, 0.35],  // TERRACOTTA
+  173: [0.92, 0.92, 0.90],  // CALCITE
+  174: [0.50, 0.38, 0.22],  // COARSE_DIRT
+  175: [0.28, 0.20, 0.14],  // SPRUCE_WOOD
 };
 
 // ── Consolidated names ──
@@ -314,6 +325,9 @@ export const ALL_BLOCK_NAMES = {
   163: 'Tulip', 164: 'Sunflower',
   165: 'Red Mushroom', 166: 'Brown Mushroom',
   167: 'Berry Bush', 168: 'Vines', 169: 'Lily Pad', 170: 'Coral Fan',
+  // SPEC-BIOME-OVERHAUL: Terrain blocks
+  171: 'Red Sand', 172: 'Terracotta', 173: 'Calcite',
+  174: 'Coarse Dirt', 175: 'Spruce Wood',
 };
 
 // ── Consolidated hardness ──
@@ -367,6 +381,8 @@ export const ALL_BLOCK_HARDNESS = {
   157: 0.0, 158: 0.0, 159: 0.0, 160: 0.0, 161: 0.0,
   162: 0.0, 163: 0.0, 164: 0.0, 165: 0.0, 166: 0.0,
   167: 0.1, 168: 0.1, 169: 0.0, 170: 0.0,
+  // SPEC-BIOME-OVERHAUL: Terrain blocks
+  171: 0.3, 172: 0.8, 173: 0.8, 174: 0.3, 175: 0.8,
 };
 
 // ── Consolidated placeable blocks ──
@@ -412,6 +428,8 @@ export const ALL_PLACEABLE_BLOCKS = [
   153,
   // Map
   156,
+  // SPEC-BIOME-OVERHAUL: Terrain blocks
+  171, 172, 173, 174, 175,
 ];
 
 // Non-placeable items that appear in creative inventory

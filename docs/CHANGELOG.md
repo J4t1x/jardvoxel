@@ -1,5 +1,98 @@
 # JardVoxel — Changelog
 
+## v6.0.0 — Advanced Noise Generation & Coherent Biomes (28 Junio 2026)
+
+### SPEC-091: Simplex Noise Core ✅
+- **Reemplaza PerlinNoise3D** con SimplexNoise para mejor performance
+- `SimplexNoise` class con `noise2D`, `noise3D`, `fbm2D`, `fbm3D`
+- Gradientes optimizados (12 vectores para 3D)
+- Permutation table seeded con Fisher-Yates shuffle
+- Performance: O(n²) en 3D vs O(n³) de Perlin
+- Menos artefactos direccionales, patrones más orgánicos
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 88-285)
+
+### SPEC-092: Domain Warping System ✅
+- **DomainWarper** class rompe regularidad del ruido
+- `warp2D`, `warp3D`, `warp2DRecursive` para distorsión progresiva
+- Warp independiente por capa (continentalness: 80, erosion: 40, etc.)
+- Coastlines irregulares con bahías y penínsulas naturales
+- Montañas con formas orgánicas (no conos perfectos)
+- Biomas con fronteras naturales (no líneas rectas)
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 287-341)
+
+### SPEC-093: Calibrated Noise Parameters ✅
+- **NOISE_CONFIGS** con parámetros calibrados por capa
+- 7 capas: continentalness, erosion, peaksValleys, weirdness, temperature, humidity, density3D
+- Cada capa con octaves, persistence, lacunarity, scale optimizados
+- Reemplaza parámetros hardcoded por configuración centralizada
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 343-411)
+
+### SPEC-094: Multi-Spline Terrain Shaping ✅
+- **TerrainSplines** class para modelado complejo de terreno
+- Splines para continentalness, erosion, peaksValleys
+- Interpolación suave tipo Minecraft 1.18+ (Hermite splines)
+- Rango continentalness: -1.0 (océano profundo) → 1.0 (montañas)
+- Rango erosion: -1.0 (valles) → 1.0 (picos)
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 413-470)
+
+### SPEC-095: Smooth Biome Transitions (Biome Blending) ✅
+- **BiomeBlender** class elimina fronteras duras entre biomas
+- Transiciones suaves de 8-16 bloques
+- Cada posición calcula blend de múltiples biomas con pesos
+- `getBiomeWeights(x, z)` retorna `{ plains: 0.6, forest: 0.3, meadow: 0.1 }`
+- Normalización automática (suma de pesos = 1.0)
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 472-548)
+
+### SPEC-096: Biome-Specific Terrain Modulation ✅
+- **BIOME_TERRAIN_MODULATION** config por bioma
+- Cada bioma aplica noise adicional para características únicas
+- Mountains: ridged noise (crestas pronunciadas, amplitude 35)
+- Jungle: billowy noise (colinas redondeadas, amplitude 18)
+- Desert: dunes noise (dunas sinuosas, amplitude 12)
+- 19 biomas con modulación específica
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 550-596)
+
+### SPEC-097: Coherent Feature Distribution ✅
+- **FeaturePlacer** class para distribución natural de features
+- Árboles en clusters naturales (no grid uniforme)
+- `BIOME_TREE_CONFIG` con densidad y clustering por bioma
+- Jungle: 12% densidad, cluster radius 8, min cluster size 3
+- Forest: 8% densidad, cluster radius 6, min cluster size 2
+- Plains: 2% densidad, árboles solitarios
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 598-711)
+
+### SPEC-098: Hydraulic Erosion Simulation ✅
+- **HydraulicErosion** class para erosión post-generación
+- Simulación de agua erosionando terreno
+- Parámetros: iterations, erosionRate, evaporationRate, sedimentCapacity
+- Genera valles naturales, cañones, cauces de ríos
+- Opcional (puede ser costoso en performance)
+- Archivo: `core/jardvoxel-survival-noise.js` (líneas 713-760)
+
+### Integración en WorldGenPipeline
+- `jardvoxel-survival-engine.js` importa todos los componentes v6.0
+- `import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer } from './jardvoxel-survival-noise.js'`
+- Reemplaza llamadas a PerlinNoise3D por SimplexNoise
+- Aplica domain warping antes de samplear cada capa
+- Evalúa splines para altura final
+- Calcula biome weights con BiomeBlender
+- Aplica modulación de terreno por bioma
+
+### Impacto Visual
+- ✅ Coastlines irregulares y naturales (bahías, penínsulas, islas)
+- ✅ Montañas orgánicas con formas complejas
+- ✅ Biomas con transiciones suaves (no líneas rectas)
+- ✅ Terreno coherente y natural
+- ✅ Features (árboles) en clusters realistas
+- ✅ Performance mejorado (Simplex O(n²) vs Perlin O(n³))
+
+### Documentación Actualizada
+- `docs/WORLD-GENERATION.md` — Sistema v6.0 completo
+- `docs/README.md` — Estado v6.0, 74 specs completadas
+- `docs/PRD-NOISE-GENERATION-6.0.md` — PRD original (849 líneas)
+
+---
+
 ## v5.0.0-RC3 — LLM Testing Harness (SPEC-H001 through H005)
 
 ### SPEC-H005: Fix _buildPrompt + AI Server Integration

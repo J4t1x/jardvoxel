@@ -506,6 +506,9 @@ export class MobManager {
     this.scene = scene;
     this.world = world;
     this.mobs = [];
+    // Exploration mode: when true, hostile mobs never spawn (relaxed world).
+    // Default false; the game enables it explicitly at init.
+    this.peaceful = false;
     this.maxMobs = 20;
     this.maxHostileMobs = 8;
     this.maxPerChunk = 4;
@@ -648,7 +651,7 @@ export class MobManager {
     }
 
     this.hostileSpawnTimer += dt;
-    if (this.hostileSpawnTimer >= this.hostileSpawnInterval) {
+    if (!this.peaceful && this.hostileSpawnTimer >= this.hostileSpawnInterval) {
       this.hostileSpawnTimer = 0;
       this._trySpawnHostile();
     }

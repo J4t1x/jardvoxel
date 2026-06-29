@@ -586,10 +586,9 @@ export class PlayerController {
     if (!this.body) return;
     const ud = this.body.userData;
     if (this.viewMode === 'first') {
-      // Hide head entirely so it doesn't block view
-      if (ud.head) ud.head.visible = false;
-      // Keep body visible for shadow but position below camera
-      this.body.visible = true;
+      // First person: hide the whole body so it never clips into the camera.
+      if (ud.head) ud.head.visible = true; // reset for third-person toggle
+      this.body.visible = false;
     } else {
       // Third person: show everything
       if (ud.head) ud.head.visible = true;
@@ -742,6 +741,150 @@ export class Inventory {
 // Day/Night Cycle
 // ═══════════════════════════════════════════════════════════
 
+// SPEC-BIOME-OVERHAUL: Biome sky color configurations
+const BIOME_SKY_COLORS = {
+  ocean: {
+    dayTop: 0x6680F0, dayBottom: 0xB0D8F8,
+    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
+    nightTop: 0x050510, nightBottom: 0x0A1A30,
+  },
+  deep_ocean: {
+    dayTop: 0x4A60D0, dayBottom: 0x90C0E8,
+    sunsetTop: 0x3A4070, sunsetBottom: 0xFF8A5D,
+    nightTop: 0x050510, nightBottom: 0x081528,
+  },
+  beach: {
+    dayTop: 0x72C0E8, dayBottom: 0xC0E0F8,
+    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
+    nightTop: 0x050510, nightBottom: 0x0A1520,
+  },
+  plains: {
+    dayTop: 0x72C0E8, dayBottom: 0xC0E0F8,
+    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
+    nightTop: 0x050510, nightBottom: 0x0A1520,
+  },
+  forest: {
+    dayTop: 0x5AC0E0, dayBottom: 0xC0E0F0,
+    sunsetTop: 0x4A6080, sunsetBottom: 0xFF8A5D,
+    nightTop: 0x050510, nightBottom: 0x0A1520,
+  },
+  jungle: {
+    dayTop: 0x66B2A8, dayBottom: 0xA8D8C0,
+    sunsetTop: 0x4A7070, sunsetBottom: 0xFF9A7D,
+    nightTop: 0x050A08, nightBottom: 0x0F1A15,
+  },
+  desert: {
+    dayTop: 0xD9B380, dayBottom: 0xFAD999,
+    sunsetTop: 0xD98050, sunsetBottom: 0xFFB070,
+    nightTop: 0x1A0A05, nightBottom: 0x3A2010,
+  },
+  savanna: {
+    dayTop: 0xCBA070, dayBottom: 0xF0D0A0,
+    sunsetTop: 0xC07040, sunsetBottom: 0xFFA060,
+    nightTop: 0x150A05, nightBottom: 0x2A1810,
+  },
+  taiga: {
+    dayTop: 0x80B0D0, dayBottom: 0xC0D8E8,
+    sunsetTop: 0x506080, sunsetBottom: 0xFF9A80,
+    nightTop: 0x080A12, nightBottom: 0x101828,
+  },
+  snowy_plains: {
+    dayTop: 0xD8E8FA, dayBottom: 0xF0F8FF,
+    sunsetTop: 0xA0B0C0, sunsetBottom: 0xFFB8A0,
+    nightTop: 0x0A0F15, nightBottom: 0x1A2530,
+  },
+  mountains: {
+    dayTop: 0x80A0C0, dayBottom: 0xB0C8D8,
+    sunsetTop: 0x506070, sunsetBottom: 0xFF9080,
+    nightTop: 0x080A12, nightBottom: 0x101825,
+  },
+  snowy_peaks: {
+    dayTop: 0xD0E0F5, dayBottom: 0xE8F0FA,
+    sunsetTop: 0xA0B0C5, sunsetBottom: 0xFFB0A0,
+    nightTop: 0x0A0F18, nightBottom: 0x182030,
+  },
+  stony_peaks: {
+    dayTop: 0x90A0B0, dayBottom: 0xB8C0C8,
+    sunsetTop: 0x606870, sunsetBottom: 0xFF9870,
+    nightTop: 0x0A0A10, nightBottom: 0x151820,
+  },
+  meadow: {
+    dayTop: 0x70B8E0, dayBottom: 0xB8E0F0,
+    sunsetTop: 0x4A5878, sunsetBottom: 0xFF9A6D,
+    nightTop: 0x050810, nightBottom: 0x0A1218,
+  },
+  cherry_grove: {
+    dayTop: 0xE8A0C0, dayBottom: 0xF8D0E0,
+    sunsetTop: 0xC060A0, sunsetBottom: 0xFFA0B0,
+    nightTop: 0x100510, nightBottom: 0x200A20,
+  },
+  swamp: {
+    dayTop: 0x708880, dayBottom: 0xA0B8A8,
+    sunsetTop: 0x405040, sunsetBottom: 0xFF8060,
+    nightTop: 0x050805, nightBottom: 0x0A120A,
+  },
+  river: {
+    dayTop: 0x80B0D0, dayBottom: 0xB0D8E8,
+    sunsetTop: 0x4A5070, sunsetBottom: 0xFF9A6D,
+    nightTop: 0x050810, nightBottom: 0x0A1520,
+  },
+  mystic_grove: {
+    dayTop: 0x8060C0, dayBottom: 0xB8A0E0,
+    sunsetTop: 0x503080, sunsetBottom: 0xFF70A0,
+    nightTop: 0x0A0515, nightBottom: 0x150A25,
+  },
+  autumn_forest: {
+    dayTop: 0xD0A060, dayBottom: 0xF0C898,
+    sunsetTop: 0xA06030, sunsetBottom: 0xFF8050,
+    nightTop: 0x100805, nightBottom: 0x201008,
+  },
+  default: {
+    dayTop: 0x5AB8FF, dayBottom: 0xA8D8FF,      // Azul cielo brillante
+    sunsetTop: 0x8B5CF6, sunsetBottom: 0xFFB366, // Púrpura-naranja vibrante
+    nightTop: 0x0A0E1A, nightBottom: 0x1A1428,   // Azul noche profundo
+  },
+  // SPEC-099: Wellness biomes - Cielos zen premium
+  zen_garden: {
+    dayTop: 0xB8D4E8, dayBottom: 0xE8F0F8,      // Azul sereno suave
+    sunsetTop: 0xD4A8C8, sunsetBottom: 0xFFD8B8, // Rosa-dorado zen
+    nightTop: 0x1A1828, nightBottom: 0x2A2438,   // Púrpura noche zen
+  },
+  bamboo_grove: {
+    dayTop: 0x88D8A8, dayBottom: 0xC8F0D8,      // Verde bambú fresco
+    sunsetTop: 0x78A898, sunsetBottom: 0xFFB888, // Verde-naranja cálido
+    nightTop: 0x0A1410, nightBottom: 0x1A2420,   // Verde noche oscuro
+  },
+  aurora_tundra: {
+    dayTop: 0xA8C8FF, dayBottom: 0xD8E8FF,      // Azul aurora claro
+    sunsetTop: 0xC8A8FF, sunsetBottom: 0xFFB8D8, // Púrpura-rosa aurora
+    nightTop: 0x1A1A2A, nightBottom: 0x2A2A3A,   // Azul noche aurora
+  },
+};
+
+// SPEC-BIOME-OVERHAUL: Biome light tints
+const BIOME_LIGHT_TINTS = {
+  ocean: { r: 0.9, g: 0.95, b: 1.1 },
+  deep_ocean: { r: 0.85, g: 0.92, b: 1.15 },
+  beach: { r: 1.0, g: 1.0, b: 1.0 },
+  plains: { r: 1.0, g: 1.0, b: 1.0 },
+  forest: { r: 0.95, g: 1.08, b: 0.95 },
+  jungle: { r: 0.95, g: 1.1, b: 1.05 },
+  desert: { r: 1.15, g: 1.1, b: 0.9 },
+  savanna: { r: 1.1, g: 1.05, b: 0.92 },
+  taiga: { r: 0.95, g: 0.98, b: 1.1 },
+  snowy_plains: { r: 0.9, g: 0.95, b: 1.15 },
+  mountains: { r: 0.98, g: 0.98, b: 1.02 },
+  snowy_peaks: { r: 0.88, g: 0.93, b: 1.18 },
+  stony_peaks: { r: 0.95, g: 0.95, b: 1.0 },
+  meadow: { r: 1.0, g: 1.05, b: 0.98 },
+  cherry_grove: { r: 1.05, g: 0.95, b: 1.0 },
+  swamp: { r: 0.95, g: 1.05, b: 0.95 },
+  river: { r: 0.95, g: 0.98, b: 1.05 },
+  mystic_grove: { r: 0.9, g: 0.85, b: 1.15 },
+  autumn_forest: { r: 1.1, g: 1.0, b: 0.9 },
+  default: { r: 1.0, g: 1.0, b: 1.0 },
+};
+
 export class DayNightCycle {
   constructor(scene) {
     this.scene = scene;
@@ -755,10 +898,26 @@ export class DayNightCycle {
     this.skyDome = null;
     this.clouds = null;
     this.cloudPlanes = [];
+    this.currentBiome = 'default';
     this._initLights();
     this._initStars();
     this._initSkyDome();
     this._initClouds();
+  }
+
+  // SPEC-BIOME-OVERHAUL: Set current biome for sky/light coloring
+  setBiome(biome) {
+    this.currentBiome = biome;
+  }
+
+  // SPEC-BIOME-OVERHAUL: Get sky colors for current biome
+  getBiomeSkyColors() {
+    return BIOME_SKY_COLORS[this.currentBiome] || BIOME_SKY_COLORS.default;
+  }
+
+  // SPEC-BIOME-OVERHAUL: Get light tint for current biome
+  getBiomeLightTint() {
+    return BIOME_LIGHT_TINTS[this.currentBiome] || BIOME_LIGHT_TINTS.default;
   }
 
   _initLights() {
@@ -847,30 +1006,53 @@ export class DayNightCycle {
     this.scene.add(this.skyDome);
   }
 
+  // SPEC-BIOME-OVERHAUL: Improved volumetric clouds with 3 independent layers
   _initClouds() {
+    const cloudLayers = [
+      { height: 55, density: 0.55, speed: 0.0003, opacity: 0.6 },
+      { height: 58, density: 0.50, speed: 0.0005, opacity: 0.4 },
+      { height: 61, density: 0.45, speed: 0.0008, opacity: 0.3 },
+    ];
+
+    for (const layer of cloudLayers) {
+      const texture = this._generateCloudTexture(layer.density);
+      const geo = new THREE.PlaneGeometry(1000, 1000);
+      const mat = new THREE.MeshBasicMaterial({
+        map: texture, transparent: true, opacity: layer.opacity,
+        depthWrite: false, fog: false, side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.y = layer.height;
+      mesh.frustumCulled = false;
+      this.scene.add(mesh);
+      this.cloudPlanes.push({ mesh, texture, speed: layer.speed });
+    }
+    this.clouds = this.cloudPlanes;
+  }
+
+  // SPEC-BIOME-OVERHAUL: Generate cloud texture with adjustable density
+  _generateCloudTexture(threshold) {
+    const size = 512;
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const imgData = ctx.createImageData(256, 256);
-    for (let x = 0; x < 256; x++) {
-      for (let y = 0; y < 256; y++) {
+    const imgData = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
         let n = 0;
-        let amp = 1;
-        let freq = 0.02;
-        for (let o = 0; o < 4; o++) {
-          n += Math.sin(x * freq + y * freq * 0.7) * amp;
-          n += Math.cos(y * freq * 1.3 + x * freq * 0.5) * amp;
-          amp *= 0.5;
-          freq *= 2;
-        }
-        n = (n + 4) / 8;
-        n = Math.max(0, Math.min(1, (n - 0.45) * 3));
-        const idx = (x + y * 256) * 4;
+        n += Math.sin(x * 0.015 + y * 0.020) * 0.5;
+        n += Math.sin(x * 0.030 + y * 0.025) * 0.25;
+        n += Math.sin(x * 0.060 + y * 0.050) * 0.125;
+        n += Math.sin(x * 0.120 + y * 0.100) * 0.0625;
+        n = (n + 1) / 2;
+        const alpha = n > threshold ? Math.min(255, (n - threshold) * 500) : 0;
+        const idx = (y * size + x) * 4;
         imgData.data[idx] = 255;
         imgData.data[idx + 1] = 255;
         imgData.data[idx + 2] = 255;
-        imgData.data[idx + 3] = Math.floor(n * 180);
+        imgData.data[idx + 3] = alpha;
       }
     }
     ctx.putImageData(imgData, 0, 0);
@@ -878,24 +1060,7 @@ export class DayNightCycle {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(4, 4);
-
-    const cloudHeights = [55, 58, 61];
-    for (let i = 0; i < cloudHeights.length; i++) {
-      const ctex = texture.clone();
-      ctex.needsUpdate = true;
-      const geo = new THREE.PlaneGeometry(800, 800);
-      const mat = new THREE.MeshBasicMaterial({
-        map: ctex, transparent: true, opacity: 0.5,
-        depthWrite: false, fog: false,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.y = cloudHeights[i];
-      mesh.frustumCulled = false;
-      this.scene.add(mesh);
-      this.cloudPlanes.push({ mesh, texture: ctex, speed: 0.0003 + i * 0.0001 });
-    }
-    this.clouds = this.cloudPlanes;
+    return texture;
   }
 
   update(dt, playerPos) {
@@ -921,13 +1086,14 @@ export class DayNightCycle {
     this.sunLight.intensity = 0.2 + dayFactor * 0.8;
     this.ambientLight.intensity = 0.15 + dayFactor * 0.35 + nightFactor * 0.05;
 
-    // Sky dome colors with sunset interpolation
-    const dayTop = new THREE.Color(0x2a6df4);
-    const dayBottom = new THREE.Color(0xb8d4f0);
-    const nightTop = new THREE.Color(0x0a0a20);
-    const nightBottom = new THREE.Color(0x1a1a3a);
-    const sunsetTop = new THREE.Color(0x4a2090);
-    const sunsetBottom = new THREE.Color(0xff7a3d);
+    // SPEC-BIOME-OVERHAUL: Sky dome colors using biome-specific palette
+    const skyColors = this.getBiomeSkyColors();
+    const dayTop = new THREE.Color(skyColors.dayTop);
+    const dayBottom = new THREE.Color(skyColors.dayBottom);
+    const nightTop = new THREE.Color(skyColors.nightTop);
+    const nightBottom = new THREE.Color(skyColors.nightBottom);
+    const sunsetTop = new THREE.Color(skyColors.sunsetTop);
+    const sunsetBottom = new THREE.Color(skyColors.sunsetBottom);
 
     const topColor = dayTop.clone().lerp(nightTop, 1 - dayFactor);
     topColor.lerp(sunsetTop, horizonFactor * 0.5);
@@ -944,6 +1110,15 @@ export class DayNightCycle {
     if (this.scene.fog && this.scene.fog.isFog) {
       this.scene.fog.color.copy(bottomColor);
     }
+
+    // SPEC-BIOME-OVERHAUL: Apply biome light tint to sun and ambient light
+    const tint = this.getBiomeLightTint();
+    this.sunLight.color.setRGB(
+      Math.min(1, tint.r), Math.min(1, tint.g), Math.min(1, tint.b)
+    );
+    this.ambientLight.color.setRGB(
+      Math.min(1, tint.r * 0.9), Math.min(1, tint.g * 0.9), Math.min(1, tint.b * 0.9)
+    );
 
     // Stars: fade in at night
     if (this.stars) {

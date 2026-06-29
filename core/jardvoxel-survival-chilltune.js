@@ -30,15 +30,26 @@ export const BIOME_SCALES = {
   cherry_grove:  { scale: 'lydian',     bpm: 58, filterFreq: 2200 },
   autumn_forest: { scale: 'dorian',     bpm: 54, filterFreq: 1600 },
   beach:         { scale: 'aeolian',    bpm: 55, filterFreq: 1200 },
+  // SPEC-099: Wellness biomes
+  zen_garden:    { scale: 'pentatonic', bpm: 42, filterFreq: 1800 },
+  bamboo_grove:  { scale: 'pentatonic', bpm: 50, filterFreq: 2000 },
+  aurora_tundra: { scale: 'lydian',     bpm: 44, filterFreq: 1600 },
 };
 
-// === SPEC-083: Time-of-day modulation (4 phases) ===
-export const TIME_MODULATION = {
-  dawn:    { bpmMod: -5, filterMod: -200, brightness: 0.8, ascending: true },
-  day:     { bpmMod: 0,  filterMod: 0,    brightness: 1.0 },
-  sunset:  { bpmMod: -3, filterMod: -100, brightness: 0.7, descending: true },
-  night:   { bpmMod: -8, filterMod: -400, brightness: 0.5, minimalist: true },
+// === SPEC-099: 8-phase circadian cycle (replaces 4-phase) ===
+export const TIME_PHASES = {
+  dawn:      { start: 0.20, end: 0.25, bpmMod: -5,  filterMod: -200, brightness: 0.7,  ascending: true },
+  morning:   { start: 0.25, end: 0.35, bpmMod: 0,   filterMod: 0,    brightness: 0.9 },
+  noon:      { start: 0.35, end: 0.50, bpmMod: 2,   filterMod: 100,  brightness: 1.0 },
+  afternoon: { start: 0.50, end: 0.65, bpmMod: 0,   filterMod: 0,    brightness: 0.95 },
+  dusk:      { start: 0.65, end: 0.75, bpmMod: -3,  filterMod: -100, brightness: 0.7,  descending: true },
+  twilight:  { start: 0.75, end: 0.80, bpmMod: -5,  filterMod: -200, brightness: 0.5 },
+  night:     { start: 0.80, end: 0.95, bpmMod: -8,  filterMod: -400, brightness: 0.4,  minimalist: true },
+  midnight:  { start: 0.95, end: 0.20, bpmMod: -10, filterMod: -500, brightness: 0.3,  minimalist: true },
 };
+
+// Backward compat alias
+export const TIME_MODULATION = TIME_PHASES;
 
 // === SPEC-083: Weather effects (3 types) ===
 export const WEATHER_EFFECTS = {
@@ -68,6 +79,8 @@ const STATE_CONFIG = {
   night:      { bpm: 50, scale: 'aeolian',    layers: ['drone', 'melody'],              droneRoot: 0, filterFreq: 1000 },
   underwater: { bpm: 52, scale: 'dorian',     layers: ['drone', 'melody', 'arpeggio'],  droneRoot: 0, filterFreq: 600  },
   idle:       { bpm: 45, scale: 'pentatonic', layers: ['drone'],                        droneRoot: 0, filterFreq: 800  },
+  // SPEC-099: Contemplation mode — deep stillness in meditation spaces
+  contemplation: { bpm: 40, scale: 'pentatonic', layers: ['drone'], droneRoot: 0, filterFreq: 600 },
 };
 
 // Pesos para seleccion de grado en la escala (grado 3 = quinta, mas probable)
@@ -126,6 +139,12 @@ export class ChillTuneEngine {
     this._blockPlaceTracker = [];
     this._blockBreakTracker = [];
     this._lastInputTime = performance.now();
+
+    // SPEC-099: Komorebi state
+    this._komorebiActive = false;
+    this._komorebiFilter = null;
+    this._komorebiArpTimer = null;
+    this._inMeditationSpace = false;
   }
 
   // === Lifecycle ===
@@ -210,6 +229,8 @@ export class ChillTuneEngine {
 
   _detectState() {
     const ctx = this.gameContext;
+    // SPEC-099: Contemplation mode takes priority — 60s idle in meditation space
+    if (this._detectContemplation(ctx)) return 'contemplation';
     if (ctx.nearbyHostiles > 0 && ctx.nearbyHostiles <= 3) return 'combat';
     if (ctx.playerInWater) return 'underwater';
     if (ctx.idleTime > 30) return 'idle';
@@ -217,6 +238,16 @@ export class ChillTuneEngine {
     if (ctx.playerY < 40) return 'mining';
     if (ctx.blocksPlacedRecently > 3) return 'building';
     return 'exploring';
+  }
+
+  // SPEC-099: Contemplation detection
+  _detectContemplation(ctx) {
+    return ctx.idleTime > 60 && this._inMeditationSpace;
+  }
+
+  // SPEC-099: Set meditation space flag
+  setInMeditationSpace(inSpace) {
+    this._inMeditationSpace = inSpace;
   }
 
   // === Music Generation ===
@@ -582,20 +613,40 @@ export class ChillTuneEngine {
   setTimePhase(phase) {
     if (phase === this.currentTimePhase) return;
     this.currentTimePhase = phase;
-    const mod = TIME_MODULATION[phase];
+    const mod = TIME_PHASES[phase];
     if (mod) {
       const biomeCfg = BIOME_SCALES[this.currentBiome] || { bpm: 60 };
       this._rampBPM(biomeCfg.bpm + mod.bpmMod, this.crossfadeDuration);
     }
   }
 
+  // SPEC-099: 8-phase circadian update from dayTime (0-1)
+  updateTimePhase(dayTime) {
+    const phase = this._getPhaseFromTime(dayTime);
+    if (phase !== this.currentTimePhase) {
+      this.setTimePhase(phase);
+    }
+  }
+
+  _getPhaseFromTime(dayTime) {
+    for (const [name, cfg] of Object.entries(TIME_PHASES)) {
+      if (name === 'midnight') {
+        // midnight wraps around 0.95-0.20
+        if (dayTime >= 0.95 || dayTime < 0.20) return name;
+      } else {
+        if (dayTime >= cfg.start && dayTime < cfg.end) return name;
+      }
+    }
+    return 'day';
+  }
+
   _getTimeBpmMod() {
-    const mod = TIME_MODULATION[this.currentTimePhase];
+    const mod = TIME_PHASES[this.currentTimePhase];
     return mod ? mod.bpmMod : 0;
   }
 
   _getTimeFilterMod() {
-    const mod = TIME_MODULATION[this.currentTimePhase];
+    const mod = TIME_PHASES[this.currentTimePhase];
     return mod ? mod.filterMod : 0;
   }
 
@@ -681,12 +732,8 @@ export class ChillTuneEngine {
       this.setWeather(weather);
     }
 
-    // Update time phase
-    let phase = 'day';
-    if (dayTime < 0.2 || dayTime > 0.8) phase = 'night';
-    else if (dayTime < 0.3) phase = 'dawn';
-    else if (dayTime > 0.7) phase = 'sunset';
-    this.setTimePhase(phase);
+    // Update time phase — SPEC-099: 8-phase circadian
+    this.updateTimePhase(dayTime);
 
     // Update village proximity
     this.setNearVillage(nearVillage || false);
@@ -701,6 +748,9 @@ export class ChillTuneEngine {
     if (this._stingerCooldown > 0) {
       this._stingerCooldown -= 0.1;
     }
+
+    // Obtener phase actualizado
+    const phase = this.currentTimePhase || this._getPhaseFromTime(dayTime);
 
     this.updateGameContext({
       playerY: playerPos ? playerPos.y : 64,
@@ -752,5 +802,49 @@ export class ChillTuneEngine {
       blocksBrokenRecently: this._blockBreakTracker.length,
       idleTime: idleTime,
     });
+  }
+
+  // === SPEC-099: Komorebi (light through trees) ===
+
+  setKomorebi(active) {
+    if (active && !this._komorebiActive) {
+      this._komorebiActive = true;
+      if (this.ctx && this.musicGain) {
+        // Highpass filter for filtered light effect
+        this._komorebiFilter = this.ctx.createBiquadFilter();
+        this._komorebiFilter.type = 'highpass';
+        this._komorebiFilter.frequency.value = 800;
+        this._komorebiFilter.connect(this.musicGain);
+        // Schedule crystal arpeggios every 20-30s
+        this._scheduleKomorebiArpeggio();
+      }
+    } else if (!active && this._komorebiActive) {
+      this._komorebiActive = false;
+      if (this._komorebiArpTimer) {
+        clearTimeout(this._komorebiArpTimer);
+        this._komorebiArpTimer = null;
+      }
+      if (this._komorebiFilter) {
+        try { this._komorebiFilter.disconnect(); } catch (e) {}
+        this._komorebiFilter = null;
+      }
+    }
+  }
+
+  _scheduleKomorebiArpeggio() {
+    if (!this._komorebiActive || !this.ctx) return;
+    const delay = 20000 + Math.random() * 10000; // 20-30s
+    this._komorebiArpTimer = setTimeout(() => {
+      if (this._komorebiActive && this.ctx) {
+        // Crystal arpeggio — high triangle notes
+        const scale = SCALES.pentatonic;
+        const now = this.ctx.currentTime;
+        for (let i = 0; i < 4; i++) {
+          const note = scale[Math.floor(Math.random() * scale.length)] * 2;
+          this._playNote(note, now + i * 0.15, 0.4, 'triangle', 0.04, 4000, true);
+        }
+      }
+      this._scheduleKomorebiArpeggio();
+    }, delay);
   }
 }

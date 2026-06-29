@@ -14,6 +14,11 @@ export class HealthHungerSystem {
     this.hunger = this.maxHunger;
     this.saturation = this.maxSaturation;
     this.creativeMode = true;
+    // Exploration mode: relaxed world — no hunger drain, no damage, no death.
+    // Independent of creative/survival toggle so the player can never die.
+    // Default false to preserve survival semantics for the core test suite;
+    // the game enables it explicitly at init.
+    this.explorationMode = false;
     this.foodPoisonTimer = 0;
     this.regenTimer = 0;
     this.starveTimer = 0;
@@ -33,7 +38,7 @@ export class HealthHungerSystem {
   }
 
   takeDamage(amount, cause = 'unknown') {
-    if (this.creativeMode || this.dead) return;
+    if (this.creativeMode || this.explorationMode || this.dead) return;
     this.health = Math.max(0, this.health - amount);
     this.damageFlash = 0.5;
     if (this.health <= 0) {
@@ -66,6 +71,16 @@ export class HealthHungerSystem {
   update(dt, inWater, sprinting, waterBreathing = false) {
     if (this.creativeMode || this.dead) return;
     this.damageFlash = Math.max(0, this.damageFlash - dt);
+
+    // Exploration mode: keep stats topped up, skip hunger/starvation/drowning.
+    if (this.explorationMode) {
+      this.hunger = this.maxHunger;
+      this.saturation = this.maxSaturation;
+      if (this.health < this.maxHealth) this.health = this.maxHealth;
+      this.drownTimer = 0;
+      this.starveTimer = 0;
+      return;
+    }
 
     // Food poisoning
     if (this.foodPoisonTimer > 0) {

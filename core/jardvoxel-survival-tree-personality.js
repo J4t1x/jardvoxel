@@ -19,6 +19,7 @@ export const TREE_TYPES = {
   CHERRY: 'cherry',
   MYSTIC_MUSHROOM: 'mystic_mushroom',
   AUTUMN_OAK: 'autumn_oak',
+  BAMBOO: 'bamboo',
 };
 
 export const AGE_LEVELS = {
@@ -46,6 +47,10 @@ const BIOME_TREE_MAP = {
   [BIOMES.MYSTIC_GROVE]: TREE_TYPES.MYSTIC_MUSHROOM,
   [BIOMES.AUTUMN_FOREST]: TREE_TYPES.AUTUMN_OAK,
   [BIOMES.MOUNTAINS]: TREE_TYPES.PINE,
+  // SPEC-099: Wellness biomes
+  [BIOMES.BAMBOO_GROVE]: TREE_TYPES.BAMBOO,
+  [BIOMES.AURORA_TUNDRA]: TREE_TYPES.PINE,
+  // zen_garden has no trees (TREE_SHAPES.NONE)
 };
 
 const GIANT_CHANCE = 0.0008;
@@ -354,6 +359,31 @@ function placeAutumnOak(chunk, x, y, z, params) {
   setBlockSafe(chunk, x, top + 1, z, MC_BLOCKS.OAK_LEAVES);
 }
 
+// SPEC-099: Bamboo stalk generator for bamboo_grove biome
+function placeBamboo(chunk, x, y, z, params) {
+  const ageMult = getAgeMultiplier(params.age);
+  const height = Math.floor((8 + Math.floor(params.rng.next() * 5)) * ageMult);
+
+  for (let i = 0; i < height; i++) {
+    setBlockSafe(chunk, x, y + i, z, MC_BLOCKS.OAK_LOG);
+  }
+  if (params.health === HEALTH_LEVELS.DEAD) return;
+
+  const top = y + height;
+  const leafChance = getHealthLeafChance(params.health);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      if (Math.abs(dx) + Math.abs(dz) > 1) continue;
+      if (dx === 0 && dz === 0) continue;
+      if (params.rng.next() < leafChance) {
+        setBlockSafe(chunk, x + dx, top, z + dz, MC_BLOCKS.OAK_LEAVES);
+        setBlockSafe(chunk, x + dx, top + 1, z + dz, MC_BLOCKS.OAK_LEAVES);
+      }
+    }
+  }
+  setBlockSafe(chunk, x, top + 1, z, MC_BLOCKS.OAK_LEAVES);
+}
+
 const TREE_GENERATORS = {
   [TREE_TYPES.OAK]: placeOak,
   [TREE_TYPES.PINE]: placePine,
@@ -365,6 +395,7 @@ const TREE_GENERATORS = {
   [TREE_TYPES.CHERRY]: placeCherry,
   [TREE_TYPES.MYSTIC_MUSHROOM]: placeMysticMushroom,
   [TREE_TYPES.AUTUMN_OAK]: placeAutumnOak,
+  [TREE_TYPES.BAMBOO]: placeBamboo,
 };
 
 export function getTreeTypeForBiome(biome) {

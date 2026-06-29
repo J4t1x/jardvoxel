@@ -101,11 +101,12 @@ export class CharacterGenerator {
     const group = new THREE.Group();
     group.name = 'character';
 
-    // Body type dimensions — slightly taller for better proportions
+    // Body type dimensions — shoulders wider than head, human-like proportions
+    // Tuned so total model height ≈ 1.8 (matches PlayerController.playerHeight)
     const dims = {
-      slim:   { torso: 0.35, arm: 0.18, leg: 0.22 },
-      normal: { torso: 0.45, arm: 0.22, leg: 0.28 },
-      stocky: { torso: 0.55, arm: 0.28, leg: 0.34 },
+      slim:   { torso: 0.42, arm: 0.16, leg: 0.18 },
+      normal: { torso: 0.50, arm: 0.18, leg: 0.20 },
+      stocky: { torso: 0.60, arm: 0.22, leg: 0.24 },
     };
     const d = dims[dna.bodyType];
     const p = dna.proportions;
@@ -122,7 +123,7 @@ export class CharacterGenerator {
     const headGroup = new THREE.Group();
     headGroup.name = 'head';
 
-    const headSize = 0.5 * p.head;
+    const headSize = 0.40 * p.head;
     const skullGeo = new THREE.BoxGeometry(headSize, headSize, headSize);
     const skull = new THREE.Mesh(skullGeo, matSkin);
     headGroup.add(skull);
@@ -199,7 +200,7 @@ export class CharacterGenerator {
     headGroup.add(neck);
 
     // Position head at top of torso
-    const torsoHeight = 0.75 * p.torso;
+    const torsoHeight = 0.62 * p.torso;
     headGroup.position.y = torsoHeight + headSize * 0.5 + 0.06;
     group.add(headGroup);
 
@@ -211,7 +212,7 @@ export class CharacterGenerator {
     group.add(torso);
 
     // --- Arms --- positioned at shoulder height with slight forward offset
-    const armHeight = 0.65 * p.arms;
+    const armHeight = 0.60 * p.arms;
     const armGeo = new THREE.BoxGeometry(d.arm, armHeight, d.arm);
 
     // Left arm
@@ -240,7 +241,7 @@ export class CharacterGenerator {
     group.add(rightArmGroup);
 
     // --- Legs --- slightly separated, with shoe detail
-    const legHeight = 0.75 * p.legs;
+    const legHeight = 0.62 * p.legs;
     const legGeo = new THREE.BoxGeometry(d.leg, legHeight, d.leg);
 
     // Left leg
@@ -281,6 +282,11 @@ export class CharacterGenerator {
       cape.rotation.x = 0.1;
       group.add(cape);
     }
+
+    // Vertical offsets (used by CharacterAnimator to plant feet on the ground)
+    // footOffset = distance from group origin down to the bottom of the shoes
+    group.userData.footOffset = torsoHeight * 0.5 + legHeight * 0.94;
+    group.userData.headTop = torsoHeight + headSize + 0.06;
 
     // Store references for animation
     group.userData.head = headGroup;
@@ -394,8 +400,18 @@ export class CharacterAnimator {
     const ud = body.userData;
     if (!ud.head) return;
 
+    // Plant feet on the ground: player.position is the eye/head-top, feet are
+    // playerHeight below it. footOffset is the distance from the model origin
+    // down to the soles, so origin sits at feetY + footOffset.
+    const playerHeight = player.playerHeight || 1.8;
+    const footOffset = ud.footOffset || 0;
+    const feetY = player.position.y - playerHeight;
+    const groundY = feetY + footOffset;
+
     // Position body at player position
-    body.position.copy(player.position);
+    body.position.x = player.position.x;
+    body.position.z = player.position.z;
+    body.position.y = groundY;
     body.rotation.y = player.yaw;
 
     // Determine state
@@ -430,8 +446,7 @@ export class CharacterAnimator {
       ud.rightLeg.rotation.x = legSwing;
       // Subtle vertical bob
       const bob = Math.abs(Math.sin(this.walkPhase)) * 0.05;
-      if (this.baseY === 0) this.baseY = body.position.y;
-      body.position.y = player.position.y + bob;
+      body.position.y = groundY + bob;
       // Slight forward lean when walking
       body.rotation.x = 0.06;
     } else {
@@ -441,7 +456,7 @@ export class CharacterAnimator {
       ud.rightArm.rotation.x = this._lerpAngle(ud.rightArm.rotation.x, 0, lerpAmt);
       ud.leftLeg.rotation.x = this._lerpAngle(ud.leftLeg.rotation.x, 0, lerpAmt);
       ud.rightLeg.rotation.x = this._lerpAngle(ud.rightLeg.rotation.x, 0, lerpAmt);
-      body.position.y = player.position.y;
+      body.position.y = groundY;
       body.rotation.x = this._lerpAngle(body.rotation.x, 0, lerpAmt);
 
       // Idle breathing — subtle torso scale + arm sway

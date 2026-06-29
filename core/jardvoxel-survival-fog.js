@@ -25,7 +25,33 @@ export const BIOME_FOG_DENSITY = {
   cherry_grove: 0.012,
   river: 0.016,
   deep_ocean: 0.020,
+  mystic_grove: 0.020,
+  autumn_forest: 0.022,
   default: 0.015,
+};
+
+// SPEC-BIOME-OVERHAUL: Biome-specific fog colors
+const BIOME_FOG_COLORS = {
+  ocean: 0x6690C0,
+  deep_ocean: 0x4A70A0,
+  beach: 0xC0D8F0,
+  plains: 0xA0D0E0,
+  forest: 0x80A890,
+  jungle: 0x90C0A8,
+  desert: 0xF0D090,
+  savanna: 0xE0D090,
+  taiga: 0x90A8C0,
+  snowy_plains: 0xE0E8F0,
+  snowy_peaks: 0xD8E0EC,
+  stony_peaks: 0xB0B8C0,
+  mountains: 0xA0B0C0,
+  meadow: 0xB0D8E0,
+  cherry_grove: 0xE0B0C8,
+  swamp: 0x708070,
+  river: 0x90B8D0,
+  mystic_grove: 0x9080B0,
+  autumn_forest: 0xC0A070,
+  default: 0x87CEEB,
 };
 
 const TIME_COLORS = {
@@ -67,6 +93,11 @@ export class VolumetricFog {
     this._currentBiome = biomeName;
     const key = biomeName ? biomeName.toLowerCase().replace(/[^a-z_]/g, '').replace(/\s+/g, '_') : 'default';
     this._targetDensity = BIOME_FOG_DENSITY[key] ?? BIOME_FOG_DENSITY.default;
+    // SPEC-BIOME-OVERHAUL: Set biome-specific fog color
+    if (!this._isCave) {
+      const fogColor = BIOME_FOG_COLORS[key] ?? BIOME_FOG_COLORS.default;
+      this._biomeColor = new THREE.Color(fogColor);
+    }
   }
 
   setCave(isCave) {
@@ -91,7 +122,12 @@ export class VolumetricFog {
       phase = TIME_COLORS.sunset;
     }
 
-    this._targetColor.copy(phase.color);
+    // SPEC-BIOME-OVERHAUL: Blend time-of-day color with biome fog color
+    if (this._biomeColor) {
+      this._targetColor.copy(this._biomeColor).lerp(phase.color, 0.4);
+    } else {
+      this._targetColor.copy(phase.color);
+    }
     if (!this._isCave) {
       this._targetDensity = Math.max(this._targetDensity, phase.density);
     }

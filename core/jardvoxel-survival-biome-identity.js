@@ -14,6 +14,7 @@ export const TREE_SHAPES = {
   CHERRY_SPHERE: 'cherry_sphere',
   MYSTIC_MUSHROOM: 'mystic_mushroom',
   AUTUMN_OAK: 'autumn_oak',
+  BAMBOO_STALKS: 'bamboo_stalks',
   NONE: 'none',
 };
 
@@ -274,6 +275,40 @@ export const BIOME_FINGERPRINTS = {
     musicMood: MUSIC_MOODS.MELANCHOLIC,
     particles: BIOME_PARTICLES.FALLING_LEAVES,
     fauna: { passive: ['fox', 'rabbit', 'deer'], hostile: ['zombie', 'skeleton', 'spider'] },
+  },
+  // SPEC-099: Wellness biomes
+  zen_garden: {
+    treeShape: TREE_SHAPES.NONE,
+    vegetationDensity: VEGETATION_DENSITY.SPARSE,
+    rockType: ROCK_TYPES.SCATTERED,
+    temperature: 0.5,
+    humidity: 0.55,
+    ambientSound: AMBIENT_SOUNDS.WIND,
+    musicMood: MUSIC_MOODS.CALM,
+    particles: BIOME_PARTICLES.NONE,
+    fauna: { passive: ['rabbit'], hostile: [] },
+  },
+  bamboo_grove: {
+    treeShape: TREE_SHAPES.BAMBOO_STALKS,
+    vegetationDensity: VEGETATION_DENSITY.VERY_DENSE,
+    rockType: ROCK_TYPES.NONE,
+    temperature: 0.7,
+    humidity: 0.75,
+    ambientSound: AMBIENT_SOUNDS.LEAVES_RUSTLING,
+    musicMood: MUSIC_MOODS.CALM,
+    particles: BIOME_PARTICLES.POLLEN,
+    fauna: { passive: ['panda', 'rabbit'], hostile: [] },
+  },
+  aurora_tundra: {
+    treeShape: TREE_SHAPES.PINE_CONICAL,
+    vegetationDensity: VEGETATION_DENSITY.SPARSE,
+    rockType: ROCK_TYPES.SCATTERED,
+    temperature: 0.1,
+    humidity: 0.45,
+    ambientSound: AMBIENT_SOUNDS.WIND,
+    musicMood: MUSIC_MOODS.MAGICAL,
+    particles: BIOME_PARTICLES.SNOWFLAKES,
+    fauna: { passive: ['fox', 'rabbit'], hostile: [] },
   },
 };
 

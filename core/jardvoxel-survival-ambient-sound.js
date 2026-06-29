@@ -79,6 +79,28 @@ export const AMBIENT_PROFILES = {
       { type: 'screams', vol: 0.05, interval: [15, 30] },
     ],
   },
+  // SPEC-099: Wellness biomes
+  zen_garden: {
+    ambient: [
+      { type: 'chimes',  vol: 0.06, interval: [8, 16] },
+      { type: 'wind',    vol: 0.03, continuous: true, filter: 3000 },
+      { type: 'birds',   vol: 0.05, interval: [10, 20] },
+    ],
+  },
+  bamboo_grove: {
+    ambient: [
+      { type: 'leaves',  vol: 0.06, continuous: true, filter: 2500 },
+      { type: 'birds',   vol: 0.07, count: 3, interval: [4, 10] },
+      { type: 'wind',    vol: 0.04, continuous: true, filter: 1800 },
+    ],
+  },
+  aurora_tundra: {
+    ambient: [
+      { type: 'wind',    vol: 0.10, continuous: true, filter: 800 },
+      { type: 'owls',    vol: 0.06, interval: [12, 25] },
+      { type: 'glow',    vol: 0.05, interval: [8, 16] },
+    ],
+  },
 };
 
 // === Sound type definitions ===
@@ -110,10 +132,50 @@ const SOUND_TYPES = {
   drone:     { freqRange: [50, 150],    durRange: [3, 8],     waveType: 'sine',   filter: 300 },
   lava:      { freqRange: [80, 250],    durRange: [1, 3],     waveType: 'brown',  filter: 600 },
   screams:   { freqRange: [400, 1200],  durRange: [0.3, 0.8], waveType: 'sawtooth',filter: 1800 },
+  // SPEC-099: Fauna cycle sounds
+  crickets:  { freqRange: [4000, 6000], durRange: [0.1, 0.3], waveType: 'square', filter: 5000 },
+  owls:      { freqRange: [300, 600],   durRange: [0.5, 1.0], waveType: 'sine',   filter: 1000 },
 };
 
 const CROSSFADE_DURATION = 2; // seconds
 const MAX_POINT_SOURCES = 16;
+
+// SPEC-099: Soundscape distance layers
+const SOUND_LAYERS = {
+  near: { maxDist: 8,  volMod: 1.0, filterFreq: 0    }, // no filter
+  mid:  { maxDist: 24, volMod: 0.6, filterFreq: 2000 },
+  far:  { maxDist: 64, volMod: 0.3, filterFreq: 800  },
+};
+
+// SPEC-099: Biome-specific reverb properties
+const BIOME_REVERB = {
+  plains:   { decay: 1.2, wet: 0.15, filter: 3000, delay: 0   },
+  forest:   { decay: 1.8, wet: 0.20, filter: 2500, delay: 0   },
+  desert:   { decay: 2.5, wet: 0.25, filter: 2000, delay: 0   },
+  mountains:{ decay: 3.0, wet: 0.30, filter: 1500, delay: 80  }, // directional delay
+  swamp:    { decay: 2.0, wet: 0.22, filter: 1800, delay: 0   },
+  ocean:    { decay: 1.5, wet: 0.18, filter: 2200, delay: 0   },
+  caves:    { decay: 4.0, wet: 0.40, filter: 1200, delay: 0   }, // long echo
+  mystic_grove:{ decay: 3.5, wet: 0.35, filter: 2800, delay: 0 },
+  village:  { decay: 1.0, wet: 0.12, filter: 3000, delay: 0   },
+  nether:   { decay: 3.0, wet: 0.30, filter: 800,  delay: 0   },
+  // SPEC-099: Wellness biomes
+  zen_garden:    { decay: 2.0, wet: 0.20, filter: 3200, delay: 0 },
+  bamboo_grove:  { decay: 1.5, wet: 0.18, filter: 2800, delay: 0 },
+  aurora_tundra: { decay: 3.5, wet: 0.28, filter: 1400, delay: 0 },
+};
+
+// SPEC-099: Fauna cycle — sounds per day phase
+const FAUNA_CYCLE = {
+  dawn:      { types: ['birds', 'birds', 'birds'], countMod: 2, volMod: 1.3 },
+  morning:   { types: ['birds', 'animals'],         countMod: 1, volMod: 1.0 },
+  noon:      { types: ['birds', 'insects'],         countMod: 0, volMod: 0.8 },
+  afternoon: { types: ['insects', 'birds'],         countMod: 0, volMod: 0.9 },
+  dusk:      { types: ['birds', 'crickets'],        countMod: 1, volMod: 1.1 },
+  twilight:  { types: ['crickets', 'owls'],         countMod: 0, volMod: 1.0 },
+  night:     { types: ['owls', 'crickets'],         countMod: 0, volMod: 0.7 },
+  midnight:  { types: ['owls'],                     countMod: -1, volMod: 0.5 },
+};
 
 export class AmbientSoundManager {
   constructor() {
@@ -139,6 +201,12 @@ export class AmbientSoundManager {
     this.weatherMultiplier = 1.0;
     this.indoorMultiplier = 1.0;
     this.timeMultiplier = 1.0;
+
+    // SPEC-099: Reverb node for current biome
+    this._biomeReverb = null;
+    this._reverbWet = null;
+    this._reverbDry = null;
+    this._currentDayPhase = 'day';
   }
 
   // === Lifecycle ===
@@ -255,6 +323,9 @@ export class AmbientSoundManager {
 
     this.previousBiome = this.currentBiome;
     this.currentBiome = biome;
+
+    // SPEC-099: Apply biome-specific reverb
+    if (this.ctx) this._applyBiomeReverb(biome);
 
     if (this.previousBiome && this.ctx) {
       this._crossfadeToBiome(biome);
@@ -527,6 +598,131 @@ export class AmbientSoundManager {
     }
     if (this.previousGain) {
       try { this.previousGain.disconnect(); } catch (e) {}
+    }
+  }
+
+  // === SPEC-099: Soundscape Distance Layers ===
+
+  _playSoundAtDistance(type, distance, vol = 0.1) {
+    if (!this.ctx || !this.enabled) return;
+    const def = SOUND_TYPES[type];
+    if (!def) return;
+
+    // Determine layer
+    let layer = SOUND_LAYERS.far;
+    if (distance <= SOUND_LAYERS.near.maxDist) layer = SOUND_LAYERS.near;
+    else if (distance <= SOUND_LAYERS.mid.maxDist) layer = SOUND_LAYERS.mid;
+
+    const adjustedVol = vol * layer.volMod;
+    const filterFreq = layer.filterFreq || def.filter || 2000;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = def.waveType === 'brown' ? 'sine' : def.waveType;
+    osc.frequency.value = this._randomRange(def.freqRange[0], def.freqRange[1]);
+
+    filter.type = 'lowpass';
+    filter.frequency.value = filterFreq;
+
+    const dur = this._randomRange(def.durRange[0], def.durRange[1]);
+    const now = this.ctx.currentTime;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(adjustedVol, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    const output = this._biomeReverb ? this._biomeReverb.input : this.masterGain;
+    osc.connect(filter).connect(gain).connect(output);
+    osc.start(now);
+    osc.stop(now + dur + 0.1);
+
+    osc.onended = () => {
+      try { osc.disconnect(); gain.disconnect(); filter.disconnect(); } catch (e) {}
+    };
+  }
+
+  // === SPEC-099: Natural Reverb per Biome ===
+
+  _createBiomeReverb(biome) {
+    const cfg = BIOME_REVERB[biome];
+    if (!cfg || !this.ctx) return null;
+
+    // Mountains use delay-based reverb; others use convolver
+    if (cfg.delay > 0) {
+      const delay = this.ctx.createDelay(1.0);
+      delay.delayTime.value = cfg.delay / 1000;
+      const feedback = this.ctx.createGain();
+      feedback.gain.value = 0.4;
+      const wetGain = this.ctx.createGain();
+      wetGain.gain.value = cfg.wet;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = cfg.filter;
+
+      delay.connect(filter).connect(feedback).connect(delay);
+      delay.connect(wetGain);
+
+      return { input: delay, wet: wetGain, nodes: [delay, feedback, wetGain, filter], type: 'delay' };
+    }
+
+    // Convolver-based reverb with synthetic impulse response
+    const convolver = this.ctx.createConvolver();
+    const sampleRate = this.ctx.sampleRate;
+    const length = Math.floor(sampleRate * cfg.decay);
+    const impulse = this.ctx.createBuffer(2, length, sampleRate);
+
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+      }
+    }
+    convolver.buffer = impulse;
+
+    const wetGain = this.ctx.createGain();
+    wetGain.gain.value = cfg.wet;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = cfg.filter;
+
+    convolver.connect(filter).connect(wetGain);
+
+    return { input: convolver, wet: wetGain, nodes: [convolver, wetGain, filter], type: 'convolver' };
+  }
+
+  _applyBiomeReverb(biome) {
+    // Remove old reverb
+    if (this._biomeReverb) {
+      try {
+        this._biomeReverb.wet.disconnect();
+        for (const n of this._biomeReverb.nodes) { try { n.disconnect(); } catch (e) {} }
+      } catch (e) {}
+      this._biomeReverb = null;
+    }
+
+    // Create new reverb
+    const reverb = this._createBiomeReverb(biome);
+    if (reverb) {
+      reverb.wet.connect(this.masterGain);
+      this._biomeReverb = reverb;
+    }
+  }
+
+  // === SPEC-099: Fauna Cycle ===
+
+  _updateFaunaCycle(phase) {
+    this._currentDayPhase = phase;
+    const fauna = FAUNA_CYCLE[phase];
+    if (!fauna || !this.ctx) return;
+
+    // Play fauna sounds based on phase
+    for (const type of fauna.types) {
+      const def = SOUND_TYPES[type];
+      if (!def) continue;
+      const vol = 0.08 * fauna.volMod;
+      this._playSoundAtDistance(type, 5 + Math.random() * 15, vol);
     }
   }
 

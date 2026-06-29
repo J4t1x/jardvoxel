@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 const REFLECTION_RT_SIZE = 256;
-const REFLECTION_UPDATE_INTERVAL = 4;
+const REFLECTION_UPDATE_INTERVAL = 8;
 
 const waterVertexShader = `
   uniform float uTime;
@@ -122,9 +122,17 @@ export class WaterMaterialManager {
   }
 
   _init() {
+    // Validar que el renderer tenga un canvas válido con dimensiones > 0
+    const canvas = this.renderer.domElement;
+    const width = canvas.width || 1;
+    const height = canvas.height || 1;
+    
+    // Solo crear RenderTarget si el canvas tiene dimensiones válidas
+    const rtSize = (width > 0 && height > 0) ? REFLECTION_RT_SIZE : 1;
+    
     this.reflectionRT = new THREE.WebGLRenderTarget(
-      REFLECTION_RT_SIZE,
-      REFLECTION_RT_SIZE,
+      rtSize,
+      rtSize,
       {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
