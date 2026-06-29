@@ -7,7 +7,7 @@ import {
   CHUNK_SIZE, CHUNK_HEIGHT, WORLD_MIN_Y, SEA_LEVEL,
   BIOMES, WorldGenPipeline, VoxelChunk,
 } from './jardvoxel-survival-engine.js';
-import { MC_BLOCKS, BLOCK, VEGETATION_BLOCKS } from './blocks-registry.js';
+import { MC_BLOCKS, BLOCK, VEGETATION_BLOCKS, TREE_DETAIL_BLOCKS } from './blocks-registry.js';
 import { PRNG } from './jardvoxel-survival-engine.js';
 import { NetherGenerator } from './jardvoxel-survival-nether.js';
 import { generateTree, getTreeTypeForBiome, TREE_TYPES } from './jardvoxel-survival-tree-personality.js';
@@ -240,6 +240,8 @@ export function generateDecoration(chunk, world) {
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_PURPLE);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
+          if (rng.next() < 0.015) placeBush(chunk, x, placeY, z, rng);
+          if (rng.next() < 0.008) placeFallenLog(chunk, x, placeY, z, rng);
           break;
         case BIOMES.DESERT:
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.DEAD_BUSH);
@@ -266,6 +268,7 @@ export function generateDecoration(chunk, world) {
         case BIOMES.TAIGA:
           if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_RED);
+          if (rng.next() < 0.008) placeFallenLog(chunk, x, placeY, z, rng);
           break;
         case BIOMES.JUNGLE:
           if (rng.next() < 0.08) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
@@ -274,6 +277,7 @@ export function generateDecoration(chunk, world) {
           if (rng.next() < 0.04) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.VINES);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
+          if (rng.next() < 0.02) placeBush(chunk, x, placeY, z, rng);
           break;
         case BIOMES.SNOWY_PLAINS:
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.SNOW_BLOCK);
@@ -297,6 +301,8 @@ export function generateDecoration(chunk, world) {
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_TULIP);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
+          if (rng.next() < 0.015) placeBush(chunk, x, placeY, z, rng);
+          if (rng.next() < 0.008) placeFallenLog(chunk, x, placeY, z, rng);
           break;
         case BIOMES.OCEAN:
         case BIOMES.DEEP_OCEAN:
@@ -306,6 +312,44 @@ export function generateDecoration(chunk, world) {
           break;
       }
     }
+  }
+}
+
+function placeBush(chunk, x, y, z, rng) {
+  const bushBlock = TREE_DETAIL_BLOCKS.BUSH;
+  setBlockSafe(chunk, x, y, z, bushBlock);
+  setBlockSafe(chunk, x + 1, y, z, bushBlock);
+  setBlockSafe(chunk, x - 1, y, z, bushBlock);
+  setBlockSafe(chunk, x, y, z + 1, bushBlock);
+  setBlockSafe(chunk, x, y, z - 1, bushBlock);
+  setBlockSafe(chunk, x, y + 1, z, bushBlock);
+  if (rng.next() < 0.3) {
+    setBlockSafe(chunk, x + 1, y + 1, z, bushBlock);
+  }
+  if (rng.next() < 0.3) {
+    setBlockSafe(chunk, x, y + 1, z + 1, bushBlock);
+  }
+  if (rng.next() < 0.2) {
+    setBlockSafe(chunk, x, y + 1, z, VEGETATION_BLOCKS.BERRY_BUSH);
+  }
+}
+
+function placeFallenLog(chunk, x, y, z, rng) {
+  const logBlock = rng.next() < 0.5 ? MC_BLOCKS.OAK_LOG : MC_BLOCKS.SPRUCE_LOG;
+  const len = 2 + Math.floor(rng.next() * 3);
+  const dir = rng.next() < 0.5 ? 'x' : 'z';
+  if (dir === 'x') {
+    for (let i = 0; i < len; i++) {
+      setBlockSafe(chunk, x + i, y, z, logBlock);
+    }
+    if (rng.next() < 0.4) setBlockSafe(chunk, x, y + 1, z, MC_BLOCKS.MOSS);
+    if (rng.next() < 0.3) setBlockSafe(chunk, x + len - 1, y + 1, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
+  } else {
+    for (let i = 0; i < len; i++) {
+      setBlockSafe(chunk, x, y, z + i, logBlock);
+    }
+    if (rng.next() < 0.4) setBlockSafe(chunk, x, y + 1, z, MC_BLOCKS.MOSS);
+    if (rng.next() < 0.3) setBlockSafe(chunk, x, y + 1, z + len - 1, VEGETATION_BLOCKS.MUSHROOM_BROWN);
   }
 }
 
@@ -508,6 +552,32 @@ export function generateChunkWithFeatures(chunk, world) {
   generateOres(chunk, world);
   generateTrees(chunk, world);
   generateDecoration(chunk, world);
+  generateStructures(chunk, world);
+}
+
+// v7.0: Hierarchical chunk generation with features using ChunkContext
+export function generateChunkHierarchical(chunk, world, context) {
+  if (!context) {
+    generateChunkWithFeatures(chunk, world);
+    return;
+  }
+
+  // Base terrain generation (v6.0 still handles block placement)
+  chunk.generate();
+
+  // v7.0: Use context for feature placement
+  // Features use hierarchy data for coherent distribution
+  generateOres(chunk, world);
+
+  // Trees: use ecosystem/tree density from context
+  if (context.region && context.region.treeDensity > 0.05) {
+    generateTrees(chunk, world);
+  }
+
+  // Decoration: use zone microDetail multiplier
+  generateDecoration(chunk, world);
+
+  // Structures: use contextual placement rules
   generateStructures(chunk, world);
 }
 

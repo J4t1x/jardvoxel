@@ -115,6 +115,12 @@ export const TERRAIN_BLOCKS = {
   RED_SAND: 171, TERRACOTTA: 172, CALCITE: 173, COARSE_DIRT: 174, SPRUCE_WOOD: 175,
 };
 
+// Tree detail blocks (176-181) — enhanced tree generation
+export const TREE_DETAIL_BLOCKS = {
+  DARK_OAK_LEAVES: 176, BUSH: 177, ROOT: 178,
+  AUTUMN_LEAVES_ORANGE: 179, AUTUMN_LEAVES_RED: 180, MOSS_LOG: 181,
+};
+
 // ── Consolidated colors (all blocks) ──
 
 export const ALL_BLOCK_COLORS = {
@@ -243,6 +249,13 @@ export const ALL_BLOCK_COLORS = {
   173: [0.92, 0.92, 0.90],  // CALCITE
   174: [0.50, 0.38, 0.22],  // COARSE_DIRT
   175: [0.28, 0.20, 0.14],  // SPRUCE_WOOD
+  // Tree detail blocks (176-181)
+  176: [0.18, 0.48, 0.18],  // DARK_OAK_LEAVES — darker green for old trees
+  177: [0.35, 0.62, 0.28],  // BUSH — medium green for bushes
+  178: [0.42, 0.28, 0.15],  // ROOT — brown root blocks
+  179: [0.90, 0.55, 0.20],  // AUTUMN_LEAVES_ORANGE — warm orange
+  180: [0.85, 0.30, 0.20],  // AUTUMN_LEAVES_RED — deep red
+  181: [0.38, 0.32, 0.18],  // MOSS_LOG — mossy log variant
 };
 
 // ── Consolidated names ──
@@ -328,6 +341,9 @@ export const ALL_BLOCK_NAMES = {
   // SPEC-BIOME-OVERHAUL: Terrain blocks
   171: 'Red Sand', 172: 'Terracotta', 173: 'Calcite',
   174: 'Coarse Dirt', 175: 'Spruce Wood',
+  // Tree detail blocks
+  176: 'Dark Oak Leaves', 177: 'Bush', 178: 'Root',
+  179: 'Autumn Leaves Orange', 180: 'Autumn Leaves Red', 181: 'Moss Log',
 };
 
 // ── Consolidated hardness ──
@@ -383,6 +399,8 @@ export const ALL_BLOCK_HARDNESS = {
   167: 0.1, 168: 0.1, 169: 0.0, 170: 0.0,
   // SPEC-BIOME-OVERHAUL: Terrain blocks
   171: 0.3, 172: 0.8, 173: 0.8, 174: 0.3, 175: 0.8,
+  // Tree detail blocks
+  176: 0.2, 177: 0.1, 178: 0.6, 179: 0.2, 180: 0.2, 181: 0.8,
 };
 
 // ── Consolidated placeable blocks ──

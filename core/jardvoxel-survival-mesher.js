@@ -31,6 +31,13 @@ const TRANSPARENT_BLOCKS = new Set([
   121, // Redstone torch
   122, // Lever
   125, // Redstone repeater
+  // Tree detail blocks — transparent for proper face culling
+  176, // DARK_OAK_LEAVES
+  177, // BUSH
+  178, // ROOT
+  179, // AUTUMN_LEAVES_ORANGE
+  180, // AUTUMN_LEAVES_RED
+  181, // MOSS_LOG
 ]);
 
 const EMISSIVE_BLOCKS = new Set([BLOCK.LAVA, MC_BLOCKS.TORCH, MC_BLOCKS.LANTERN, 113, 116, 121]);
@@ -113,7 +120,7 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
   const indices = [];
   let vertexCount = 0;
 
-  const mergeSize = lodLevel >= 4 ? 1 : lodLevel >= 3 ? 4 : 2;
+  const mergeSize = lodLevel >= 4 ? 8 : lodLevel >= 3 ? 4 : 2;
 
   for (let bx = 0; bx < CHUNK_SIZE; bx += mergeSize) {
     for (let bz = 0; bz < CHUNK_SIZE; bz += mergeSize) {

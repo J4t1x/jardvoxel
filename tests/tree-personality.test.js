@@ -26,12 +26,12 @@ function makeRng(seed = 42) {
 }
 
 describe('Tree Personality System', () => {
-  it('should define 10 tree types', () => {
+  it('should define 11 tree types', () => {
     const types = Object.keys(TREE_TYPES);
-    expect(types.length).toBe(10);
+    expect(types.length).toBe(11);
   });
 
-  it('should have generators for all 10 tree types', () => {
+  it('should have generators for all 11 tree types', () => {
     for (const type of Object.values(TREE_TYPES)) {
       expect(TREE_GENERATORS[type]).toBeDefined();
     }
