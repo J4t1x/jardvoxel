@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
-import { BLOCK } from './blocks-registry.js';
+import { BLOCK, MC_BLOCKS } from './blocks-registry.js';
 import { BIOMES } from './jardvoxel-survival-engine.js';
 
 // Mob types configuration
@@ -422,7 +422,12 @@ class Mob {
       for (let y = minY; y <= maxY && !collision; y++) {
         for (let z = minZ; z <= maxZ && !collision; z++) {
           const block = world.getBlock(x, y, z);
-          if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
+          if (block !== BLOCK.AIR && block !== BLOCK.WATER && block !== BLOCK.LAVA
+              && block !== MC_BLOCKS.TORCH && block !== MC_BLOCKS.LANTERN
+              && block !== MC_BLOCKS.FLOWER_RED && block !== MC_BLOCKS.FLOWER_YELLOW
+              && block !== MC_BLOCKS.TALL_GRASS && block !== MC_BLOCKS.FERN
+              && block !== MC_BLOCKS.DEAD_BUSH && block !== MC_BLOCKS.BAMBOO
+              && block !== MC_BLOCKS.MOSS) {
             collision = true;
           }
         }

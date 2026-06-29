@@ -241,7 +241,7 @@ export const WATER_LEVEL = 20;
 export const CHUNK_SIZE = 16;
 export const CHUNK_HEIGHT = 64;
 export const WORLD_MIN_Y = 0;
-export const RENDER_DIST = 16; // SPEC-CHUNK-OPT: Max render distance (chunks) — adaptive scales down from this
+export const RENDER_DIST = 32; // SPEC-CHUNK-OPT: Max render distance (chunks) — adaptive scales down from this
 
 // SPEC-033: Block hardness — time in seconds to mine
 export const BLOCK_HARDNESS = {

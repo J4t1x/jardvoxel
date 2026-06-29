@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>JardVoxel Zen — Mundo de Bienestar</title>
+<title>JardVoxel Patagonia — Explora el Sur</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0e1a 0%,#1a1428 50%,#0f1a1e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e8e8f0}
@@ -182,10 +182,11 @@ canvas{display:block}
 <body>
 
 <div id="loading">
-  <h1>JardVoxel Zen</h1>
-  <p class="subtitle">Un jardin digital para explorar y relajar</p>
+  <h1>JardVoxel Patagonia</h1>
+  <p class="subtitle">Explora la Patagonia real · 43°S a 56°S</p>
   <div class="spinner"></div>
-  <p id="loading-message">Creando tu refugio...</p>
+  <p id="loading-message">Generando Patagonia...</p>
+  <p id="loading-progress" style="color:#666;font-size:0.75rem;margin-top:0.3rem"></p>
   <p class="seed-info">Seed: <span id="seed-display">--</span></p>
 </div>
 
@@ -243,7 +244,7 @@ canvas{display:block}
   </div>
   <div class="tab-content show" id="tab-graphics">
     <h3>Graficos</h3>
-    <div class="setting-row"><label>Distancia de render</label><input type="range" id="setting-render-dist" min="2" max="16" step="1" value="5"><span class="setting-value" id="setting-render-dist-val">5</span></div>
+    <div class="setting-row"><label>Distancia de render</label><input type="range" id="setting-render-dist" min="2" max="100" step="1" value="48"><span class="setting-value" id="setting-render-dist-val">48</span></div>
     <div class="setting-row"><label>FOV</label><input type="range" id="setting-fov" min="60" max="110" step="5" value="75"><span class="setting-value" id="setting-fov-val">75</span></div>
     <div class="setting-toggle"><label>Nubes</label><div class="toggle-switch" id="setting-clouds"></div></div>
     <div class="setting-toggle"><label>Niebla</label><div class="toggle-switch" id="setting-fog"></div></div>
@@ -278,13 +279,14 @@ canvas{display:block}
     <div class="setting-toggle"><label>Mostrar coordenadas</label><div class="toggle-switch" id="setting-show-coords"></div></div>
     <div class="setting-toggle"><label>Mostrar minimapa</label><div class="toggle-switch" id="setting-show-minimap"></div></div>
     <div class="setting-toggle"><label>Mostrar reloj</label><div class="toggle-switch" id="setting-show-clock"></div></div>
+    <div class="setting-toggle"><label>Mostrar controles</label><div class="toggle-switch" id="setting-show-controls-hint"></div></div>
   </div>
   <button id="settings-back">Volver</button>
 </div>
 
 <div id="pause-screen">
-  <h2>JardVoxel Zen</h2>
-  <p>Tu refugio digital de bienestar y contemplacion</p>
+  <h2>JardVoxel Patagonia</h2>
+  <p>Explora la Patagonia · De los Andes al Atlántico</p>
   <p>Seed: <span id="pause-seed">--</span></p>
   <div class="pause-btns">
     <button class="pause-btn primary" id="resume-btn">Continuar explorando</button>
@@ -350,32 +352,13 @@ import { ResonanceSystem } from './core/jardvoxel-survival-resonance.js';
 import { MeditationSpaceGenerator } from './core/jardvoxel-survival-meditation-spaces.js';
 import { LivingWorldSystem } from './core/jardvoxel-survival-living-world.js';
 import { ExplorationJournal, ENTRY_TYPES } from './core/jardvoxel-survival-journal.js';
+import {
+  PatagoniaProfile, PATAGONIA, PATAGONIA_BIOME_NAMES, PATAGONIA_AMBIENT_MAP,
+  applyPatagoniaToGenerator,
+} from './core/jardvoxel-patagonia.js';
 
-const BIOME_NAMES = {
-  [BIOMES.OCEAN]: 'Ocean', [BIOMES.DEEP_OCEAN]: 'Deep Ocean',
-  [BIOMES.BEACH]: 'Beach', [BIOMES.PLAINS]: 'Plains',
-  [BIOMES.FOREST]: 'Forest', [BIOMES.JUNGLE]: 'Jungle',
-  [BIOMES.DESERT]: 'Desert', [BIOMES.SAVANNA]: 'Savanna',
-  [BIOMES.TAIGA]: 'Taiga', [BIOMES.SNOWY_PLAINS]: 'Snowy Plains',
-  [BIOMES.MOUNTAINS]: 'Mountains', [BIOMES.SNOWY_PEAKS]: 'Snowy Peaks',
-  [BIOMES.STONY_PEAKS]: 'Stony Peaks', [BIOMES.MEADOW]: 'Meadow',
-  [BIOMES.CHERRY_GROVE]: 'Cherry Grove', [BIOMES.SWAMP]: 'Swamp',
-  [BIOMES.RIVER]: 'River',
-  [BIOMES.ZEN_GARDEN]: 'Zen Garden',
-  [BIOMES.BAMBOO_GROVE]: 'Bamboo Grove',
-  [BIOMES.AURORA_TUNDRA]: 'Aurora Tundra',
-};
-
-const AMBIENT_BIOME_MAP = {
-  [BIOMES.OCEAN]: 'ocean', [BIOMES.DEEP_OCEAN]: 'ocean', [BIOMES.BEACH]: 'ocean',
-  [BIOMES.PLAINS]: 'plains', [BIOMES.MEADOW]: 'plains',
-  [BIOMES.FOREST]: 'forest', [BIOMES.JUNGLE]: 'forest', [BIOMES.TAIGA]: 'forest',
-  [BIOMES.CHERRY_GROVE]: 'forest', [BIOMES.AUTUMN_FOREST]: 'forest',
-  [BIOMES.DESERT]: 'desert', [BIOMES.SAVANNA]: 'desert',
-  [BIOMES.MOUNTAINS]: 'mountains', [BIOMES.SNOWY_PEAKS]: 'mountains', [BIOMES.STONY_PEAKS]: 'mountains',
-  [BIOMES.SWAMP]: 'swamp', [BIOMES.RIVER]: 'ocean', [BIOMES.MYSTIC_GROVE]: 'mystic_grove',
-  [BIOMES.ZEN_GARDEN]: 'zen_garden', [BIOMES.BAMBOO_GROVE]: 'bamboo_grove', [BIOMES.AURORA_TUNDRA]: 'aurora_tundra',
-};
+const BIOME_NAMES = PATAGONIA_BIOME_NAMES;
+const AMBIENT_BIOME_MAP = PATAGONIA_AMBIENT_MAP;
 
 class TouchJoystick {
   constructor(zoneEl, side) {
@@ -535,9 +518,10 @@ class TouchControls {
 
 class ZenGame {
   constructor() {
-    this.seed = Math.floor(Math.random() * 2147483647);
+    this.patagonia = new PatagoniaProfile(PATAGONIA.SEED);
+    this.seed = PATAGONIA.SEED;
     this.settings = {
-      renderDistance: 3, fov: 75, clouds: true, fog: true, shadows: true,
+      renderDistance: 48, fov: 110, clouds: true, fog: true, shadows: true,
       toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
@@ -587,10 +571,10 @@ class ZenGame {
 
   initScene() {
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 4000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -613,10 +597,18 @@ class ZenGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance);
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, false, true);
+
+    // ── Adaptive render distance ──
+    this.world._adaptiveEnabled = true;
+    this.world._targetRenderDist = this.settings.renderDistance;
+    this.world._minRenderDist = 16;
+    this.world._initialLoadBurst = 90;
+
+    // ── Patch generator with Patagonia geographic profile ──
+    applyPatagoniaToGenerator(this.world.generator, this.patagonia);
 
     this.dayNight = new DayNightCycle(this.scene);
-    this.dayNight.cloudPlanes = [];
     for (const cp of this.dayNight.cloudPlanes) cp.mesh.visible = this.settings.clouds;
 
     this.shadowManager = new ShadowManager(this.renderer, this.dayNight.sunLight, this.camera);
@@ -635,6 +627,22 @@ class ZenGame {
   initPlayer() {
     this.player = new PlayerController(this.camera, this.world);
     this.player.flying = true;
+
+    // ── Override spawn to use Patagonia coordinates ────────
+    const spawn = this.patagonia.getSpawnPoint();
+    this.player.spawn = function() {
+      const sx = spawn.x, sz = spawn.z;
+      for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+        const block = this.world.getBlock(Math.floor(sx), WORLD_MIN_Y + y, Math.floor(sz));
+        if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
+          this.position.set(sx + 0.5, WORLD_MIN_Y + y + 2, sz + 0.5);
+          this.camera.position.copy(this.position);
+          return;
+        }
+      }
+      this.position.set(sx + 0.5, spawn.y, sz + 0.5);
+      this.camera.position.copy(this.position);
+    };
     this.player.spawn();
 
     this.inventory = new Inventory();
@@ -707,6 +715,7 @@ class ZenGame {
     this._updateHotbar();
     this._initSettings();
     this._initJournalTabs();
+    this._applySettings();
 
     const pauseScreen = document.getElementById('pause-screen');
     const resumeBtn = document.getElementById('resume-btn');
@@ -839,7 +848,7 @@ class ZenGame {
       });
     };
 
-    wireSlider('setting-render-dist', 'renderDistance', v => v + '', (v) => { if (this.world) this.world.renderDistance = v; });
+    wireSlider('setting-render-dist', 'renderDistance', v => v + '', (v) => { if (this.world) { this.world.renderDistance = v; this.world._targetRenderDist = v; } });
     wireSlider('setting-fov', 'fov', v => v + '', (v) => { this.camera.fov = v; this.camera.updateProjectionMatrix(); });
     wireSlider('setting-volume', 'volume', v => Math.round(v * 100) + '%', (v) => { if (this.audio) this.audio.setVolume(v); });
     wireSlider('setting-sfx-volume', 'sfxVolume', v => Math.round(v * 100) + '%', (v) => { if (this.audio) this.audio.sfxVolume = v; });
@@ -875,6 +884,7 @@ class ZenGame {
     wireToggle('setting-show-coords', 'showCoords', (v) => { document.getElementById('coords').parentElement.style.display = v ? 'inline' : 'none'; });
     wireToggle('setting-show-minimap', 'showMinimap', (v) => { document.getElementById('minimap').style.display = v ? 'block' : 'none'; });
     wireToggle('setting-show-clock', 'showClock', (v) => { document.getElementById('clock').style.display = v ? 'block' : 'none'; });
+    wireToggle('setting-show-controls-hint', 'showControlsHint', (v) => { document.getElementById('controls-hint').style.display = v ? 'block' : 'none'; });
 
     wireSelect('setting-touch-joysticks', 'touchJoysticks');
     wireSelect('setting-autosave', 'autoSaveInterval');
@@ -890,9 +900,9 @@ class ZenGame {
   }
 
   _applySettings() {
-    if (this.world) this.world.renderDistance = this.settings.renderDistance;
+    if (this.world) { this.world.renderDistance = this.settings.renderDistance; this.world._targetRenderDist = this.settings.renderDistance; }
     if (this.camera) { this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix(); }
-    if (this.scene) { if (this.fogManager) this.fogManager.setEnabled(this.settings.fog); }
+    if (this.scene) { if (this.fogManager) { this.fogManager.setEnabled(this.settings.fog); this.fogManager.setRenderDistance(this.settings.renderDistance); } }
     if (this.renderer) {
       this.renderer.shadowMap.enabled = this.settings.shadows;
       this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -904,6 +914,16 @@ class ZenGame {
     if (this.ambientSoundManager) { this.ambientSoundManager.setVolume(this.settings.ambientVolume); this.ambientSoundManager.setEnabled(this.settings.ambientSoundEnabled); }
     if (this.touchControls) this.touchControls.lookSensitivity = this.settings.sensitivity;
     document.documentElement.style.setProperty('--joystick-size', this.settings.joystickSize + 'px');
+    const fpsEl = document.getElementById('fps');
+    if (fpsEl) fpsEl.parentElement.style.display = this.settings.showFPS ? 'inline' : 'none';
+    const coordsEl = document.getElementById('coords');
+    if (coordsEl) coordsEl.parentElement.style.display = this.settings.showCoords ? 'inline' : 'none';
+    const minimapEl = document.getElementById('minimap');
+    if (minimapEl) minimapEl.style.display = this.settings.showMinimap ? 'block' : 'none';
+    const clockEl = document.getElementById('clock');
+    if (clockEl) clockEl.style.display = this.settings.showClock ? 'block' : 'none';
+    const controlsHintEl = document.getElementById('controls-hint');
+    if (controlsHintEl) controlsHintEl.style.display = this.settings.showControlsHint ? 'block' : 'none';
   }
 
   _saveSettings() {
@@ -915,7 +935,6 @@ class ZenGame {
       const data = localStorage.getItem('jardvoxel-zen-save');
       if (data) {
         const parsed = JSON.parse(data);
-        if (parsed.seed) this.seed = parsed.seed;
         if (parsed.blockMods) this._applyChunkModifications(parsed.blockMods);
         if (parsed.resonance) this.resonanceSystem.deserialize(parsed.resonance);
         if (parsed.journal) this.journal.deserialize(parsed.journal);
@@ -1167,8 +1186,10 @@ class ZenGame {
     if (h.clock) h.clock.textContent = this.dayNight.getTimeString();
     if (h.weather && this.weatherManager) {
       const w = this.weatherManager.getCurrentWeather();
-      const icons = { clear: '', rain: 'rain', snow: 'snow', thunder: '' };
-      h.weather.textContent = icons[w] || '';
+      const labels = { clear: '', rain: 'Lluvia', snow: 'Nieve', thunder: 'Tormenta' };
+      const label = labels[w] || '';
+      h.weather.textContent = label;
+      h.weather.style.display = label ? 'block' : 'none';
     }
   }
 
@@ -1226,6 +1247,7 @@ class ZenGame {
   }
 
   _addJournalEntry(type, title, text) {
+    if (this.journal) this.journal.addEntry(type, title, text);
     if (this.uiManager) this.uiManager.showToast(title, type === 'biome' ? 'discovery' : 'wellness');
   }
 
@@ -1321,11 +1343,6 @@ class ZenGame {
     });
   }
 
-  _animateWater(dt) {
-    // Water animation is handled by GPU vertex shader in WaterMaterialManager.
-    // uTime is updated in waterMaterialManager.update(). No CPU vertex manipulation needed.
-  }
-
   _updatePointLights(dt) {
     if (!this._pointLights) {
       this._pointLights = [];
@@ -1337,15 +1354,15 @@ class ZenGame {
       this._pointLightTimer = 0;
     }
     this._pointLightTimer += dt;
-    if (this._pointLightTimer < 0.5) return;
+    if (this._pointLightTimer < 1.0) return;
     this._pointLightTimer = 0;
     const px = this.player.position.x, py = this.player.position.y, pz = this.player.position.z;
     const range = 8;
     const torchId = 25, lanternId = 26, lavaId = 6;
     const found = [];
-    for (let dx = -range; dx <= range; dx += 3) {
-      for (let dy = -range; dy <= range; dy += 3) {
-        for (let dz = -range; dz <= range; dz += 3) {
+    for (let dx = -range; dx <= range; dx += 4) {
+      for (let dy = -range; dy <= range; dy += 4) {
+        for (let dz = -range; dz <= range; dz += 4) {
           const block = this.world.getBlock(Math.floor(px + dx), Math.floor(py + dy), Math.floor(pz + dz));
           if (block === torchId || block === lanternId || block === lavaId) {
             const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
@@ -1369,7 +1386,7 @@ class ZenGame {
   _renderMinimap() {
     if (!this._minimapTimer) this._minimapTimer = 0;
     this._minimapTimer += this.currentDt;
-    if (this._minimapTimer < 1.0) return;
+    if (this._minimapTimer < 2.0) return;
     this._minimapTimer = 0;
     const canvas = document.getElementById('minimap');
     if (!canvas) return;
@@ -1382,7 +1399,7 @@ class ZenGame {
     ctx.arc(radius, radius, radius - 1, 0, Math.PI * 2);
     ctx.clip();
     const blockColors = { 0: '#1a1a2e', 1: '#7a7a7a', 2: '#3a8a25', 3: '#6a5025', 4: '#d4c878', 5: '#2050a0', 6: '#c04020', 7: '#e0e0f0', 8: '#4a3825' };
-    const step = 3;
+    const step = 4;
     const yStart = Math.min(CHUNK_HEIGHT - 1, py + 5 - WORLD_MIN_Y);
     const yEnd = Math.max(0, py - 15 - WORLD_MIN_Y);
     for (let dx = -radius; dx < radius; dx += step) {
@@ -1414,6 +1431,20 @@ class ZenGame {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
     this.currentDt = dt;
+
+    // ── Per-frame cached values (eliminate redundant lookups) ──
+    if (this.player && this.world) {
+      const px = Math.floor(this.player.position.x);
+      const py = Math.floor(this.player.position.y);
+      const pz = Math.floor(this.player.position.z);
+      this._frame = {
+        px, py, pz,
+        biome: this.world.getBiome(px, pz),
+        headBlock: this.world.getBlock(px, py + 2, pz),
+        eyeBlock: this.world.getBlock(px, Math.floor(this.player.position.y + 1.5), pz),
+        camDir: null,
+      };
+    }
 
     this.fpsFrames++;
     if (now - this.fpsTime > 500) {
@@ -1451,11 +1482,7 @@ class ZenGame {
         this.blockHighlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
       } else this.blockHighlight.visible = false;
 
-      const eyeBlock = this.world.getBlock(
-        Math.floor(this.player.position.x),
-        Math.floor(this.player.position.y + 1.5),
-        Math.floor(this.player.position.z)
-      );
+      const eyeBlock = this._frame ? this._frame.eyeBlock : BLOCK.AIR;
       const underwater = eyeBlock === BLOCK.WATER;
       const overlay = document.getElementById('underwater-overlay');
       if (underwater) {
@@ -1475,21 +1502,22 @@ class ZenGame {
 
     // Day/night
     {
-      const rawBiome = this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
+      const rawBiome = this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
       this.dayNight.setBiome(rawBiome);
     }
     this.dayNight.update(dt, this.player.position);
 
     if (this.shadowManager) {
-      const camDir = new THREE.Vector3();
-      this.camera.getWorldDirection(camDir);
-      this.shadowManager.update(this.player.position, camDir);
+      if (!this._tmpCamDir) this._tmpCamDir = new THREE.Vector3();
+      this._tmpCamDir.set(0, 0, 0);
+      this.camera.getWorldDirection(this._tmpCamDir);
+      this.shadowManager.update(this.player.position, this._tmpCamDir);
     }
 
     if (this.fogManager) {
-      const biomeName = BIOME_NAMES[this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z))] || 'default';
+      const biomeName = BIOME_NAMES[this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z))] || 'default';
       this.fogManager.setBiome(biomeName);
-      const headBlock = this.world.getBlock(
+      const headBlock = this._frame ? this._frame.headBlock : this.world.getBlock(
         Math.floor(this.player.position.x),
         Math.floor(this.player.position.y + 2),
         Math.floor(this.player.position.z)
@@ -1500,10 +1528,10 @@ class ZenGame {
 
     if (this.world.waterMaterialManager) {
       const skyColor = this.dayNight.skyDome ? this.dayNight.skyDome.material.uniforms.bottomColor.value : null;
-      const sunDir = new THREE.Vector3();
-      this.camera.getWorldDirection(sunDir);
-      sunDir.negate().normalize();
-      this.world.waterMaterialManager.update(dt, this.camera.position, skyColor, sunDir);
+      if (!this._tmpSunDir) this._tmpSunDir = new THREE.Vector3();
+      this._tmpSunDir.copy(this._tmpCamDir || new THREE.Vector3());
+      this._tmpSunDir.negate().normalize();
+      this.world.waterMaterialManager.update(dt, this.camera.position, skyColor, this._tmpSunDir);
     }
 
     if (this.interiorLighting) this.interiorLighting.update(dt, this.world, this.player.position, !this.player.inWater);
@@ -1511,14 +1539,14 @@ class ZenGame {
     if (this.ambientParticles) {
       const dayFactor = Math.max(0, Math.sin(this.dayNight.time * Math.PI * 2));
       this.ambientParticles.setNight(dayFactor < 0.15);
-      const biomeName = this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
-      const headBlock = this.world.getBlock(Math.floor(this.player.position.x), Math.floor(this.player.position.y + 2), Math.floor(this.player.position.z));
-      this.ambientParticles.setCave(headBlock !== BLOCK.AIR && headBlock !== BLOCK.WATER);
-      this.ambientParticles.setBiome(biomeName);
+      const apBiome = this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
+      const apHeadBlock = this._frame ? this._frame.headBlock : this.world.getBlock(Math.floor(this.player.position.x), Math.floor(this.player.position.y + 2), Math.floor(this.player.position.z));
+      this.ambientParticles.setCave(apHeadBlock !== BLOCK.AIR && apHeadBlock !== BLOCK.WATER);
+      this.ambientParticles.setBiome(apBiome);
       this.ambientParticles.update(dt, this.player.position, dayFactor);
     }
 
-    if (this.forestCanopy) this.forestCanopy.update(dt, this.world, this.player.position, this.dayNight, this.fog);
+    if (this.forestCanopy) this.forestCanopy.update(dt, this.world, this.player.position, this.dayNight, this.fogManager);
 
     if (this.particles) this.particles.update(dt);
 
@@ -1547,9 +1575,9 @@ class ZenGame {
       this._chilltuneTimer = (this._chilltuneTimer || 0) + dt;
       if (this._chilltuneTimer >= 1.0) {
         this._chilltuneTimer = 0;
-        const ctBiome = this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
+        const ctBiome = this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
         let ctBiomeKey = AMBIENT_BIOME_MAP[ctBiome] || 'plains';
-        const ctHeadBlock = this.world.getBlock(
+        const ctHeadBlock = this._frame ? this._frame.headBlock : this.world.getBlock(
           Math.floor(this.player.position.x),
           Math.floor(this.player.position.y) + 2,
           Math.floor(this.player.position.z)
@@ -1566,7 +1594,7 @@ class ZenGame {
 
     // UI manager
     if (this.uiManager && this.gameStarted) {
-      const biomeName = BIOME_NAMES[this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z))] || 'Unknown';
+      const biomeName = BIOME_NAMES[this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z))] || 'Unknown';
       if (biomeName !== this._lastBiomeName) {
         this._lastBiomeName = biomeName;
         this.uiManager.showBiomeIndicator(biomeName);
@@ -1582,12 +1610,12 @@ class ZenGame {
       if (!this.ambientSoundManager.ctx) {
         this.ambientSoundManager.init(this.audio.ctx, this.audio.masterGain);
       }
-      const px = Math.floor(this.player.position.x);
-      const py = Math.floor(this.player.position.y);
-      const pz = Math.floor(this.player.position.z);
-      const biome = this.world.getBiome(px, pz);
+      const px = this._frame ? this._frame.px : Math.floor(this.player.position.x);
+      const py = this._frame ? this._frame.py : Math.floor(this.player.position.y);
+      const pz = this._frame ? this._frame.pz : Math.floor(this.player.position.z);
+      const biome = this._frame ? this._frame.biome : this.world.getBiome(px, pz);
       let ambientKey = AMBIENT_BIOME_MAP[biome] || 'plains';
-      const headBlock = this.world.getBlock(px, py + 2, pz);
+      const headBlock = this._frame ? this._frame.headBlock : this.world.getBlock(px, py + 2, pz);
       const isIndoor = py < 35 && headBlock !== BLOCK.AIR && headBlock !== BLOCK.WATER;
       if (isIndoor) ambientKey = 'caves';
       this.ambientSoundManager.setBiome(ambientKey);
@@ -1612,19 +1640,15 @@ class ZenGame {
         }
       }
 
-      const fwd = new THREE.Vector3();
-      this.camera.getWorldDirection(fwd);
       this.ambientSoundManager.updateListener(
         this.player.position.x, this.player.position.y, this.player.position.z,
-        fwd.x, fwd.z
+        this._tmpCamDir ? this._tmpCamDir.x : 0, this._tmpCamDir ? this._tmpCamDir.z : 0
       );
     }
 
     // Wellness systems
     if (this.gameStarted) {
-      const px = Math.floor(this.player.position.x);
-      const pz = Math.floor(this.player.position.z);
-      const wellnessBiome = this.world.getBiome(px, pz);
+      const wellnessBiome = this._frame ? this._frame.biome : this.world.getBiome(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
       const wellnessBiomeKey = AMBIENT_BIOME_MAP[wellnessBiome] || 'plains';
 
       // Komorebi
@@ -1694,6 +1718,13 @@ class ZenGame {
 
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('seed-display').textContent = 'pending...';
+  const progressEl = document.getElementById('loading-progress');
+  let progressCount = 0;
+  const progressInterval = setInterval(() => {
+    progressCount++;
+    if (progressEl) progressEl.textContent = 'Generando terreno patagónico... ' + Math.min(progressCount * 10, 90) + '%';
+  }, 100);
+  window._clearLoadingProgress = () => { clearInterval(progressInterval); if (progressEl) progressEl.textContent = '100%'; };
   const safetyTimer = setTimeout(() => {
     const loading = document.getElementById('loading');
     if (loading && loading.style.display !== 'none') {
@@ -1704,15 +1735,21 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 10000);
   setTimeout(() => {
     try {
+      const testCanvas = document.createElement('canvas');
+      const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
+      if (!gl) throw new Error('Tu navegador no soporta WebGL');
       const game = new ZenGame();
       window._game = game;
       document.getElementById('seed-display').textContent = game.seed || 'N/A';
+      if (window._clearLoadingProgress) window._clearLoadingProgress();
       clearTimeout(safetyTimer);
     } catch (err) {
       console.error('[JardVoxel Zen] Init failed:', err);
+      if (window._clearLoadingProgress) window._clearLoadingProgress();
       const loading = document.getElementById('loading');
       if (loading) {
-        loading.innerHTML = '<h1 style="color:#ff4444">Error</h1><p style="color:#aa8888">' + (err.message || 'No se pudo iniciar') + '</p><p style="margin-top:1rem;color:#666">Revisa la consola (F12)</p>';
+        const isModuleError = err.message && (err.message.includes('import') || err.message.includes('module') || err.message.includes('Failed to fetch'));
+        loading.innerHTML = '<h1 style="color:#ff4444">Error</h1><p style="color:#aa8888">' + (err.message || 'No se pudo iniciar') + '</p><p style="margin-top:1rem;color:#666">' + (isModuleError ? 'No se pudieron cargar los modulos del juego. Verifica que la carpeta core/ exista.' : 'Revisa la consola (F12)') + '</p>';
       }
       clearTimeout(safetyTimer);
     }

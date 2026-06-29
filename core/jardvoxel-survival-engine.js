@@ -2,9 +2,11 @@
 // JardVoxel Survival Engine — Full World Generation Pipeline
 // Based on Voxel Wiki: https://voxel-wiki.dev/w/World_generation
 // v6.0: Simplex Noise + Domain Warping + Coherent Biomes
+// v7.0: Hierarchical World Generation (World → Continents → Regions → Zones → Chunks → Microsectors)
 // ═══════════════════════════════════════════════════════════
 
 import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer } from './jardvoxel-survival-noise.js';
+import { HierarchicalChunkGenerator } from './jardvoxel-survival-world-hierarchy.js';
 
 // ═══════════════════════════════════════════════════════════
 // PRNG — Xorshift128+ (seeded, reproducible)
@@ -299,10 +301,48 @@ export class WorldGenPipeline {
       {x: 1.0, y: 0.0},
     ]);
     
+    // v7.0: Hierarchical world generation (optional, initialized on demand)
+    this.hierarchy = null;
+    this._useHierarchy = false;
+
     // Cache
     this.cache = new Map();
     this.cacheSize = 50000;
     this._biomeCache = new Map();
+  }
+
+  // v7.0: Enable hierarchical world generation
+  enableHierarchy() {
+    if (!this.hierarchy) {
+      this.hierarchy = new HierarchicalChunkGenerator(this.seed);
+    }
+    this._useHierarchy = true;
+    return this.hierarchy;
+  }
+
+  // v7.0: Disable hierarchical generation (fallback to v6.0)
+  disableHierarchy() {
+    this._useHierarchy = false;
+  }
+
+  // v7.0: Get hierarchical chunk context (delegates to HierarchicalChunkGenerator)
+  getChunkContext(cx, cz) {
+    if (!this._useHierarchy) return null;
+    return this.hierarchy.getChunkContext(cx, cz);
+  }
+
+  // v7.0: Get biome from hierarchy if enabled, otherwise v6.0 method
+  getBiomeHierarchical(x, z) {
+    if (!this._useHierarchy) return this.getBiome(x, z);
+    const cx = Math.floor(x / CHUNK_SIZE);
+    const cz = Math.floor(z / CHUNK_SIZE);
+    return this.hierarchy.getPrimaryBiome(cx, cz);
+  }
+
+  // v7.0: Get world info from hierarchy
+  getWorldInfo() {
+    if (!this.hierarchy) return null;
+    return this.hierarchy.getWorldInfo();
   }
   
   _cacheKey(x, y, z) {
@@ -412,6 +452,14 @@ export class WorldGenPipeline {
   
   // Step 5: Calculate base height using v6.0 TerrainSplines (cached per x,z)
   getBaseHeight(x, z) {
+    // v7.0: Use hierarchical heightmap if enabled
+    if (this._useHierarchy && this.hierarchy) {
+      const cx = Math.floor(x / CHUNK_SIZE);
+      const cz = Math.floor(z / CHUNK_SIZE);
+      const lx = x - cx * CHUNK_SIZE;
+      const lz = z - cz * CHUNK_SIZE;
+      return this.hierarchy.getHeightAt(cx, cz, lx, lz);
+    }
     const ix = Math.floor(x) & 0x1FFFFF;
     const iz = Math.floor(z) & 0x1FFFFF;
     const key = ix * 4194304 + iz;
@@ -632,6 +680,12 @@ export class WorldGenPipeline {
   
   // Step 11: Determine biome — v6.0 with calibrated noise
   getBiome(x, z) {
+    // v7.0: Use hierarchical biome if enabled
+    if (this._useHierarchy && this.hierarchy) {
+      const cx = Math.floor(x / CHUNK_SIZE);
+      const cz = Math.floor(z / CHUNK_SIZE);
+      return this.hierarchy.getPrimaryBiome(cx, cz);
+    }
     const ix = Math.floor(x) & 0x1FFFFF;
     const iz = Math.floor(z) & 0x1FFFFF;
     const key = ix * 4194304 + iz;
@@ -770,8 +824,8 @@ export class VoxelChunk {
             continue;
           }
 
-          // Fast path: deep underground, outside cave range → stone
-          if (worldY < baseHeight - NOISE_MARGIN && (worldY > CAVE_TOP || worldY < CAVE_BOTTOM)) {
+          // Fast path: deep underground → stone (no caves in Patagonia surface)
+          if (worldY < baseHeight - NOISE_MARGIN) {
             this.blocks[idx] = 1; // stone
             continue;
           }

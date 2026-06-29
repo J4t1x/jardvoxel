@@ -7,27 +7,27 @@
 import * as THREE from 'three';
 
 export const BIOME_FOG_DENSITY = {
-  desert: 0.008,
-  forest: 0.025,
-  ocean: 0.018,
+  desert: 0.0008,
+  forest: 0.0015,
+  ocean: 0.0012,
   cave: 0.045,
-  plains: 0.012,
-  mountains: 0.004,
-  swamp: 0.035,
-  beach: 0.015,
-  taiga: 0.022,
-  snowy_plains: 0.014,
-  snowy_peaks: 0.003,
-  stony_peaks: 0.004,
-  meadow: 0.010,
-  jungle: 0.028,
-  savanna: 0.008,
-  cherry_grove: 0.012,
-  river: 0.016,
-  deep_ocean: 0.020,
-  mystic_grove: 0.020,
-  autumn_forest: 0.022,
-  default: 0.015,
+  plains: 0.0008,
+  mountains: 0.0005,
+  swamp: 0.008,
+  beach: 0.001,
+  taiga: 0.0015,
+  snowy_plains: 0.001,
+  snowy_peaks: 0.0004,
+  stony_peaks: 0.0005,
+  meadow: 0.0008,
+  jungle: 0.002,
+  savanna: 0.0008,
+  cherry_grove: 0.001,
+  river: 0.0012,
+  deep_ocean: 0.0015,
+  mystic_grove: 0.0015,
+  autumn_forest: 0.0015,
+  default: 0.0008,
 };
 
 // SPEC-BIOME-OVERHAUL: Biome-specific fog colors
@@ -55,10 +55,10 @@ const BIOME_FOG_COLORS = {
 };
 
 const TIME_COLORS = {
-  dawn: { color: new THREE.Color(0xffb07a), density: 0.018 },
-  day: { color: new THREE.Color(0x87ceeb), density: 0.012 },
-  sunset: { color: new THREE.Color(0xff8c5a), density: 0.020 },
-  night: { color: new THREE.Color(0x0a0a2a), density: 0.025 },
+  dawn: { color: new THREE.Color(0xffb07a), density: 0.0008 },
+  day: { color: new THREE.Color(0x87ceeb), density: 0.0004 },
+  sunset: { color: new THREE.Color(0xff8c5a), density: 0.001 },
+  night: { color: new THREE.Color(0x0a0a2a), density: 0.0015 },
 };
 
 const CAVE_FOG_COLOR = new THREE.Color(0x050505);
@@ -70,8 +70,8 @@ export class VolumetricFog {
     this.scene = scene;
     this._enabled = true;
     this._currentBiome = null;
-    this._targetDensity = 0.015;
-    this._currentDensity = 0.015;
+    this._targetDensity = 0.0008;
+    this._currentDensity = 0.0008;
     this._targetColor = new THREE.Color(0x87ceeb);
     this._currentColor = new THREE.Color(0x87ceeb);
     this._isCave = false;
@@ -83,7 +83,7 @@ export class VolumetricFog {
   }
 
   _init() {
-    this._normalFog = new THREE.FogExp2(0x87ceeb, 0.015);
+    this._normalFog = new THREE.FogExp2(0x87ceeb, 0.0008);
     this._underwaterFog = new THREE.FogExp2(0x1a4080, 0.08);
     this.scene.fog = this._normalFog;
   }
@@ -166,7 +166,24 @@ export class VolumetricFog {
     if (!this._isCave) {
       const normalizedHeight = Math.max(0, Math.min(1, playerY / MAX_HEIGHT));
       const heightMultiplier = 1 - normalizedHeight * HEIGHT_FACTOR;
-      finalDensity = this._targetDensity * heightMultiplier;
+      
+      // Altitude-based fog boost: when flying high (>80 blocks), increase fog density
+      // to hide chunk boundaries and unloaded terrain at distance
+      let altitudeBoost = 1.0;
+      if (playerY > 80) {
+        const altitudeFactor = Math.min(1, (playerY - 80) / 120); // 0 to 1 as height goes 80->200
+        altitudeBoost = 1.0 + altitudeFactor * 5.0; // Up to 6x density at high altitude
+      }
+      
+      finalDensity = this._targetDensity * heightMultiplier * altitudeBoost * (this._rdDensityMultiplier ?? 1);
+      
+      // Reduce fog density near camera to avoid hiding terrain
+      // Apply a falloff based on render distance - less fog closer to player
+      if (this._rdDensityMultiplier) {
+        // When render distance is reduced due to low FPS, reduce fog proportionally
+        // to prevent fog from hiding the limited visible terrain
+        finalDensity *= Math.max(0.5, this._rdDensityMultiplier);
+      }
     } else {
       finalDensity = this._targetDensity;
     }
@@ -180,10 +197,11 @@ export class VolumetricFog {
   }
 
   setRenderDistance(chunks) {
-    // FogExp2 doesn't use near/far, but we can adjust density
-    // based on render distance to keep fog proportional
-    const baseFactor = 5 / Math.max(1, chunks);
-    // This is a soft hint - actual density is still biome-driven
+    this._rdDensityMultiplier = Math.min(1, 32 / Math.max(1, chunks));
+  }
+
+  get fog() {
+    return this._normalFog;
   }
 
   dispose() {

@@ -1,6 +1,7 @@
 // JardVoxel Survival Worker — chunk generation offloading
 import { WorldGenPipeline, VoxelChunk } from './jardvoxel-survival-engine.js';
 import { NetherGenerator } from './jardvoxel-survival-nether.js';
+import { PatagoniaProfile, applyPatagoniaToGenerator } from './jardvoxel-patagonia.js';
 
 let world = null;
 let netherGen = null;
@@ -9,6 +10,11 @@ let dimension = 'overworld';
 self.onmessage = (e) => {
   if (e.data.type === 'init') {
     world = new WorldGenPipeline(e.data.seed);
+    if (e.data.useHierarchy) world.enableHierarchy();
+    if (e.data.patagonia) {
+      const pat = new PatagoniaProfile(e.data.seed);
+      applyPatagoniaToGenerator(world, pat);
+    }
     netherGen = new NetherGenerator();
     return;
   }

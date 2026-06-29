@@ -207,6 +207,82 @@ export class AmbientSoundManager {
     this._reverbWet = null;
     this._reverbDry = null;
     this._currentDayPhase = 'day';
+
+    // 8D audio: noise buffer cache + spatial channel tracking
+    this._noiseBufferCache = {};
+    this._spatialChannels = [];
+  }
+
+  // === 8D Audio: Noise Generation ===
+
+  _getNoiseBuffer(type) {
+    if (this._noiseBufferCache[type]) return this._noiseBufferCache[type];
+    if (!this.ctx) return null;
+
+    const sampleRate = this.ctx.sampleRate;
+    const length = Math.floor(sampleRate * 4); // 4s loop
+    const buffer = this.ctx.createBuffer(1, length, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    if (type === 'white') {
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    } else if (type === 'pink') {
+      let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for (let i = 0; i < length; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = 0.99886*b0 + w*0.0555179;
+        b1 = 0.99332*b1 + w*0.0750759;
+        b2 = 0.96900*b2 + w*0.1538520;
+        b3 = 0.86650*b3 + w*0.3104856;
+        b4 = 0.55000*b4 + w*0.5329522;
+        b5 = -0.7616*b5 - w*0.0168980;
+        data[i] = (b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+        b6 = w*0.115926;
+      }
+    } else { // brown
+      let lastOut = 0;
+      for (let i = 0; i < length; i++) {
+        const w = Math.random() * 2 - 1;
+        data[i] = (lastOut + (0.02 * w)) / 1.02;
+        lastOut = data[i];
+        data[i] *= 3.5;
+      }
+    }
+
+    this._noiseBufferCache[type] = buffer;
+    return buffer;
+  }
+
+  // === 8D Audio: Spatial Rotation Panner ===
+
+  _create8DPanner(speed, depth = 0.8) {
+    if (!this.ctx) return null;
+    try {
+      const panner = this.ctx.createStereoPanner();
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = speed;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = depth;
+      lfo.connect(lfoGain).connect(panner.pan);
+      lfo.start();
+      const channel = { panner, lfo, lfoGain };
+      this._spatialChannels.push(channel);
+      return channel;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  _createStaticPanner(panValue = 0) {
+    if (!this.ctx) return null;
+    try {
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.value = panValue;
+      return panner;
+    } catch (e) {
+      return null;
+    }
   }
 
   // === Lifecycle ===
@@ -214,6 +290,8 @@ export class AmbientSoundManager {
   init(ctx, masterGain) {
     this.ctx = ctx;
     if (!this.ctx) return;
+
+    this._noiseBufferCache = {}; // reset cache for new context
 
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = this.enabled ? this.volume : 0;
@@ -343,9 +421,17 @@ export class AmbientSoundManager {
     this.previousGain.gain.setValueAtTime(1, now);
     this.previousGain.gain.linearRampToValueAtTime(0, now + CROSSFADE_DURATION);
 
-    // Move current sources to previousGain
+    // Move current sources to previousGain (reconnect output, not source)
     for (const node of this.continuousNodes) {
-      try { node.disconnect(); node.connect(this.previousGain); } catch (e) {}
+      try {
+        if (node._spatial) {
+          node._spatial.panner.disconnect();
+          node._spatial.panner.connect(this.previousGain);
+        } else if (node._gain) {
+          node._gain.disconnect();
+          node._gain.connect(this.previousGain);
+        }
+      } catch (e) {}
     }
     const oldContinuous = this.continuousNodes;
     const oldTimers = this.scheduledTimers;
@@ -391,40 +477,71 @@ export class AmbientSoundManager {
   _startContinuousSound(sound, def, outputGain) {
     if (!this.ctx) return;
 
-    const osc = this.ctx.createOscillator();
+    const isNoise = def.waveType === 'brown' || sound.type === 'insects' || sound.type === 'whispers';
+    let source;
+
+    if (isNoise) {
+      source = this.ctx.createBufferSource();
+      const noiseType = def.waveType === 'brown' ? 'brown' : (sound.type === 'insects' ? 'white' : 'pink');
+      source.buffer = this._getNoiseBuffer(noiseType);
+      source.loop = true;
+    } else {
+      source = this.ctx.createOscillator();
+      source.type = def.waveType;
+      source.frequency.value = this._randomRange(def.freqRange[0], def.freqRange[1]);
+    }
+
     const gain = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
 
-    osc.type = def.waveType === 'brown' ? 'sine' : def.waveType;
-    const freq = this._randomRange(def.freqRange[0], def.freqRange[1]);
-    osc.frequency.value = freq;
-
-    filter.type = 'lowpass';
+    filter.type = sound.type === 'insects' ? 'bandpass' : 'lowpass';
     filter.frequency.value = sound.filter || def.filter || 2000;
+    if (filter.type === 'bandpass') filter.Q.value = 8;
 
     gain.gain.value = 0;
     const now = this.ctx.currentTime;
     gain.gain.linearRampToValueAtTime(sound.vol, now + CROSSFADE_DURATION);
 
-    osc.connect(filter).connect(gain).connect(outputGain);
-    osc.start();
+    // 8D spatial rotation — each source orbits at a unique speed
+    const rotSpeed = 0.04 + Math.random() * 0.13;
+    const spatial = this._create8DPanner(rotSpeed, 0.85);
+    const spatialOut = spatial ? spatial.panner : null;
 
-    // For brown noise type, modulate frequency slowly
-    if (def.waveType === 'brown') {
+    if (spatialOut) {
+      source.connect(filter).connect(gain).connect(spatialOut).connect(outputGain);
+    } else {
+      source.connect(filter).connect(gain).connect(outputGain);
+    }
+    source.start();
+
+    // Amplitude modulation for natural variation on noise sources
+    if (isNoise) {
+      const ampLfo = this.ctx.createOscillator();
+      ampLfo.type = 'sine';
+      ampLfo.frequency.value = 0.08 + Math.random() * 0.15;
+      const ampLfoGain = this.ctx.createGain();
+      ampLfoGain.gain.value = sound.vol * 0.35;
+      ampLfo.connect(ampLfoGain).connect(gain.gain);
+      ampLfo.start();
+      source._ampLfo = ampLfo;
+      source._ampLfoGain = ampLfoGain;
+    } else {
+      // Gentle frequency modulation for tonal sources
       const lfo = this.ctx.createOscillator();
       lfo.type = 'sine';
       lfo.frequency.value = 0.1 + Math.random() * 0.2;
       const lfoGain = this.ctx.createGain();
-      lfoGain.gain.value = freq * 0.3;
-      lfo.connect(lfoGain).connect(osc.frequency);
+      lfoGain.gain.value = source.frequency.value * 0.12;
+      lfo.connect(lfoGain).connect(source.frequency);
       lfo.start();
-      osc._lfo = lfo;
+      source._lfo = lfo;
     }
 
-    osc._gain = gain;
-    osc._filter = filter;
-    osc._baseVol = sound.vol;
-    this.continuousNodes.push(osc);
+    source._gain = gain;
+    source._filter = filter;
+    source._baseVol = sound.vol;
+    source._spatial = spatial;
+    this.continuousNodes.push(source);
   }
 
   _scheduleIntermittentSound(sound, def, outputGain) {
@@ -450,13 +567,20 @@ export class AmbientSoundManager {
   _playOneShot(sound, def, outputGain) {
     if (!this.ctx) return;
 
-    const osc = this.ctx.createOscillator();
+    const isNoise = def.waveType === 'brown';
+    let source;
+
+    if (isNoise) {
+      source = this.ctx.createBufferSource();
+      source.buffer = this._getNoiseBuffer('brown');
+    } else {
+      source = this.ctx.createOscillator();
+      source.type = def.waveType;
+      source.frequency.value = this._randomRange(def.freqRange[0], def.freqRange[1]);
+    }
+
     const gain = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
-
-    osc.type = def.waveType === 'brown' ? 'sine' : def.waveType;
-    const freq = this._randomRange(def.freqRange[0], def.freqRange[1]);
-    osc.frequency.value = freq;
 
     filter.type = 'lowpass';
     filter.frequency.value = sound.filter || def.filter || 2000;
@@ -468,12 +592,43 @@ export class AmbientSoundManager {
     gain.gain.linearRampToValueAtTime(sound.vol, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-    osc.connect(filter).connect(gain).connect(outputGain);
-    osc.start(now);
-    osc.stop(now + dur + 0.1);
+    // 8D: random static pan for spatial variety on short sounds
+    const panValue = (Math.random() * 2 - 1) * 0.7;
+    const panner = this._createStaticPanner(panValue);
 
-    osc.onended = () => {
-      try { osc.disconnect(); gain.disconnect(); filter.disconnect(); } catch (e) {}
+    if (panner) {
+      source.connect(filter).connect(gain).connect(panner).connect(outputGain);
+    } else {
+      source.connect(filter).connect(gain).connect(outputGain);
+    }
+
+    // Add harmonic for richer tonal sounds (birds, chimes, drip, glow)
+    let harmonic = null;
+    let harmonicGain = null;
+    if (!isNoise && (sound.type === 'birds' || sound.type === 'chimes' || sound.type === 'drip' || sound.type === 'glow')) {
+      harmonic = this.ctx.createOscillator();
+      harmonic.type = 'sine';
+      harmonic.frequency.value = source.frequency.value * 2;
+      harmonicGain = this.ctx.createGain();
+      harmonicGain.gain.setValueAtTime(0, now);
+      harmonicGain.gain.linearRampToValueAtTime(sound.vol * 0.3, now + 0.05);
+      harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      harmonic.connect(harmonicGain);
+      if (panner) harmonicGain.connect(panner);
+      else harmonicGain.connect(outputGain);
+      harmonic.start(now);
+      harmonic.stop(now + dur + 0.1);
+    }
+
+    source.start(now);
+    source.stop(now + dur + 0.1);
+
+    source.onended = () => {
+      try {
+        source.disconnect(); gain.disconnect(); filter.disconnect();
+        if (panner) panner.disconnect();
+        if (harmonic) { harmonic.disconnect(); harmonicGain.disconnect(); }
+      } catch (e) {}
     };
   }
 
@@ -551,6 +706,11 @@ export class AmbientSoundManager {
       listener.forwardY.value = 0;
       listener.forwardZ.value = forwardZ || -1;
     }
+    if (listener.upX) {
+      listener.upX.value = 0;
+      listener.upY.value = 1;
+      listener.upZ.value = 0;
+    }
   }
 
   // === Cleanup ===
@@ -559,6 +719,16 @@ export class AmbientSoundManager {
     if (!node) return;
     try {
       if (node._lfo) { node._lfo.stop(); node._lfo.disconnect(); }
+      if (node._ampLfo) { node._ampLfo.stop(); node._ampLfo.disconnect(); }
+      if (node._ampLfoGain) node._ampLfoGain.disconnect();
+      if (node._spatial) {
+        node._spatial.lfo.stop();
+        node._spatial.lfo.disconnect();
+        node._spatial.lfoGain.disconnect();
+        node._spatial.panner.disconnect();
+        const idx = this._spatialChannels.indexOf(node._spatial);
+        if (idx >= 0) this._spatialChannels.splice(idx, 1);
+      }
       if (node._gain) node._gain.disconnect();
       if (node._filter) node._filter.disconnect();
       node.stop();
@@ -590,6 +760,11 @@ export class AmbientSoundManager {
 
   destroy() {
     this._stopAllSources();
+    // Clean up any remaining spatial channels
+    for (const ch of this._spatialChannels) {
+      try { ch.lfo.stop(); ch.lfo.disconnect(); ch.lfoGain.disconnect(); ch.panner.disconnect(); } catch (e) {}
+    }
+    this._spatialChannels = [];
     if (this.masterGain) {
       try { this.masterGain.disconnect(); } catch (e) {}
     }
@@ -616,15 +791,24 @@ export class AmbientSoundManager {
     const adjustedVol = vol * layer.volMod;
     const filterFreq = layer.filterFreq || def.filter || 2000;
 
-    const osc = this.ctx.createOscillator();
+    const isNoise = def.waveType === 'brown' || type === 'insects' || type === 'whispers';
+    let source;
+    if (isNoise) {
+      source = this.ctx.createBufferSource();
+      const noiseType = def.waveType === 'brown' ? 'brown' : (type === 'insects' ? 'white' : 'pink');
+      source.buffer = this._getNoiseBuffer(noiseType);
+    } else {
+      source = this.ctx.createOscillator();
+      source.type = def.waveType;
+      source.frequency.value = this._randomRange(def.freqRange[0], def.freqRange[1]);
+    }
+
     const gain = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
 
-    osc.type = def.waveType === 'brown' ? 'sine' : def.waveType;
-    osc.frequency.value = this._randomRange(def.freqRange[0], def.freqRange[1]);
-
-    filter.type = 'lowpass';
+    filter.type = type === 'insects' ? 'bandpass' : 'lowpass';
     filter.frequency.value = filterFreq;
+    if (filter.type === 'bandpass') filter.Q.value = 8;
 
     const dur = this._randomRange(def.durRange[0], def.durRange[1]);
     const now = this.ctx.currentTime;
@@ -634,12 +818,18 @@ export class AmbientSoundManager {
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
     const output = this._biomeReverb ? this._biomeReverb.input : this.masterGain;
-    osc.connect(filter).connect(gain).connect(output);
-    osc.start(now);
-    osc.stop(now + dur + 0.1);
+    const panValue = (Math.random() * 2 - 1) * 0.6;
+    const panner = this._createStaticPanner(panValue);
+    if (panner) {
+      source.connect(filter).connect(gain).connect(panner).connect(output);
+    } else {
+      source.connect(filter).connect(gain).connect(output);
+    }
+    source.start(now);
+    source.stop(now + dur + 0.1);
 
-    osc.onended = () => {
-      try { osc.disconnect(); gain.disconnect(); filter.disconnect(); } catch (e) {}
+    source.onended = () => {
+      try { source.disconnect(); gain.disconnect(); filter.disconnect(); if (panner) panner.disconnect(); } catch (e) {}
     };
   }
 

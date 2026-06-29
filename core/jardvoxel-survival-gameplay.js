@@ -24,24 +24,41 @@ import { CharacterGenerator, CharacterAnimator } from './jardvoxel-survival-char
 import { ThirdPersonCamera } from './jardvoxel-survival-thirdperson.js';
 import { WaterMaterialManager, WATER_COLORS } from './jardvoxel-survival-water.js';
 
+// Non-solid blocks that players and mobs can walk through
+const NON_SOLID_BLOCKS = new Set([
+  BLOCK.AIR, BLOCK.WATER, BLOCK.LAVA,
+  MC_BLOCKS.TORCH, MC_BLOCKS.LANTERN,
+  MC_BLOCKS.FLOWER_RED, MC_BLOCKS.FLOWER_YELLOW,
+  MC_BLOCKS.TALL_GRASS, MC_BLOCKS.FERN, MC_BLOCKS.DEAD_BUSH,
+  MC_BLOCKS.BAMBOO, MC_BLOCKS.MOSS,
+]);
+
+function isBlockSolid(blockId) {
+  return !NON_SOLID_BLOCKS.has(blockId);
+}
+
 // ═══════════════════════════════════════════════════════════
 // World — manages chunks, block access, meshing
 // ═══════════════════════════════════════════════════════════
 
 export class SurvivalWorld {
-  constructor(scene, seed, renderDistance = 3) {
+  constructor(scene, seed, renderDistance = 6, useHierarchy = false, usePatagonia = false) {
     this.scene = scene;
     this.seed = seed;
     this.generator = new WorldGenPipeline(seed);
+    if (useHierarchy) this.generator.enableHierarchy();
     this.renderDistance = renderDistance;
     this._adaptiveEnabled = true;
     this._targetRenderDist = renderDistance;
+    this._minRenderDist = 16;
+    this._initialLoadBurst = 0;
+    this._usePatagonia = usePatagonia;
     this.chunks = new Map();
     this.meshes = new Map();
     this.waterMeshes = new Map();
     this.pendingChunks = new Set();
     this.chunkPool = [];
-    this.maxPoolSize = 50;
+    this.maxPoolSize = 800;
     this.worker = null;
     this.workerSupported = typeof Worker !== 'undefined';
     this.dimension = 'overworld';
@@ -53,12 +70,22 @@ export class SurvivalWorld {
     this._heightmaps = new Map();
     this._camera = null;
     this.waterMaterialManager = null;
+    // Shared materials by LOD level (avoid per-chunk allocation)
+    this._lodMaterials = null;
     this._initWorker();
   }
 
   initWaterMaterialManager(renderer, camera) {
     this.waterMaterialManager = new WaterMaterialManager(renderer, this.scene, camera);
     return this.waterMaterialManager;
+  }
+
+  _initLodMaterials() {
+    if (this._lodMaterials) return;
+    this._lodMaterials = {
+      near: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0.0, flatShading: true, side: THREE.FrontSide }),
+      far: new THREE.MeshLambertMaterial({ vertexColors: true }),
+    };
   }
 
   _initWorker() {
@@ -75,11 +102,19 @@ export class SurvivalWorld {
         if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
         this.pendingChunks.delete(this._chunkKey(cx, cz));
         this._rebuildChunkMesh(cx, cz);
-        // Rebuild neighbors to fix border faces
-        this._rebuildChunkMesh(cx - 1, cz);
-        this._rebuildChunkMesh(cx + 1, cz);
-        this._rebuildChunkMesh(cx, cz - 1);
-        this._rebuildChunkMesh(cx, cz + 1);
+        // Rebuild neighbors to fix border faces (skip during burst to avoid 5x work)
+        if (this._initialLoadBurst > 0) {
+          if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
+          this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
+          this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
+          this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
+          this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
+        } else {
+          this._rebuildChunkMesh(cx - 1, cz);
+          this._rebuildChunkMesh(cx + 1, cz);
+          this._rebuildChunkMesh(cx, cz - 1);
+          this._rebuildChunkMesh(cx, cz + 1);
+        }
       };
       this.worker.onerror = (err) => {
         console.warn('Worker error, falling back to sync:', err.message || err);
@@ -100,7 +135,7 @@ export class SurvivalWorld {
           this._rebuildChunkMesh(cx, cz + 1);
         }
       };
-      this.worker.postMessage({ type: 'init', seed: this.seed });
+      this.worker.postMessage({ type: 'init', seed: this.seed, useHierarchy: this.generator._useHierarchy, patagonia: this._usePatagonia });
     } catch (err) {
       console.warn('Worker init failed, falling back to sync:', err);
       this.worker = null;
@@ -133,11 +168,19 @@ export class SurvivalWorld {
       if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
       this.pendingChunks.delete(key);
       this._rebuildChunkMesh(cx, cz);
-      // Rebuild neighbors to fix border faces
-      this._rebuildChunkMesh(cx - 1, cz);
-      this._rebuildChunkMesh(cx + 1, cz);
-      this._rebuildChunkMesh(cx, cz - 1);
-      this._rebuildChunkMesh(cx, cz + 1);
+      // Rebuild neighbors to fix border faces (skip during burst)
+      if (this._initialLoadBurst > 0) {
+        if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
+        this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
+        this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
+        this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
+        this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
+      } else {
+        this._rebuildChunkMesh(cx - 1, cz);
+        this._rebuildChunkMesh(cx + 1, cz);
+        this._rebuildChunkMesh(cx, cz - 1);
+        this._rebuildChunkMesh(cx, cz + 1);
+      }
     }
   }
 
@@ -166,16 +209,17 @@ export class SurvivalWorld {
       const dx = cx - this._playerChunkX;
       const dz = cz - this._playerChunkZ;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= 3) lod = 0;
-      else if (dist <= 6) lod = 1;
-      else if (dist <= 10) lod = 2;
-      else if (dist <= 14) lod = 3;
+      if (dist <= 4) lod = 0;
+      else if (dist <= 8) lod = 1;
+      else if (dist <= 16) lod = 2;
+      else if (dist <= 28) lod = 3;
       else lod = 4;
     }
 
     // SPEC-CHUNK-OPT: Build heightmap for occlusion culling
     this._buildHeightmap(cx, cz, chunk);
 
+    // Aggressive LOD: distant chunks get simplified geometry
     const meshData = buildChunkMesh(chunk, this, lod);
     if (meshData.positions.length === 0) return;
 
@@ -183,15 +227,21 @@ export class SurvivalWorld {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(meshData.positions, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(meshData.colors, 3));
     geometry.setIndex(meshData.indices);
-    geometry.computeVertexNormals();
+    
+    // Skip vertex normals for LOD 2+ to save performance
+    if (lod < 2) {
+      geometry.computeVertexNormals();
+    }
 
     // Low-poly look: flatShading for near chunks (LOD 0-1), Lambert for distant
-    const material = lod <= 1
-      ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0.0, flatShading: true, side: THREE.FrontSide })
-      : new THREE.MeshLambertMaterial({ vertexColors: true });
+    this._initLodMaterials();
+    const material = lod <= 1 ? this._lodMaterials.near : this._lodMaterials.far;
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = lod === 0; // Only near chunks cast shadows
+    mesh.receiveShadow = lod <= 1;
     mesh.frustumCulled = true;
     mesh.userData.chunkKey = key;
+    mesh.userData.lod = lod;
     this.scene.add(mesh);
     this.meshes.set(key, mesh);
 
@@ -228,10 +278,11 @@ export class SurvivalWorld {
   _buildHeightmap(cx, cz, chunk) {
     const heights = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
     let sum = 0;
+    const maxY = Math.min(CHUNK_HEIGHT - 1, SEA_LEVEL + 131 - WORLD_MIN_Y);
     for (let x = 0; x < CHUNK_SIZE; x++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
         let topY = 0;
-        for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+        for (let y = maxY; y >= 0; y--) {
           const b = chunk.getBlock(x, y, z);
           if (b !== BLOCK.AIR && b !== BLOCK.WATER) {
             topY = y;
@@ -310,14 +361,22 @@ export class SurvivalWorld {
 
     // Adaptive render distance
     if (this._adaptiveEnabled) {
-      if (fps < 30 && this.renderDistance > 2) {
-        this.renderDistance = Math.max(2, this.renderDistance - 1);
-        this._targetRenderDist = this.renderDistance;
-      } else if (fps > 55 && this.renderDistance < this._targetRenderDist) {
+      if (fps < 35 && this.renderDistance > this._minRenderDist) {
+        this.renderDistance = Math.max(this._minRenderDist, this.renderDistance - 1);
+      } else if (fps > 50 && this.renderDistance < this._targetRenderDist) {
         this.renderDistance = Math.min(this._targetRenderDist, this.renderDistance + 1);
       }
     }
-    const rd = this.renderDistance;
+    
+    // Altitude-based render distance boost: when flying high, load more chunks
+    // This reduces the visible gap between loaded terrain and the skydome
+    let altitudeBoost = 0;
+    if (this._camera && this._camera.position.y > 80) {
+      const altitudeFactor = Math.min(1, (this._camera.position.y - 80) / 120);
+      altitudeBoost = Math.floor(altitudeFactor * 24); // Up to +24 chunks at high altitude
+    }
+    
+    const rd = this.renderDistance + altitudeBoost;
 
     // SPEC-CHUNK-OPT: Camera direction for view-direction loading
     let cameraYaw = 0;
@@ -328,9 +387,10 @@ export class SurvivalWorld {
     }
     const PI = Math.PI;
     const frontArc = PI / 3;
-    const sideArc = PI / 2;
+    const sideArc = PI * 0.6;
 
-    // SPEC-CHUNK-OPT: Priority queue — front > side, skip back chunks
+    // SPEC-CHUNK-OPT: Priority queue — distance-based, no camera direction skipping
+    // Load all chunks within render distance, prioritizing closest to player
     const toGen = [];
     for (let dx = -rd; dx <= rd; dx++) {
       for (let dz = -rd; dz <= rd; dz++) {
@@ -341,38 +401,64 @@ export class SurvivalWorld {
         if (this.chunks.has(key) && this.chunks.get(key).generated) continue;
         if (this.pendingChunks.has(key)) continue;
 
-        // Classify by angle relative to camera direction
-        if (camera && dist > 1.5) {
-          const chunkAngle = Math.atan2(dx, dz);
-          let angleDiff = Math.abs(chunkAngle - cameraYaw);
-          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
-          if (angleDiff >= sideArc) continue; // Skip back chunks
-        }
-
-        let priority = 0;
-        if (camera && dist > 1.5) {
-          const chunkAngle = Math.atan2(dx, dz);
-          let angleDiff = Math.abs(chunkAngle - cameraYaw);
-          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
-          priority = angleDiff < frontArc ? 0 : 1;
-        }
-
-        toGen.push({ cx, cz, dist, priority });
+        toGen.push({ cx, cz, dist });
       }
     }
-    toGen.sort((a, b) => a.priority - b.priority || a.dist - b.dist);
+    toGen.sort((a, b) => a.dist - b.dist);
 
-    // SPEC-CHUNK-OPT: Generate up to 3 per frame (more budget since back skipped)
-    const maxPerFrame = camera ? 3 : 2;
+    // SPEC-CHUNK-OPT: Generate up to N per frame (budget-conscious)
+    const burstActive = this._initialLoadBurst > 0;
+    // Increase budget when FPS is low to ensure near chunks load faster
+    const maxPerFrame = burstActive ? 12 : (fps < 45 ? 8 : (camera ? 4 : 3));
+    if (burstActive) this._initialLoadBurst--;
     for (let i = 0; i < Math.min(maxPerFrame, toGen.length); i++) {
       this.generateChunk(toGen[i].cx, toGen[i].cz);
+    }
+
+    // Process pending neighbor rebuilds after burst loading
+    if (!burstActive && this._pendingNeighborRebuilds && this._pendingNeighborRebuilds.size > 0) {
+      let processed = 0;
+      for (const nkey of this._pendingNeighborRebuilds) {
+        if (processed >= 4) break;
+        const [ncx, ncz] = nkey.split(',').map(Number);
+        this._rebuildChunkMesh(ncx, ncz);
+        this._pendingNeighborRebuilds.delete(nkey);
+        processed++;
+      }
+      if (this._pendingNeighborRebuilds.size === 0) this._pendingNeighborRebuilds = null;
+    }
+
+    // LOD re-meshing: rebuild chunks whose LOD no longer matches their distance
+    let lodUpgrades = 0, lodDowngrades = 0;
+    const maxUpgrades = 3, maxDowngrades = 2;
+    for (const [key, mesh] of this.meshes) {
+      if (lodUpgrades >= maxUpgrades && lodDowngrades >= maxDowngrades) break;
+      const parts = key.split(',');
+      const cx = parseInt(parts[0]);
+      const cz = parseInt(parts[1]);
+      const dx = cx - pcx, dz = cz - pcz;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      let targetLod;
+      if (dist <= 4) targetLod = 0;
+      else if (dist <= 8) targetLod = 1;
+      else if (dist <= 16) targetLod = 2;
+      else if (dist <= 28) targetLod = 3;
+      else targetLod = 4;
+      const currentLod = mesh.userData.lod ?? 0;
+      if (targetLod < currentLod && lodUpgrades < maxUpgrades) {
+        this._rebuildChunkMesh(cx, cz, true);
+        lodUpgrades++;
+      } else if (targetLod > currentLod && lodDowngrades < maxDowngrades) {
+        this._rebuildChunkMesh(cx, cz, true);
+        lodDowngrades++;
+      }
     }
 
     // Unload distant chunks
     for (const [key, chunk] of this.chunks) {
       const dx = chunk.cx - pcx;
       const dz = chunk.cz - pcz;
-      if (Math.sqrt(dx * dx + dz * dz) > rd + 2) {
+      if (Math.sqrt(dx * dx + dz * dz) > rd + 3) {
         if (this.meshes.has(key)) {
           const m = this.meshes.get(key);
           this.scene.remove(m);
@@ -390,10 +476,16 @@ export class SurvivalWorld {
       }
     }
 
-    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion
+    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion + aggressive unloading
     if (camera) {
       this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
+      if (!this._tmpVec) this._tmpVec = new THREE.Vector3();
+      const tmpVec = this._tmpVec;
+      
+      const unloadDist = rd * 2.5; // Unload chunks 2.5x beyond render distance
+      const keysToRemove = [];
+      
       for (const [key, mesh] of this.meshes) {
         const [cx, cz] = key.split(',').map(Number);
         const chunkCenterX = cx * CHUNK_SIZE + CHUNK_SIZE / 2;
@@ -401,10 +493,18 @@ export class SurvivalWorld {
         const dx = chunkCenterX - playerX;
         const dz = chunkCenterZ - playerZ;
         const chunkDist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Aggressive unloading for memory management
+        if (chunkDist > unloadDist) {
+          keysToRemove.push(key);
+          continue;
+        }
+        
         if (chunkDist < CHUNK_SIZE * 2) {
           mesh.visible = true;
         } else {
-          const inFrustum = this._frustum.containsPoint(new THREE.Vector3(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
+          tmpVec.set(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ);
+          const inFrustum = this._frustum.containsPoint(tmpVec);
           if (!inFrustum) {
             mesh.visible = false;
           } else {
@@ -412,6 +512,12 @@ export class SurvivalWorld {
           }
         }
       }
+      
+      // Remove distant chunks to free memory
+      for (const key of keysToRemove) {
+        this._removeChunk(key);
+      }
+      
       for (const [key, wmesh] of this.waterMeshes) {
         wmesh.visible = this.meshes.get(key) ? this.meshes.get(key).visible : true;
       }
@@ -613,7 +719,7 @@ export class PlayerController {
       for (let y = minY; y <= maxY; y++) {
         for (let z = minZ; z <= maxZ; z++) {
           const block = this.world.getBlock(x, y, z);
-          if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
+          if (isBlockSolid(block)) {
             collision = true;
             break;
           }
@@ -970,7 +1076,7 @@ export class DayNightCycle {
   }
 
   _initSkyDome() {
-    const geo = new THREE.SphereGeometry(450, 32, 16);
+    const geo = new THREE.SphereGeometry(4000, 64, 32);
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,

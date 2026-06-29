@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 const REFLECTION_RT_SIZE = 256;
-const REFLECTION_UPDATE_INTERVAL = 8;
+const REFLECTION_UPDATE_INTERVAL = 16;
 
 const waterVertexShader = `
   uniform float uTime;

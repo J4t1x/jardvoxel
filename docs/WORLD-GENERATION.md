@@ -1,10 +1,75 @@
 # JardVoxel — Generacion Procedural de Mundo
 
-**Versión:** 6.0 — Advanced Noise Generation & Coherent Biomes  
-**Fecha:** 28 Junio 2026  
-**Specs:** SPEC-091 through SPEC-098  
+**Versión:** 7.0 — Hierarchical World Generation  
+**Fecha:** 29 Junio 2026  
+**Specs:** SPEC-091 through SPEC-098 (v6.0), SPEC-100 through SPEC-110 (v7.0)  
+**PRD:** [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](./PRD-JARDVOXEL-7.0-HIERARCHICAL.md)
 
-## Sistema de Ruido v6.0
+---
+
+## Arquitectura Jerárquica v7.0
+
+La generación procedural evoluciona hacia una arquitectura jerárquica inspirada en procesos geográficos reales. Los chunks dejan de ser la unidad responsable del diseño del mundo y pasan a ser únicamente la representación física del terreno.
+
+### 6 Niveles de Jerarquía
+
+| Nivel | Clase | Responsabilidad | Spec |
+|-------|-------|-----------------|------|
+| 1 — Mundo | `WorldIdentity` | Semilla, clima global, nivel del mar, continentes | SPEC-100 |
+| 2 — Continentes | `ContinentGenerator` | Clima, altitud, vegetación, fauna, cultura | SPEC-101 |
+| 3 — Regiones | `RegionGenerator` | Cordilleras, llanuras, bosques, desiertos | SPEC-102 |
+| 4 — Zonas | `ZoneGenerator` | Lagos, valles, cascadas, claros, humedales | SPEC-103 |
+| 5 — Chunks | `HierarchicalChunkGenerator` | Materializa terreno (16x16) | SPEC-104 |
+| 6 — Microsectores | `MicrosectorGenerator` | Flores, arbustos, piedras, hongos (4x4) | SPEC-105 |
+
+### 9 Capas de Generación Progresiva
+
+| Capa | Nombre | Prioridad | Spec |
+|------|--------|-----------|------|
+| 1 | Terreno base | Inmediata | SPEC-106 |
+| 2 | Micro relieve | Inmediata | SPEC-106 |
+| 3 | Rocas superficiales | Alta | SPEC-106 |
+| 4 | Vegetación mayor (árboles) | Alta | SPEC-106 |
+| 5 | Vegetación menor (flores) | Media | SPEC-106 |
+| 6 | Decoración natural (troncos, musgo) | Media | SPEC-106 |
+| 7 | Fauna | Baja | SPEC-106 |
+| 8 | Audio ambiental | Baja | SPEC-106 |
+| 9 | Eventos dinámicos (mariposas, luciérnagas) | Baja | SPEC-106 |
+
+### Streaming Inteligente (4 Tiers)
+
+| Tier | Distancia | Contenido |
+|------|-----------|-----------|
+| Cercano | 0-3 chunks | Todas las capas, sombras, fauna |
+| Medio | 3-8 chunks | Capas 1-6, árboles simplificados |
+| Lejano | 8-14 chunks | Solo geometría básica |
+| Horizonte | 14+ chunks | Solo heightmap |
+
+### Sistemas Adicionales
+
+- **Landmarks** (SPEC-108): Árbol milenario, cascada, volcán, lago cristalino, cañón, arco de piedra, bosque rojo, ruinas, santuario
+- **Ecosistemas** (SPEC-109): Biomas con reglas ecológicas completas (árboles + arbustos + flores + musgo + hongos + fauna)
+- **Generación Contextual** (SPEC-110): Aldeas cerca de ríos, minas en cordilleras, templos en altura, puertos en costas
+
+### Archivos v7.0
+
+| Archivo | Responsabilidad |
+|---------|-----------------|
+| `core/jardvoxel-survival-world-hierarchy.js` | Niveles 1-5 (World, Continent, Region, Zone, Chunk) |
+| `core/jardvoxel-survival-microsectors.js` | Nivel 6 (Microsectores) |
+| `core/jardvoxel-survival-layers.js` | Sistema de 9 capas |
+| `core/jardvoxel-survival-streaming.js` | Streaming 4-tier |
+| `core/jardvoxel-survival-landmarks.js` | Landmarks |
+| `core/jardvoxel-survival-ecosystems.js` | Ecosistemas |
+| `core/jardvoxel-survival-contextual.js` | Generación contextual |
+
+### Integración con v6.0
+
+La jerarquía v7.0 es **opt-in**. Se activa con `worldGen.enableHierarchy()` y desactiva con `worldGen.disableHierarchy()`. Cuando está activa, los métodos `getBiomeHierarchical()` y `getChunkContext()` delegan a la jerarquía. Cuando está inactiva, el motor usa el pipeline v6.0 original sin cambios.
+
+---
+
+## Sistema de Ruido v6.0 (Base)
 
 El motor usa **Simplex Noise 2D y 3D** (no Perlin) con semilla reproducible (Xorshift128+ PRNG) y **Domain Warping** para patrones orgánicos.
 
