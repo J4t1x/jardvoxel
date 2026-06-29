@@ -1,0 +1,634 @@
+{
+  "runId": "RUN-1782690536759",
+  "timestamp": "2026-06-28T23:52:57.242Z",
+  "model": "gemma3:1b",
+  "numPredict": 150,
+  "summary": {
+    "totalCases": 40,
+    "hardGatePassRate": 0.025,
+    "p95Latency": 7883,
+    "p50Latency": 3929,
+    "jsonValidityRate": 0.65,
+    "optionsPassRate": 0.9,
+    "toneViolations": 0,
+    "repeatRate": 0
+  },
+  "tasks": {
+    "npc_dialogue": {
+      "cases": [
+        {
+          "id": "npc-001",
+          "response": "```json\n{\n  \"text\": \"Good morning, traveler! A lovely day for exploring, don't you think?\",\n  \"options\": [\n    \"Tell me about what you’re looking for today.\",\n    \"Can I help you with something? Maybe look at some wares?\" ,\n    \"That looks nice. Do you have any interesting stories to share?\" \n\n],\n  \"relationshipChange\": 0\n}\n```",
+          "latency": 11487,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 83,
+          "token_max": 150
+        },
+        {
+          "id": "npc-002",
+          "response": "```json\n{\n  \"text\": \"The rain falls heavy, mirroring the gloom in my eyes.\",\n  \"options\": [\n    \"* I maintain a watchful distance, observing you closely.*\",\n    \"* I simply offer a curt nod. (Briefly acknowledging your presence.)*”,\n    \"* I adjust my grip on my sword and silently move towards the shadows.*”,\n    \"Silence.\"\n  ],\n \"relationshipChange\": 0\n}\n```",
+          "latency": 5578,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": false,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 91,
+          "token_max": 150
+        },
+        {
+          "id": "npc-003",
+          "response": "```json\n{\n  \"text\": \"**Morwen:** (Eyes wide, gesturing excitedly at the fog) My dear traveler! The dew is shimmering... It's unlike anything I’ve ever seen in this forest! There’s a strange energy here… almost as if secrets sleep beneath the leaves. Tell me, what catches your eye?  There's so much to explore!\",\n \"options\": [\n    \"Describe the fog.\",\n     \"Ask about the trees nearby.\",\n      \"Offer to take a short walk through the forest.\" \n ],\n  \"relationshipChange\": 0\n}\n```",
+          "latency": 4905,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 120,
+          "token_max": 150
+        },
+        {
+          "id": "npc-004",
+          "response": "```json\n{\n  \"text\": \"OMG! You're here! It’s so exciting! Look at this amazing meadow – it smells like wildflowers and sunshine!\" ,\n  \"options\": [\n    \"Tell me a funny story about your pet!\",\n    \"Can we chase something silly, just for fun?\",\n    \"I want to draw you a sparkly butterfly!\",\n     \"Let’s play hide-and-seek! I'll be hiding near the daisies.\"\n  ],\n  \"relationshipChange\": 0\n}\n```\n\n**Explanation of choices:**\n\n*   `“OMG! You're here!”` – A response reflecting Pip’s excitement and happine",
+          "latency": 5764,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 127,
+          "token_max": 150
+        },
+        {
+          "id": "npc-005",
+          "response": "```json\n{\"text\": \"The snow falls silently, mirroring the quiet within me tonight, traveler.\", null},\n{\"text\": \"I've watched this mountain range settle for centuries. It’s a witness to storms and peace, of kingdoms rise and fall. Much like your journey, perhaps?\", null},\n{\"text\":\"Let's speak freely, then.  Tell me, what brings you to these highlands amidst the winter?\\nPerhaps a question about your path...”, null}\n```\n\n**Relationship Change:** 0 (Currently at 15)",
+          "latency": 4455,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": false,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 117,
+          "token_max": 150
+        },
+        {
+          "id": "npc-006",
+          "response": "```json\n{\"text\": \"Oh, it’s getting awfully dark out here, isn't it? The storm…it feels heavy with a chill. I hope you stay safe tonight.\", \"options\":[\"Help me find shelter?\", 'Tell me about yourself', 'Just want to be alone for a bit'], \"relationshipChange\": 0}\n```\n",
+          "latency": 3062,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": false,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 67,
+          "token_max": 150
+        },
+        {
+          "id": "npc-007",
+          "response": "```json\n{\n  \"text\": \"(Lowers head, wiping grease with a scrap cloth) Don't expect this to be pleasant. This village... it doesn’t offer much.”\",\n  \"options\": [\n\n    \"Talk to Corvin about something specific.\",\n    \"Observe the village from a distance and try to gauge its pace of activity.\",\n    \"Offer Coravin a small, unremarkable item as a gift.\",\n    \"Turn away and continue your way.\" \n\n\n  ],\n  \"relationshipChange\": 0\n}\n```",
+          "latency": 4982,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 107,
+          "token_max": 150
+        },
+        {
+          "id": "npc-008",
+          "response": "```json\n{\n  \"text\": \"Well now, gather ‘round! The stars are shining bright tonight, and the ale flows freely. Just a happy evening here at The Hollow Oak, isn’t it?\",\n  \"options\": [\n    \"Tell me about your travels.\",\n    \"How is your day going?\",\n    \"Do you have any adventures planned?\" ,\n\t  \"Just want to chat.\"\n  ],\n  \"relationshipChange\": 0\n}\n```",
+          "latency": 4273,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 88,
+          "token_max": 150
+        },
+        {
+          "id": "npc-009",
+          "response": "```json\n{\n  \"text\": \"The snow seems to bite at your feet, even before the sun crests the trees.\",\n  \"options\": [\n    \"Scan the horizon for unusual tracks.\",\n    \"Check your quiver and pack – there might be something valuable hidden.\", \n    \"Observe the landscape; a shift in the snow could indicate movement.\",\n    \"Offer a silent acknowledgement to the forest.\"\n  ],\n  \"relationshipChange\": 0\n}\n```\n\n",
+          "latency": 3637,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 101,
+          "token_max": 150
+        },
+        {
+          "id": "npc-010",
+          "response": "```json\n{\n\"text\": \"The sand shifts subtly beneath your boots, reflecting the harsh sunlight like endless cracks. The air hangs thick and quiet - too quiet for a place this parched. I’ve been watching you, truly observing.  Don't mistake my silence for indifference.\", ,\n\"options\": [\"Accept my offer of payment (5 gold pieces) to move quickly,\" \"Politely decline – I prefer to remain undetected,” \"Casually inquire about your journey,\" “Suggest a small favor in return for information.\"], \n“relationsh",
+          "latency": 7879,
+          "gates": {
+            "json_valid": false,
+            "token_count": false,
+            "has_options": false,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 165,
+          "token_max": 150
+        }
+      ]
+    },
+    "generate_quest": {
+      "cases": [
+        {
+          "id": "quest-001",
+          "response": "```json\n{'type': 'fetch', 'title': 'Ancient Amulet', 'description': 'Rumor speaks of a shattered amulet hidden within the ancient forest, capable of amplifying natural magic. It’s said to be located near Whisperwind Falls.', \"objectives\": [\"Find Whisperwind Falls\", \"Discover the Amulete's location\"], \"rewards\": [\"Experience Points\", \"A rare wildflower bloom (Crimson Bloom)\", \"Insight into a hidden grove\"] }\n```",
+          "latency": 6469,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 104,
+          "token_max": 150
+        },
+        {
+          "id": "quest-002",
+          "response": "```json\n{'type': 'fetch', 'title': 'Retrieve Lost Artifact', \"description\": \"An old desert nomad has entrusted you with a task - find the lost amulet of Qasr and return it to them.\", \"objectives\": [\n\"Investigate the location where the amulet was last seen – a secluded oasis complex.\",\n\"Translate an ancient text found near the oasis. The text reveals a hidden route.\",\n\"Navigate through treacherous terrain marked by sandstorms.\" ,\n\"Secure the amulet from potential bandits guarding it.\"], \"rewards\"",
+          "latency": 7883,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 136,
+          "token_max": 150
+        },
+        {
+          "id": "quest-003",
+          "response": "```json\n{\n  \"type\": \"talk\",\n  \"title\": \"Fisherman's Plea\",\n  \"description\": \"A local fisherman has reported seeing unusual sea creatures near his boat. The fish are unusually large and moving with strange patterns.\",\n  “objectives”: [\n    “Investigate the area where the fishermen says he saw the creatures”,\n    “Interview the Fisherman about his observations”\n  ],\n  \"rewards\": null,\n}\n```",
+          "latency": 4207,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 98,
+          "token_max": 150
+        },
+        {
+          "id": "quest-004",
+          "response": "```json\n{\n  \"type\": \"talk\",\n  \"title\": \"Lost Echoes\",\n  \"description\": \"An old hermit has asked for your help finding lost echoes deep within the caverns – remnants of a forgotten civilization. They believe these echoes hold clues to a powerful artifact.\",\n  \"objectives\": [\n    {\n      \"name\": \"Investigate the Whispering Caves\",\n\t  \"distance\": 3,\n       \"requires\": []\n      }\n  ],\n  \"rewards\": [\n    \"{item_id}: A rusty compass – aids in navigation.\",\n     \"{item_id}: Fragment of a map - potentia",
+          "latency": 4964,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 134,
+          "token_max": 150
+        },
+        {
+          "id": "quest-005",
+          "response": "```json\n{'type': 'talk', 'title': 'Seeking Guidance', 'description': \"'A weary traveler has approached you in the village square. He whispers of a lost relic – the Stoneheart Amulet - said to possess immense power and be hidden within the abandoned Blacksmith's workshop. He offers a share of any treasures found in the shop if he knows your whereabouts.', \"objectives\": [\n    \"Visit the Black Smith’s workshop.\",\n    \"Investigate the Blacksmith's workshop for clues or valuables.\"],\n   \"rewards\": [\"",
+          "latency": 4362,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 142,
+          "token_max": 150
+        },
+        {
+          "id": "quest-006",
+          "response": "```json\n{\n\"type\": \"talk\",\n\"title\": \"[Hunter's Name] - Lost Track of a Rabbit\",\n\"description\": \"A hunter has approached you and claims to have lost his prize rabbit – a large, plump one he believes he’s tracking nearby. He says it was taken by a sly mountain fox.\",\n\"objectives\": [\n{\n    \"task\": \"Head West towards the Whispering Falls.\",\n    \"duration\": 2,\n    \"reward\": \"A small pouch of wild berries.\"\n}\n],\n\"rewards\": []\n}\n```",
+          "latency": 3891,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 107,
+          "token_max": 150
+        },
+        {
+          "id": "quest-007",
+          "response": "```json\n{\n  \"type\": \"fetch\",\n  \"title\": \"Lost Idol of Xantus\",\n  \"description\": “The local tribe has lost a small idol – an obsidian shard known as ‘Xantus’s Eye.’ It was taken by bandits near the Shadow Falls. You need to retrieve it before they can sell its value.\",\n  \"objectives\": [\n    \"* Locate the bandits near Shadow Falls.*\",\n    \"* Recover the Obsidian Idol of Xantus.*”,\n    \"*Return to the Traveler's Camp.*” \n  ],\n  \"rewards\": [\"50 gold coins\",\"Experience Point 10\"]\n}\n```",
+          "latency": 4521,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 122,
+          "token_max": 150
+        },
+        {
+          "id": "quest-008",
+          "response": "```json\n{\n  \"type\": \"talk\",\n  \"title\": \"Lost Child\",\n  \"description\": \"A young girl has been found wandering near the Inn. She's shivering and doesn’t know how to get home. A local resident, Barnaby, offers a small reward if you help her.\",\n  \"objectives\": [\"Find the lost child\"],\n  \"rewards\": [\"30 gold pieces\"]\n}\n```",
+          "latency": 3255,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 80,
+          "token_max": 150
+        },
+        {
+          "id": "quest-009",
+          "response": "```json\n{\n  \"type\": \"talk\",\n  \"title\": \"Ancient Willow's Whisper\",\n  \"description\": \"*Elara, a secluded hermit of the swamp, senses your presence and speaks to you. She tasks you with finding a lost artifact rumored to bloom only within her guarded grove. The relic is crucial for maintaining balance in the swamp.\",\n  \"objectives\": [\n    \"*Find the entrance to Elara's grove.*\",\n    \"*Locate the 'Sunstone Bloom' - a rare flower that glows faintly.*\",\n    \"*Retrieve the Sunstone Bloom from within t",
+          "latency": 4153,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 144,
+          "token_max": 150
+        },
+        {
+          "id": "quest-010",
+          "response": "```json\n{\"type\": \"fetch\", \"title\": \"Lost Toy\", \"description\": \"A little girl asks you to find a lost toy near her field. It's bright red and has a painted flower on it.\", \"objectives\": [\"Find the red toy\"], \"rewards\": []}\n```",
+          "latency": 2749,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 57,
+          "token_max": 150
+        }
+      ]
+    },
+    "generate_event": {
+      "cases": [
+        {
+          "id": "event-001",
+          "response": "```json\n{\n  \"type\": \"mystery\",\n  \"description\": \"A peculiar flock of bioluminescent birds begins circling a small oasis – it appears to be drawing energy from the land itself. Their patterns suggest ancient markings.\",\n  \"duration\": 450,\n  \"effects\": [\n    \"Increased search activity in nearby forests.\",\n     \"Localized plant growth accelerated (increased yield of berries).\",\n       \"A faint, unsettling humming sound can be heard near the oasis.\"\n  ]\n}\n```",
+          "latency": 3962,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 115,
+          "token_max": 150
+        },
+        {
+          "id": "event-002",
+          "response": "```json\n{'type': 'danger', 'description': 'A sudden, violent thunderstorm rolls in, laced with unnatural lightning discharges. The forest canopy is disrupted; large branches snap under the wind and rain. Visibility drops to near zero.', \"duration\": 450, \"effects\": [\"branches_break\", \"visibility_decreased\"]}\n```",
+          "latency": 2712,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 78,
+          "token_max": 150
+        },
+        {
+          "id": "event-003",
+          "response": "```json\n{\"type\": \"storm\", \"description\": \"A sudden vortex of warm air and shimmering dust appears over the village square.\", \"duration\": \"600\", \"effects\": [\"lightning strikes\", \"dust cloud\", \"minor disorientation\"]}\n```",
+          "latency": 1893,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": true
+          },
+          "token_count": 55,
+          "token_max": 150
+        },
+        {
+          "id": "event-004",
+          "response": "```json\n{\"type\": \"storm|festival\", \"description\": \"A sudden, localized snowstorm intensifies rapidly, transforming into a blindingly bright aurora borealis effect.\", \"duration\": 600, \"effects\":[\"visible beauty\",\"localized damage\"], \"trigger\": \"Aurora alignment\"}\n```",
+          "latency": 2023,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 67,
+          "token_max": 150
+        },
+        {
+          "id": "event-005",
+          "response": "```json\n{\n  \"type\": \"storm\",\n  \"description\": \"A sudden, violent sandstorm abruptly descends upon the desert landscape. Visibility drops to near zero.\",\n  \"duration\": 600,\n  \"effects\":[\n    {\"target\":\"player_health\",\"effect\":\"temporary damage - minor\", \"value\":10},\n     {\"target\":\"map_tiles\",\"effect\":\"sand shifting slightly - small temporary changes\", \"magnitude\":2}\n  ]\n}\n```",
+          "latency": 3122,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 95,
+          "token_max": 150
+        },
+        {
+          "id": "event-006",
+          "response": "```json\n{\n  \"type\": \"fog\",\n    \"description\": \"A sudden, intense fog rolls in, reducing visibility to near zero. The air smells of saltwater and something ancient.\",\n    \"duration\": 450,\n    \"effects\": [\n      {\"effect_id\": \"wind_shift\", \"type\": \"environmental\", \"level\": 6},\n      {\"effect_id\": \"sound_anomaly\", \"type\": \"audio\", \"description\": \"Briefly a haunting melody emanates from the fog – possibly an ancient song or warning.\"}\n    ]\n  }\n```",
+          "latency": 3878,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 112,
+          "token_max": 150
+        },
+        {
+          "id": "event-007",
+          "response": "```json\n{'type': 'danger', 'description': \"Torrential rain begins unexpectedly, disrupting visibility and creating difficult terrain. Massive puddles form across the forest floor, obscuring paths.  A strange iridescent mist rises intermittently from the ground.', \"duration\": 600, \"effects\": [{\"effect_type\":\"disruption\",\"status\":\"active\"}]}\n```",
+          "latency": 2351,
+          "gates": {
+            "json_valid": false,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 87,
+          "token_max": 150
+        },
+        {
+          "id": "event-008",
+          "response": "```json\n{\n  \"type\": \"mystery\",\n    \"description\": \"*An unusually complex pattern of auroral light begins shifting across the taiga – not a stable glow, but interwoven strands that resemble frozen flames.*\",\n   \"duration\": 450,\n  \"effects\": [\n\n      \"*Initial visual effect: A faint shimmering heat distortion near the northern boundary. As it grows, it reveals fragmented images - fleeting faces and symbols of ancient forest spirits.*”,\n      \"*A subtle shift in the wind pattern – a consistent, alm",
+          "latency": 4076,
+          "gates": {
+            "json_valid": false,
+            "token_count": false,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 163,
+          "token_max": 150
+        },
+        {
+          "id": "event-009",
+          "response": "```json\n{\n\"type\": \"mystery\",\n\"description\": \"Footprints vanish into the swamp's mist - not human footprints, but unusually delicate leaf formations resembling miniature sculptures. Their size and intricate detail suggest a deliberate creation.\",\n\"duration\": 450,\n\"effects\":[\"discovery\", \"intrigue\", \"potential for puzzle-solving\"]\n}\n```",
+          "latency": 2763,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 84,
+          "token_max": 150
+        },
+        {
+          "id": "event-010",
+          "response": "```json\n{\n  \"type\": \"mystery\",\n  \"description\": \"A sudden shimmer appears in the distance - a brief, iridescent light coalescing into an unusual pattern of flora growing rapidly. It seems to be spreading, not just passively, but actively altering nearby plant life.\",\n  \"duration\": 450,\n  \"effects\": [\n    \"Flora begins to display heightened color variations - vibrant pinks and purples appear in areas previously green or brown.\",\n    \"The shimmer attracts a swarm of small, glowing insects – not ag",
+          "latency": 4193,
+          "gates": {
+            "json_valid": false,
+            "token_count": false,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 169,
+          "token_max": 150
+        }
+      ]
+    },
+    "generate_lore": {
+      "cases": [
+        {
+          "id": "lore-001",
+          "response": "The ancient ruin of Silvanus Peak whispers with the chill breath of ages, draped in a perpetual twilight beneath the canopy of an emerald forest. Stone carvings hint at forgotten rituals once performed within its depths—shadows dance where the sun dares not reach, promising secrets to those brave –or foolish – enough to wander inside. A profound sense of melancholy permeates the air around this place, as if the stones themselves remember a long-lost pulse of magic and sorrow. ",
+          "latency": 2704,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 121,
+          "token_max": 150
+        },
+        {
+          "id": "lore-002",
+          "response": "The sun beats down relentlessly upon the whispering dunes of Xylos, a desert where ancient secrets slumber beneath shifting sands. Once a vibrant empire sculpted by bronze reverence, now only silence remains save for the rustling ghosts of forgotten statues – remnants whispered to be guarded by restless spirits within the stone.  A fragile warmth clings around you as shadows seem to lengthen with each passing sun, hinting at something profoundly buried in this desolate land.",
+          "latency": 2908,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 120,
+          "token_max": 150
+        },
+        {
+          "id": "lore-003",
+          "response": "The jagged peaks of the Obsidian Mountains hummed with a forgotten magic – ancient runes carved into the stone whispered secrets to those who dared listen under a bruised twilight sky.  For centuries, this area has shielded shards of starlight fallen from the heavens, imbued within the rocks themselves; a place where shadows hold more power than light and lost echoes linger in every glacial stream. It feels like the mountains themselves are watching you with an ancient, patient gaze, protecting ",
+          "latency": 3929,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 137,
+          "token_max": 150
+        },
+        {
+          "id": "lore-004",
+          "response": "Here's some atmospheric lore text suitable for a “hero_tale” in the Plains biome, era of Bronze Age:\n\nThe wind whispers through the sandstone canyons here, carrying scents of sun-baked earth and ancient secrets – remnants of forgotten rituals etched onto weathered stones. Once, this was a place of great reverence for the Sun Weaver, now it's simply known as the Still Point, watched over by shifting sands that feel like watchful eyes. Only those who listen closely can truly understand its melanch",
+          "latency": 5002,
+          "gates": {
+            "json_valid": true,
+            "token_count": false,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 171,
+          "token_max": 150
+        },
+        {
+          "id": "lore-005",
+          "response": "The ancient temple pulsed within the jade heart of the jungle, built from polished obsidian that reflected slivers of twilight like captured moonlight. A perpetual dampness hung in the air – a shroud woven by countless years of rain and forgotten prayers – and carried the scent of moss and something strangely sweet, almost intoxicating. Whispers say ancient spirits still reside within its crumbling walls, protectors of secrets long buried beneath the vibrant canopy.",
+          "latency": 2761,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 118,
+          "token_max": 150
+        },
+        {
+          "id": "lore-006",
+          "response": "The salt spray painted the sky a bruised purple, mirroring the deep sorrow clinging to the waves here within the sunken city of Aethelgard. Sunlight barely penetrated the swirling emerald depths – once a vibrant haven for mariners now a ghostly graveyard where forgotten treasures sleep beneath frozen currents. Locals whisper tales of shimmering figures glimpsed amongst coral columns and mournful echoes carried on the tide, warning only that some mysteries are best left undisturbed in this age of",
+          "latency": 3572,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 128,
+          "token_max": 150
+        },
+        {
+          "id": "lore-007",
+          "response": "The jagged peaks of the Stoneclaw Mountains held ancient secrets, whispering on winds that tasted of pine needles and fading magic.  Light struggled to penetrate the perpetual twilight nestled within their glacial valleys, where luminous mosses clung to weathered stone – a haven for shadows and forgotten trails. A melancholic stillness settled around these mountains; an air thick with the possibility of unseen wonders and lost memories clinging stubbornly against the cold stone.",
+          "latency": 3825,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 121,
+          "token_max": 150
+        },
+        {
+          "id": "lore-008",
+          "response": "The Silverwood Library hums beneath an ancient canopy, its shelves lined not just with tomes but with whispered secrets of forgotten ages. Sunlight filters weakly through leaves that shimmer like captured moonlight as the scent of aging paper and moss hangs heavy in the air - a place where stories breathe and shadows hold lingering enchantments. Lost souls often seek solace within its walls, guided by ancient spells and fading legends, hoping for knowledge before it’s too late to understand thei",
+          "latency": 3900,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 128,
+          "token_max": 150
+        },
+        {
+          "id": "lore-009",
+          "response": "The biting wind of the taiga whispers secrets through the ancient pines, carrying scents of woodsmoke and forgotten starlight. A perpetual twilight falls upon these slopes, where moss-covered stones hum with a slow, silent energy—a place where shadows dance just beyond sight.  Stories suggest that lost travelers linger within this wild heartland, seeking solace amidst its glacial depths and watchful trees.",
+          "latency": 3048,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 103,
+          "token_max": 150
+        },
+        {
+          "id": "lore-010",
+          "response": "The air in the Camp Ruins hangs thick with dust and forgotten stories, a palpable warmth clinging to the crumbling walls beneath a perpetually dusky sky. Legends whisper of ancient rituals within these stones – a solitary watchman guarding a secret that only the wind remembers now.  Dark shadows dance across the weathered monuments as if alive with the ghosts of long-gone travelers, urging you inward toward untold mysteries.",
+          "latency": 3130,
+          "gates": {
+            "json_valid": true,
+            "token_count": true,
+            "has_options": true,
+            "no_repeat": true,
+            "tone_check": true,
+            "response_time": false
+          },
+          "token_count": 107,
+          "token_max": 150
+        }
+      ]
+    }
+  }
+}

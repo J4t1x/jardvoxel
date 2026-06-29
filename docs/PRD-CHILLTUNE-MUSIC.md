@@ -5,7 +5,7 @@
 **Proyecto:** JardVoxel Survival  
 **Fecha:** 2026-06-25  
 **Autor:** Jard  
-**Estado:** Draft  
+**Estado:** ✅ Completado (v4.2.0 SPEC-057 + v5.0.0 SPEC-083)  
 **Espec:** SPEC-035  
 
 ---

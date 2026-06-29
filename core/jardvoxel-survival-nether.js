@@ -3,7 +3,7 @@
 // Nether blocks, portal, dimension switching
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS, BLOCK } from './blocks-registry.js';
 
 // New block IDs for nether
 export const NETHER_BLOCKS = {

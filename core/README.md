@@ -37,6 +37,20 @@ Motor modular de JardVoxel. Todos los archivos `.js` están centralizados aquí 
 - **jardvoxel-survival-map.js** - Sistema de mapas
 - **jardvoxel-survival-chilltune.js** - Motor de música procedural
 
+### Survival Mode - Living World (v5.0)
+- **jardvoxel-survival-biome-identity.js** - Identidad visual, sonido y fauna por bioma
+- **jardvoxel-survival-ambient-particles.js** - Partículas ambientales por bioma
+- **jardvoxel-survival-ambient-sound.js** - Sonido ambiental procedural por bioma
+- **jardvoxel-survival-narrative-structures.js** - Estructuras con historia y loot procedural
+- **jardvoxel-survival-lore.js** - Generador de lore procedural
+- **jardvoxel-survival-civilizations.js** - Civilizaciones antiguas del mundo
+- **jardvoxel-survival-npc-memory.js** - Memoria persistente de NPCs
+- **jardvoxel-survival-conversation.js** - Conversaciones naturales con NPCs
+- **jardvoxel-survival-quests.js** - Sistema de misiones dinámicas
+- **jardvoxel-survival-events.js** - Eventos emergentes del mundo
+- **jardvoxel-survival-ai-client.js** - Cliente WebSocket para el AI Server
+- **ai-server/server.js** - Servidor de IA desacoplado para NPCs y quests
+
 ### Survival Mode - Workers
 - **jardvoxel-survival-worker.js** - Web Worker para generación de chunks en survival
 
@@ -62,9 +76,24 @@ Cada versión de JardVoxel puede importar solo los módulos que necesite:
 - **jardvoxel-survival.html** - Survival completo (todos los módulos)
 - **Futuras versiones** - Pueden mezclar y combinar módulos según necesidad
 
+## Testing
+
+La carpeta `tests/` (en la raiz del proyecto) contiene la suite de tests unitarios del core.
+
+- **Framework:** Vitest 2.1.9 + jsdom
+- **163 tests** cubriendo 9 modulos core
+- **Mocks:** Three.js, localStorage, indexedDB
+- Ver `docs/TESTING.md` para detalle completo
+
+```bash
+cd games/jardvoxel
+npx vitest run
+```
+
 ## Mantenimiento
 
 - Todos los archivos `.js` deben estar en esta carpeta
 - No hardcodear rutas absolutas
 - Usar imports relativos desde la raíz del proyecto: `./core/nombre-archivo.js`
 - Mantener módulos independientes y reutilizables
+- Todo nuevo modulo debe tener su archivo de test correspondiente en `tests/`

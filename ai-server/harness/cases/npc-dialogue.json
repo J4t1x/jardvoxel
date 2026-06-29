@@ -1,0 +1,52 @@
+[
+  {
+    "id": "npc-001",
+    "npc": { "name": "Eldra", "profession": "merchant", "personality": "cheerful", "mood": "happy", "relationship": 10 },
+    "context": { "playerContext": { "biome": "plains", "time": "day", "weather": "clear" } }
+  },
+  {
+    "id": "npc-002",
+    "npc": { "name": "Thorne", "profession": "guard", "personality": "stoic", "mood": "neutral", "relationship": 0 },
+    "context": { "playerContext": { "biome": "village", "time": "night", "weather": "rain" } }
+  },
+  {
+    "id": "npc-003",
+    "npc": { "name": "Morwen", "profession": "scholar", "personality": "curious", "mood": "excited", "relationship": 5 },
+    "context": { "playerContext": { "biome": "forest", "time": "dawn", "weather": "fog" } }
+  },
+  {
+    "id": "npc-004",
+    "npc": { "name": "Pip", "profession": "child", "personality": "playful", "mood": "happy", "relationship": 20 },
+    "context": { "playerContext": { "biome": "meadow", "time": "day", "weather": "clear" } }
+  },
+  {
+    "id": "npc-005",
+    "npc": { "name": "Aldric", "profession": "elder", "personality": "wise", "mood": "contemplative", "relationship": 15 },
+    "context": { "playerContext": { "biome": "mountains", "time": "sunset", "weather": "snow" } }
+  },
+  {
+    "id": "npc-006",
+    "npc": { "name": "Lyra", "profession": "healer", "personality": "kind", "mood": "concerned", "relationship": 8 },
+    "context": { "playerContext": { "biome": "swamp", "time": "night", "weather": "storm" } }
+  },
+  {
+    "id": "npc-007",
+    "npc": { "name": "Corvin", "profession": "blacksmith", "personality": "gruff", "mood": "neutral", "relationship": -2 },
+    "context": { "playerContext": { "biome": "village", "time": "day", "weather": "clear" } }
+  },
+  {
+    "id": "npc-008",
+    "npc": { "name": "Fenwick", "profession": "innkeeper", "personality": "jovial", "mood": "happy", "relationship": 12 },
+    "context": { "playerContext": { "biome": "village", "time": "night", "weather": "clear" } }
+  },
+  {
+    "id": "npc-009",
+    "npc": { "name": "Veyra", "profession": "hunter", "personality": "reserved", "mood": "alert", "relationship": 3 },
+    "context": { "playerContext": { "biome": "taiga", "time": "dawn", "weather": "snow" } }
+  },
+  {
+    "id": "npc-010",
+    "npc": { "name": "Cassius", "profession": "merchant", "personality": "shrewd", "mood": "suspicious", "relationship": -5 },
+    "context": { "playerContext": { "biome": "desert", "time": "day", "weather": "clear" } }
+  }
+]

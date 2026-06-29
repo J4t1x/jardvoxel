@@ -3,7 +3,7 @@
 // Redstone dust, torch, lever, piston, power propagation
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS, BLOCK } from './blocks-registry.js';
 
 // New block IDs for redstone
 export const REDSTONE_BLOCKS = {

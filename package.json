@@ -1,0 +1,16 @@
+{
+  "name": "jardvoxel",
+  "version": "1.0.0",
+  "description": "JardVoxel — Voxel engine core tests",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ai-server": "node ai-server/server.js",
+    "ai-server:dev": "node --watch ai-server/server.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0",
+    "vitest": "^1.5.0"
+  }
+}

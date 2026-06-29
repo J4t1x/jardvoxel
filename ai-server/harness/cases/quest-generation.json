@@ -1,0 +1,12 @@
+[
+  { "id": "quest-001", "context": { "biome": "forest", "playerLevel": 1, "nearbyNPCs": ["merchant"] } },
+  { "id": "quest-002", "context": { "biome": "desert", "playerLevel": 3, "nearbyNPCs": ["guard", "scholar"] } },
+  { "id": "quest-003", "context": { "biome": "ocean", "playerLevel": 5, "nearbyNPCs": ["fisherman"] } },
+  { "id": "quest-004", "context": { "biome": "cave", "playerLevel": 7, "nearbyNPCs": [] } },
+  { "id": "quest-005", "context": { "biome": "village", "playerLevel": 2, "nearbyNPCs": ["elder", "blacksmith"] } },
+  { "id": "quest-006", "context": { "biome": "mountains", "playerLevel": 10, "nearbyNPCs": ["hunter"] } },
+  { "id": "quest-007", "context": { "biome": "jungle", "playerLevel": 6, "nearbyNPCs": ["explorer"] } },
+  { "id": "quest-008", "context": { "biome": "taiga", "playerLevel": 4, "nearbyNPCs": ["innkeeper"] } },
+  { "id": "quest-009", "context": { "biome": "swamp", "playerLevel": 8, "nearbyNPCs": ["hermit"] } },
+  { "id": "quest-010", "context": { "biome": "meadow", "playerLevel": 1, "nearbyNPCs": ["child", "farmer"] } }
+]

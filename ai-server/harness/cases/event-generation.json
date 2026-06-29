@@ -1,0 +1,12 @@
+[
+  { "id": "event-001", "context": { "biome": "plains", "time": "day", "weather": "clear", "playerLevel": 1 } },
+  { "id": "event-002", "context": { "biome": "forest", "time": "night", "weather": "storm", "playerLevel": 3 } },
+  { "id": "event-003", "context": { "biome": "village", "time": "sunset", "weather": "clear", "playerLevel": 5 } },
+  { "id": "event-004", "context": { "biome": "mountains", "time": "dawn", "weather": "snow", "playerLevel": 7 } },
+  { "id": "event-005", "context": { "biome": "desert", "time": "day", "weather": "sandstorm", "playerLevel": 4 } },
+  { "id": "event-006", "context": { "biome": "ocean", "time": "night", "weather": "fog", "playerLevel": 6 } },
+  { "id": "event-007", "context": { "biome": "jungle", "time": "day", "weather": "rain", "playerLevel": 8 } },
+  { "id": "event-008", "context": { "biome": "taiga", "time": "night", "weather": "aurora", "playerLevel": 10 } },
+  { "id": "event-009", "context": { "biome": "swamp", "time": "dusk", "weather": "mist", "playerLevel": 2 } },
+  { "id": "event-010", "context": { "biome": "meadow", "time": "noon", "weather": "clear", "playerLevel": 1 } }
+]

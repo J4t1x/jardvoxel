@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
-import { MC_BLOCK_COLORS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { BLOCK, ALL_BLOCK_COLORS as MC_BLOCK_COLORS } from './blocks-registry.js';
 
 export class ParticleSystem {
   constructor(scene, maxParticles = 200) {

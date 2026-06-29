@@ -204,6 +204,8 @@ export const BIOMES = {
   CHERRY_GROVE: 'cherry_grove',
   SWAMP: 'swamp',
   RIVER: 'river',
+  MYSTIC_GROVE: 'mystic_grove',
+  AUTUMN_FOREST: 'autumn_forest',
 };
 
 export const BIOME_COLORS = {
@@ -224,6 +226,8 @@ export const BIOME_COLORS = {
   [BIOMES.CHERRY_GROVE]: [0.85, 0.55, 0.75],
   [BIOMES.SWAMP]: [0.35, 0.45, 0.25],
   [BIOMES.RIVER]: [0.25, 0.45, 0.75],
+  [BIOMES.MYSTIC_GROVE]: [0.35, 0.25, 0.55],
+  [BIOMES.AUTUMN_FOREST]: [0.65, 0.35, 0.15],
 };
 
 export class WorldGenPipeline {
@@ -276,7 +280,11 @@ export class WorldGenPipeline {
   }
   
   _cacheKey(x, y, z) {
-    return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
+    // Numeric key: pack x,z into 21 bits each, y into 20 bits
+    const ix = Math.floor(x) & 0x1FFFFF;
+    const iz = Math.floor(z) & 0x1FFFFF;
+    const iy = Math.floor(y) & 0xFFFFF;
+    return ix * 4194304 + iz * 1048576 + iy;
   }
   
   // Step 1: Calculate continentalness (land vs ocean)
@@ -296,7 +304,9 @@ export class WorldGenPipeline {
   
   // Cached spline params for getBiome optimization
   _getSplineParams(x, z) {
-    const key = `${Math.floor(x)},${Math.floor(z)}`;
+    const ix = Math.floor(x) & 0x1FFFFF;
+    const iz = Math.floor(z) & 0x1FFFFF;
+    const key = ix * 4194304 + iz;
     if (this._splineParamsCache && this._splineParamsCache.has(key)) {
       return this._splineParamsCache.get(key);
     }
@@ -319,8 +329,14 @@ export class WorldGenPipeline {
     return weirdness; // Simplified: positive = peaks, negative = valleys
   }
   
-  // Step 5: Calculate base height using splines
+  // Step 5: Calculate base height using splines (cached per x,z)
   getBaseHeight(x, z) {
+    const ix = Math.floor(x) & 0x1FFFFF;
+    const iz = Math.floor(z) & 0x1FFFFF;
+    const key = ix * 4194304 + iz;
+    if (this._heightCache && this._heightCache.has(key)) {
+      return this._heightCache.get(key);
+    }
     const { cont, erosion, weirdness, pv } = this._getSplineParams(x, z);
     
     // Apply splines
@@ -343,6 +359,12 @@ export class WorldGenPipeline {
       baseHeight = Math.min(baseHeight, SEA_LEVEL - 2);
     }
     
+    if (!this._heightCache) this._heightCache = new Map();
+    if (this._heightCache.size > 50000) {
+      const firstKey = this._heightCache.keys().next().value;
+      this._heightCache.delete(firstKey);
+    }
+    this._heightCache.set(key, baseHeight);
     return baseHeight;
   }
   
@@ -405,18 +427,41 @@ export class WorldGenPipeline {
   
   // Step 8: Determine block type (air, stone, water, etc.)
   getBlockType(x, y, z) {
+    const baseHeight = this.getBaseHeight(x, z);
+
+    // Fast path: well above terrain → air or water (skip density noise)
+    if (y > baseHeight + 15) {
+      if (y < SEA_LEVEL) {
+        const aquifer = this.getAquiferState(x, y, z);
+        if (aquifer === 'water') return 'water';
+        if (aquifer === 'lava') return 'lava';
+      }
+      return 'air';
+    }
+
+    // Fast path: well below terrain and outside cave range → stone
+    if (y < baseHeight - 15 && (y > SEA_LEVEL + 20 || y < WORLD_MIN_Y + 5)) {
+      return 'stone';
+    }
+
+    // Full calculation for surface band and cave zone
     const density = this.getDensity(x, y, z);
-    
-    // Solid block
+
     if (density > 0) {
-      // Surface layer
-      if (this.getDensity(x, y + 1, z) <= 0) {
+      // Surface layer: check if block above is air (density <= 0)
+      // Use fast check: if y+1 > baseHeight + 15, it's definitely air
+      if (y + 1 > baseHeight + 15) {
+        const biome = this.getBiome(x, z);
+        return this.getSurfaceBlock(biome, y);
+      }
+      const densityAbove = this.getDensity(x, y + 1, z);
+      if (densityAbove <= 0) {
         const biome = this.getBiome(x, z);
         return this.getSurfaceBlock(biome, y);
       }
       return 'stone';
     }
-    
+
     // Air or water
     if (y < SEA_LEVEL) {
       // Check aquifer
@@ -424,7 +469,7 @@ export class WorldGenPipeline {
       if (aquifer === 'water') return 'water';
       if (aquifer === 'lava') return 'lava';
     }
-    
+
     return 'air';
   }
   
@@ -464,7 +509,9 @@ export class WorldGenPipeline {
   
   // Step 11: Determine biome
   getBiome(x, z) {
-    const key = `${Math.floor(x)},${Math.floor(z)}`;
+    const ix = Math.floor(x) & 0x1FFFFF;
+    const iz = Math.floor(z) & 0x1FFFFF;
+    const key = ix * 4194304 + iz;
     if (this._biomeCache && this._biomeCache.has(key)) {
       return this._biomeCache.get(key);
     }
@@ -508,7 +555,18 @@ export class WorldGenPipeline {
     }
     
     // Moderate temperature
-    if (humid > 0.6) return BIOMES.FOREST;
+    if (humid > 0.6) {
+      if (weirdness > 0.5 && temp > 0.4 && temp < 0.7) {
+        this._biomeCache.set(key, BIOMES.MYSTIC_GROVE);
+        return BIOMES.MYSTIC_GROVE;
+      }
+      this._biomeCache.set(key, BIOMES.FOREST);
+      return BIOMES.FOREST;
+    }
+    if (temp > 0.35 && temp < 0.55 && humid > 0.4 && humid < 0.6 && weirdness < -0.3) {
+      this._biomeCache.set(key, BIOMES.AUTUMN_FOREST);
+      return BIOMES.AUTUMN_FOREST;
+    }
     if (humid < 0.3 && erosion > 0.3) { this._biomeCache.set(key, BIOMES.PLAINS); return BIOMES.PLAINS; }
     if (humid > 0.5) { this._biomeCache.set(key, BIOMES.SWAMP); return BIOMES.SWAMP; }
     
@@ -526,6 +584,8 @@ export class WorldGenPipeline {
 // ═══════════════════════════════════════════════════════════
 // Voxel Chunk — 16x384x16 blocks
 // ═══════════════════════════════════════════════════════════
+const BLOCK_TYPE_TO_ID = { air: 0, stone: 1, grass: 2, dirt: 3, sand: 4, water: 5, lava: 6, snow: 7, mud: 8 };
+
 export class VoxelChunk {
   constructor(cx, cz, worldGen) {
     this.cx = cx;
@@ -537,42 +597,53 @@ export class VoxelChunk {
   
   generate() {
     if (this.generated) return;
-    
+
     const offsetX = this.cx * CHUNK_SIZE;
     const offsetZ = this.cz * CHUNK_SIZE;
-    
+    const NOISE_MARGIN = 15;
+    const CAVE_TOP = SEA_LEVEL + 20;
+    const CAVE_BOTTOM = WORLD_MIN_Y + 5;
+
     for (let x = 0; x < CHUNK_SIZE; x++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
+        const worldX = offsetX + x;
+        const worldZ = offsetZ + z;
+        const baseHeight = this.worldGen.getBaseHeight(worldX, worldZ);
+        const terrainTop = Math.ceil(baseHeight) + NOISE_MARGIN;
+
         for (let y = 0; y < CHUNK_HEIGHT; y++) {
-          const worldX = offsetX + x;
           const worldY = WORLD_MIN_Y + y;
-          const worldZ = offsetZ + z;
-          
-          const blockType = this.worldGen.getBlockType(worldX, worldY, worldZ);
-          const blockId = this.blockTypeToId(blockType);
-          
           const idx = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
-          this.blocks[idx] = blockId;
+
+          // Fast path: above terrain → air or water
+          if (worldY > terrainTop) {
+            if (worldY < SEA_LEVEL) {
+              const aquifer = this.worldGen.getAquiferState(worldX, worldY, worldZ);
+              this.blocks[idx] = this.blockTypeToId(aquifer);
+            } else {
+              this.blocks[idx] = 0; // air
+            }
+            continue;
+          }
+
+          // Fast path: deep underground, outside cave range → stone
+          if (worldY < baseHeight - NOISE_MARGIN && (worldY > CAVE_TOP || worldY < CAVE_BOTTOM)) {
+            this.blocks[idx] = 1; // stone
+            continue;
+          }
+
+          // Full calculation for surface band and cave zone
+          const blockType = this.worldGen.getBlockType(worldX, worldY, worldZ);
+          this.blocks[idx] = this.blockTypeToId(blockType);
         }
       }
     }
-    
+
     this.generated = true;
   }
   
   blockTypeToId(type) {
-    const types = {
-      'air': 0,
-      'stone': 1,
-      'grass': 2,
-      'dirt': 3,
-      'sand': 4,
-      'water': 5,
-      'lava': 6,
-      'snow': 7,
-      'mud': 8,
-    };
-    return types[type] || 0;
+    return BLOCK_TYPE_TO_ID[type] || 0;
   }
   
   getBlock(x, y, z) {
@@ -580,6 +651,13 @@ export class VoxelChunk {
     if (y < 0 || y >= CHUNK_HEIGHT) return 0;
     const idx = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
     return this.blocks[idx];
+  }
+
+  setBlock(x, y, z, block) {
+    if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return;
+    if (y < 0 || y >= CHUNK_HEIGHT) return;
+    const idx = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
+    this.blocks[idx] = block;
   }
 }
 

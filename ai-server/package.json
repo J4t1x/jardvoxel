@@ -1,0 +1,16 @@
+{
+  "name": "jardvoxel-ai-server",
+  "version": "1.0.0",
+  "description": "JardVoxel AI Server — WebSocket + LLM interface for living world",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test:llm": "node harness/runner.js",
+    "test:llm:benchmark": "node harness/runner.js --benchmark"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

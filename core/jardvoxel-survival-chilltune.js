@@ -10,6 +10,53 @@ const SCALES = {
   lydian:     [349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 659.25],
   phrygian:   [164.81, 174.61, 196.00, 220.00, 246.94, 261.63, 329.63],
   pentatonic: [293.66, 329.63, 392.00, 440.00, 523.25],
+  chromatic:  [261.63, 277.18, 293.66, 311.13, 329.63, 349.23, 369.99, 392.00, 415.30, 440.00, 466.16, 493.88],
+};
+
+// === SPEC-083: Biome scale mapping (8 scales) ===
+export const BIOME_SCALES = {
+  plains:        { scale: 'pentatonic', bpm: 60, filterFreq: 2000 },
+  forest:        { scale: 'dorian',     bpm: 55, filterFreq: 1800 },
+  desert:        { scale: 'phrygian',   bpm: 58, filterFreq: 1600 },
+  mountains:     { scale: 'lydian',     bpm: 65, filterFreq: 2200 },
+  swamp:         { scale: 'chromatic',  bpm: 48, filterFreq: 800  },
+  mystic_grove:  { scale: 'lydian',     bpm: 62, filterFreq: 2400, arpeggios: true },
+  ocean:         { scale: 'aeolian',    bpm: 52, filterFreq: 1000 },
+  caves:         { scale: 'chromatic',  bpm: 45, filterFreq: 600,  drone: true },
+  jungle:        { scale: 'dorian',     bpm: 60, filterFreq: 1800 },
+  taiga:         { scale: 'aeolian',    bpm: 50, filterFreq: 1200 },
+  snowy_plains:  { scale: 'pentatonic', bpm: 48, filterFreq: 1400 },
+  savanna:       { scale: 'pentatonic', bpm: 60, filterFreq: 1800 },
+  cherry_grove:  { scale: 'lydian',     bpm: 58, filterFreq: 2200 },
+  autumn_forest: { scale: 'dorian',     bpm: 54, filterFreq: 1600 },
+  beach:         { scale: 'aeolian',    bpm: 55, filterFreq: 1200 },
+};
+
+// === SPEC-083: Time-of-day modulation (4 phases) ===
+export const TIME_MODULATION = {
+  dawn:    { bpmMod: -5, filterMod: -200, brightness: 0.8, ascending: true },
+  day:     { bpmMod: 0,  filterMod: 0,    brightness: 1.0 },
+  sunset:  { bpmMod: -3, filterMod: -100, brightness: 0.7, descending: true },
+  night:   { bpmMod: -8, filterMod: -400, brightness: 0.5, minimalist: true },
+};
+
+// === SPEC-083: Weather effects (3 types) ===
+export const WEATHER_EFFECTS = {
+  clear:   { percussion: false, melodyAttenuation: 1.0, silence: false },
+  rain:    { percussion: true,  melodyAttenuation: 0.6, silence: false },
+  snow:    { percussion: false, melodyAttenuation: 0.3, silence: false, crystalHighs: true },
+  thunder: { percussion: false, melodyAttenuation: 0.1, silence: true,  dramaticImpacts: true },
+};
+
+// === SPEC-083: Event stingers ===
+export const EVENT_STINGERS = {
+  structure_discovery: { notes: [523.25, 659.25, 783.99], duration: 0.6, type: 'triangle', vol: 0.08 },
+  new_biome:           { notes: [440.00, 523.25, 659.25, 783.99], duration: 0.8, type: 'sine', vol: 0.06 },
+  combat_enter:        { notes: [164.81, 196.00, 220.00], duration: 0.4, type: 'square', vol: 0.05 },
+  archaeological:      { notes: [659.25, 783.99, 987.77, 1174.66], duration: 1.0, type: 'triangle', vol: 0.07 },
+  npc_death:           { notes: [220.00, 196.00, 174.61, 164.81], duration: 1.5, type: 'sine', vol: 0.05 },
+  legendary:           { notes: [349.23, 440.00, 523.25, 659.25, 783.99], duration: 1.2, type: 'triangle', vol: 0.09 },
+  village_approach:    { notes: [392.00, 493.88, 587.33], duration: 0.5, type: 'sine', vol: 0.05 },
 };
 
 // === Configuracion de estados musicales ===
@@ -52,15 +99,27 @@ export class ChillTuneEngine {
     this.lookahead = 30;
     this.schedulerTimer = null;
 
-    this.crossfadeDuration = 5;
+    this.crossfadeDuration = 2; // SPEC-083: 2s crossfade
     this.lastStateChange = 0;
     this.melodyRestCounter = 0;
+
+    // SPEC-083: New reactivity fields
+    this.currentBiome = null;
+    this.previousBiome = null;
+    this.currentWeather = 'clear';
+    this.currentTimePhase = 'day';
+    this.nearVillage = false;
+    this.previousState = 'exploring'; // for combat return
+    this._combatTimer = 0;
+    this._stingerCooldown = 0;
 
     this.gameContext = {
       playerY: 64, playerMoving: false, playerInWater: false,
       dayTime: 0.5, nearbyHostiles: 0,
       blocksPlacedRecently: 0, blocksBrokenRecently: 0,
       idleTime: 0,
+      biome: null, weather: 'clear', timePhase: 'day',
+      nearVillage: false, inCave: false,
     };
 
     this._updateTimer = 0;
@@ -137,7 +196,7 @@ export class ChillTuneEngine {
   setState(newState) {
     if (!STATE_CONFIG[newState] || newState === this.targetState) return;
     this.targetState = newState;
-    this.lastStateChange = this.ctx.currentTime;
+    this.lastStateChange = this.ctx ? this.ctx.currentTime : 0;
     this._crossfadeToState(newState);
   }
 
@@ -486,6 +545,177 @@ export class ChillTuneEngine {
 
   toggle() {
     this.setEnabled(!this.enabled);
+  }
+
+  // === SPEC-083: Biome Reactivity ===
+
+  setBiome(biome) {
+    if (biome === this.currentBiome) return;
+    this.previousBiome = this.currentBiome;
+    this.currentBiome = biome;
+
+    const biomeCfg = BIOME_SCALES[biome];
+    if (biomeCfg) {
+      // Apply biome scale and tempo
+      const stateCfg = STATE_CONFIG[this.currentState];
+      if (stateCfg) {
+        stateCfg.scale = biomeCfg.scale;
+        stateCfg.filterFreq = biomeCfg.filterFreq;
+        this._rampBPM(biomeCfg.bpm + this._getTimeBpmMod(), this.crossfadeDuration);
+      }
+      this._updateDroneFreq();
+    }
+
+    // Trigger new biome stinger if we had a previous biome
+    if (this.previousBiome) {
+      this.playStinger('new_biome');
+    }
+  }
+
+  getBiomeScale(biome) {
+    const cfg = BIOME_SCALES[biome];
+    return cfg ? cfg.scale : null;
+  }
+
+  // === SPEC-083: Time of Day Reactivity ===
+
+  setTimePhase(phase) {
+    if (phase === this.currentTimePhase) return;
+    this.currentTimePhase = phase;
+    const mod = TIME_MODULATION[phase];
+    if (mod) {
+      const biomeCfg = BIOME_SCALES[this.currentBiome] || { bpm: 60 };
+      this._rampBPM(biomeCfg.bpm + mod.bpmMod, this.crossfadeDuration);
+    }
+  }
+
+  _getTimeBpmMod() {
+    const mod = TIME_MODULATION[this.currentTimePhase];
+    return mod ? mod.bpmMod : 0;
+  }
+
+  _getTimeFilterMod() {
+    const mod = TIME_MODULATION[this.currentTimePhase];
+    return mod ? mod.filterMod : 0;
+  }
+
+  // === SPEC-083: Weather Reactivity ===
+
+  setWeather(weather) {
+    if (weather === this.currentWeather) return;
+    this.currentWeather = weather;
+  }
+
+  getWeatherEffect() {
+    return WEATHER_EFFECTS[this.currentWeather] || WEATHER_EFFECTS.clear;
+  }
+
+  // === SPEC-083: Event Stingers ===
+
+  playStinger(eventName) {
+    if (!this.ctx || !this.enabled || !this.ctx.createOscillator) return;
+    const stinger = EVENT_STINGERS[eventName];
+    if (!stinger) return;
+    if (this._stingerCooldown > 0) return;
+
+    this._stingerCooldown = 0.5;
+    const now = this.ctx.currentTime;
+    const noteDur = stinger.duration / stinger.notes.length;
+
+    for (let i = 0; i < stinger.notes.length; i++) {
+      this._playNote(stinger.notes[i], now + i * noteDur, noteDur * 1.5, stinger.type, stinger.vol, 3000, true);
+    }
+  }
+
+  // === SPEC-083: Village Music ===
+
+  setNearVillage(near) {
+    if (near && !this.nearVillage) {
+      this.playStinger('village_approach');
+    }
+    this.nearVillage = near;
+    if (near) {
+      // Warm melody: boost tempo slightly
+      const biomeCfg = BIOME_SCALES[this.currentBiome] || { bpm: 60 };
+      this._rampBPM(biomeCfg.bpm + 5, 1);
+    }
+  }
+
+  // === SPEC-083: Combat Transition ===
+
+  enterCombat() {
+    if (this.currentState === 'combat') return;
+    this.previousState = this.currentState;
+    this.setState('combat');
+    this.playStinger('combat_enter');
+    this._combatTimer = 0;
+  }
+
+  exitCombat() {
+    if (this.currentState !== 'combat') return;
+    this.setState(this.previousState || 'exploring');
+  }
+
+  updateCombat(dt) {
+    if (this.currentState !== 'combat') return;
+    this._combatTimer += dt;
+    // Auto-exit combat after 10s without re-trigger
+    if (this._combatTimer > 10) {
+      this.exitCombat();
+    }
+  }
+
+  // === SPEC-083: Extended tick ===
+
+  tickExtended(playerPos, dayTime, nearbyHostiles, inWater, biome, weather, nearVillage, inCave) {
+    const now = performance.now();
+    const idleTime = (now - this._lastInputTime) / 1000;
+
+    // Update biome
+    if (biome && biome !== this.currentBiome) {
+      this.setBiome(biome);
+    }
+
+    // Update weather
+    if (weather && weather !== this.currentWeather) {
+      this.setWeather(weather);
+    }
+
+    // Update time phase
+    let phase = 'day';
+    if (dayTime < 0.2 || dayTime > 0.8) phase = 'night';
+    else if (dayTime < 0.3) phase = 'dawn';
+    else if (dayTime > 0.7) phase = 'sunset';
+    this.setTimePhase(phase);
+
+    // Update village proximity
+    this.setNearVillage(nearVillage || false);
+
+    // Combat detection
+    if (nearbyHostiles > 0) {
+      this.enterCombat();
+      this._combatTimer = 0; // reset timer while hostiles present
+    }
+
+    // Stinger cooldown
+    if (this._stingerCooldown > 0) {
+      this._stingerCooldown -= 0.1;
+    }
+
+    this.updateGameContext({
+      playerY: playerPos ? playerPos.y : 64,
+      playerInWater: inWater || false,
+      dayTime: dayTime !== undefined ? dayTime : 0.5,
+      nearbyHostiles: nearbyHostiles || 0,
+      blocksPlacedRecently: this._blockPlaceTracker.length,
+      blocksBrokenRecently: this._blockBreakTracker.length,
+      idleTime: idleTime,
+      biome: biome || null,
+      weather: weather || 'clear',
+      timePhase: phase,
+      nearVillage: nearVillage || false,
+      inCave: inCave || false,
+    });
   }
 
   // === Tracking helpers (called from game) ===

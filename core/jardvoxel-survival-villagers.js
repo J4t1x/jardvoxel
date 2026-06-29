@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
-import { MC_BLOCKS } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS } from './blocks-registry.js';
 
 // New block IDs for villager-related items
 export const VILLAGER_BLOCKS = {

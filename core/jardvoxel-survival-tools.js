@@ -3,38 +3,8 @@
 // Tools (pickaxe, axe, shovel, sword) + Armor (helmet, chest, legs, boots)
 // ═══════════════════════════════════════════════════════════
 
-// Tool/Armor block IDs (80-99)
-export const TOOL_BLOCKS = {
-  WOOD_PICKAXE: 80, STONE_PICKAXE: 81, IRON_PICKAXE: 82, DIAMOND_PICKAXE: 83,
-  WOOD_AXE: 84, STONE_AXE: 85, IRON_AXE: 86, DIAMOND_AXE: 87,
-  WOOD_SHOVEL: 88, STONE_SHOVEL: 89, IRON_SHOVEL: 90, DIAMOND_SHOVEL: 91,
-  WOOD_SWORD: 92, STONE_SWORD: 93, IRON_SWORD: 94, DIAMOND_SWORD: 95,
-  IRON_HELMET: 96, IRON_CHESTPLATE: 97, IRON_LEGGINGS: 98, IRON_BOOTS: 99,
-};
-
-export const TOOL_BLOCK_COLORS = {
-  80: [0.65, 0.45, 0.25], 81: [0.50, 0.50, 0.52], 82: [0.80, 0.80, 0.85], 83: [0.30, 0.85, 0.85],
-  84: [0.65, 0.45, 0.25], 85: [0.50, 0.50, 0.52], 86: [0.80, 0.80, 0.85], 87: [0.30, 0.85, 0.85],
-  88: [0.65, 0.45, 0.25], 89: [0.50, 0.50, 0.52], 90: [0.80, 0.80, 0.85], 91: [0.30, 0.85, 0.85],
-  92: [0.65, 0.45, 0.25], 93: [0.50, 0.50, 0.52], 94: [0.80, 0.80, 0.85], 95: [0.30, 0.85, 0.85],
-  96: [0.75, 0.75, 0.80], 97: [0.75, 0.75, 0.80], 98: [0.75, 0.75, 0.80], 99: [0.75, 0.75, 0.80],
-};
-
-export const TOOL_BLOCK_NAMES = {
-  80: 'Wood Pickaxe', 81: 'Stone Pickaxe', 82: 'Iron Pickaxe', 83: 'Diamond Pickaxe',
-  84: 'Wood Axe', 85: 'Stone Axe', 86: 'Iron Axe', 87: 'Diamond Axe',
-  88: 'Wood Shovel', 89: 'Stone Shovel', 90: 'Iron Shovel', 91: 'Diamond Shovel',
-  92: 'Wood Sword', 93: 'Stone Sword', 94: 'Iron Sword', 95: 'Diamond Sword',
-  96: 'Iron Helmet', 97: 'Iron Chestplate', 98: 'Iron Leggings', 99: 'Iron Boots',
-};
-
-export const TOOL_BLOCK_HARDNESS = {
-  80: 0.2, 81: 0.2, 82: 0.2, 83: 0.2,
-  84: 0.2, 85: 0.2, 86: 0.2, 87: 0.2,
-  88: 0.2, 89: 0.2, 90: 0.2, 91: 0.2,
-  92: 0.2, 93: 0.2, 94: 0.2, 95: 0.2,
-  96: 0.3, 97: 0.3, 98: 0.3, 99: 0.3,
-};
+// Block data consolidated in blocks-registry.js — re-export for backward compat
+export { TOOL_BLOCKS } from './blocks-registry.js';
 
 // Tool types and material tiers
 export const TOOL_TYPES = {

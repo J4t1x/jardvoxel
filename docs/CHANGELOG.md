@@ -1,5 +1,188 @@
 # JardVoxel — Changelog
 
+## v5.0.0-RC3 — LLM Testing Harness (SPEC-H001 through H005)
+
+### SPEC-H005: Fix _buildPrompt + AI Server Integration
+- **Bug H-007 fixed:** `_buildPrompt` is now task-aware — no more "max 2 sentences" for JSON tasks
+  - NPC dialogue: asks for JSON with text + options
+  - Quests/Events: asks for ONLY valid JSON
+  - Lore: asks for narrative text (max 3 sentences)
+- **Bug H-008 fixed:** Eliminated context duplication in NPC dialogue and quest/event prompts
+  - Context passed once via context object, not in prompt text
+- `LLMInterface.setModel(model)` added for runtime model switching
+- `generate()` accepts `options` parameter with `taskType` and `numPredict`
+- `_buildSystemPrompt` is now task-aware for cloud API fallback
+- `ai-server/package.json`: Added `test:llm` and `test:llm:benchmark` scripts
+
+### SPEC-H001: Core Test Runner + Hard Gates
+- `harness/runner.js` — PEV orchestrator with CLI (Plan → Execute → Verify)
+- `harness/config.js` — Models, gates, thresholds, banned patterns, tone keywords
+- `harness/prompt-builder.js` — Task-specific optimized prompts (independent from `_buildPrompt`)
+- 40 test cases (10 per task × 4 tasks): NPC dialogue, quest, event, lore
+- 6 hard gates: json-validator, token-counter, latency-checker, options-checker, repeat-detector, tone-checker
+- `harness/reporters/` — JSON and Markdown report generation
+- Results persisted to `harness/state/results/` with timestamp
+- CLI: `node harness/runner.js --model gemma3:1b [--task <task>] [--num-predict <n>]`
+- CLI: `node harness/runner.js --benchmark --models m1,m2,m3`
+- Throttle of 2s between requests respected
+- Ollama availability check before running
+- Re-plan recommendation if fail rate > 30%
+
+### SPEC-H003: Comparative Benchmark + Model Ranker
+- `harness/reporters/comparative.js` — Benchmark runner, model ranker, comparative report
+- Weighted scoring: 50% hard gates, 20% JSON validity, 15% latency, 15% options
+- Per-task pass rates and best model per task
+- Fallback order recommendation (best → worst)
+- Comparative matrix in Markdown with per-task breakdown
+- Results saved as `benchmark-{timestamp}.json` and `.md`
+- CLI: `node harness/runner.js --benchmark --models gemma3:1b,qwen2.5:3b,gemma3:4b`
+
+### SPEC-H002: Inferential Judges (LLM-as-Judge)
+- `harness/judges/judge-engine.js` — 4 judges: creativity, coherence, engagement, lore accuracy
+- Uses a more capable model (e.g. qwen2.5:3b) to evaluate smaller models
+- Score 1-5 per criterion with justification
+- Batch judging with throttle respect
+- Aggregate scores: average per criterion + overall
+- JSON parsing with fallback number extraction
+- CLI: `node harness/runner.js --model gemma3:1b --judge qwen2.5:3b`
+
+### SPEC-H004: Feedback Loop + Pattern Detector
+- `harness/feedback-loop.js` — Pattern detection, degradation tracking, auto-switch recommendations
+- Loads historical results (last 5 runs) from `harness/state/results/`
+- Detects recurring gate failures (≥3x = pattern, ≥5x = critical, ≥10x = systemic)
+- Detects tone violations (≥2x) and low judge scores (≥3x)
+- Model degradation: quality drop >20% between runs triggers switch recommendation
+- Auto-switch: pass rate <50% triggers immediate fallback recommendation
+- Patterns saved to `harness/state/patterns.json`
+- Decisions saved to `harness/state/decisions.json`
+- CLI: `node harness/runner.js --model gemma3:1b --feedback`
+
+## v5.0.0-RC2 — Living World Integration Complete
+
+### SPEC-INT-001: Atmosphere & Sound Integration
+- Added `setTimeOfDay(phase)` to `AmbientSoundManager` for day/night volume modulation
+- Time phases: dawn (0.7x), day (1.0x), sunset (0.8x), night (0.5x)
+- Integrated into game loop with `dayNight.time` → phase mapping
+
+### SPEC-INT-002: ChillTune 2.0 Activation
+- Upgraded `chilltune.tick()` → `chilltune.tickExtended()` with full context
+- Passes: biome, weather, time phase, village proximity, cave status, combat
+- Added `playStinger('new_biome')` on biome discovery
+- Added `playStinger('structure_discover')` on structure discovery
+
+### SPEC-INT-007: UI Overhaul 5.0
+- Added DOM elements: dialogue panel, quest tracker, journal, toast container, biome indicator
+- CSS styling for all new UI components with smooth transitions
+- Rendering methods: `_renderToasts`, `_renderBiomeIndicator`, `_renderQuestTracker`, `_renderDialoguePanel`
+- Journal system with tabbed filtering (all, biome, structure, civilization, lore)
+- Keybind: `L` to toggle journal, `ESC` to close
+- Journal entries saved/loaded with game state
+- Biome discovery adds journal entry automatically
+
+### SPEC-INT-003: Narrative Structures Integration
+- `generateStructures` now maps biome+roll to `STRUCTURE_TYPES` and calls `generateNarrativeStructure`
+- Narrative metadata attached to chunks via `chunk.narrativeStructures`
+- Structure proximity detection in game loop (1s scan interval, 16-block radius)
+- Discovery triggers: toast, journal entry, stinger
+- Discovered structures saved/loaded with game state
+- Extended biome coverage: mountains, forest, taiga, cherry grove structures
+
+### SPEC-INT-004: AI Server & NPC Integration
+- NPC memory entries auto-created on first villager encounter
+- `npcMemory.createNPC()` called with villager name, biome, profession
+- Conversation system wired to dialogue panel (INT-007 DOM)
+- Trade UI only opens as fallback when conversation system unavailable
+- Added `npm run ai-server` and `npm run ai-server:dev` scripts
+- Journal entry added on NPC first encounter
+
+### SPEC-INT-005: Quest Tracker & Event Notifications
+- Quest tracker DOM renders active quests with progress bars
+- Quest creation/completion/failure events emit toasts and journal entries
+- Event manager notifications (start/end) emit toasts and journal entries
+- Quest progress updated in real-time from `questManager.getActiveQuests()`
+
+### SPEC-INT-006: Civilization Linkage & Lore Discovery
+- Structure discovery checks nearby civilization structures (50-block radius)
+- `civilizationSystem.discoverStructure()` called on proximity match
+- Civilization lore added to journal on discovery
+- Book generation via `loreGenerator.generateBook()` for structures with books
+- Journal entries categorized: biome, structure, civilization, lore
+
+### Test Results
+- All 731 existing tests pass (no regressions)
+- No new tests required — integration is wiring-only, modules already tested
+
+## v5.0.0-RC1 — 28 Junio 2026 — Integration PRD (PRD-JARDVOXEL-5.0-INTEGRATION)
+
+### SPEC-INT-008: Documentación y Registro de Specs
+- Creada carpeta `docs/specs/pending/` con 8 specs de integración:
+  - SPEC-INT-001 — Integración de Atmósfera y Sonido (6h)
+  - SPEC-INT-002 — Activación de ChillTune 2.0 (4h)
+  - SPEC-INT-003 — Integración de Estructuras Narrativas (8h)
+  - SPEC-INT-004 — Integración de AI Server y NPCs (12h)
+  - SPEC-INT-005 — Integración de Quests y Eventos Emergentes (10h)
+  - SPEC-INT-006 — Integración de Civilizaciones Antiguas y Lore (10h)
+  - SPEC-INT-007 — UI Overhaul 5.0 (12h)
+  - SPEC-INT-008 — Documentación y Registro de Specs (4h)
+- Creada carpeta `docs/specs/completed/` con índice de SPEC-070 a SPEC-090.
+- Actualizado `core/README.md` con sección "Living World".
+- Aprobado `docs/PRD-JARDVOXEL-5.0-INTEGRATION.md` (estado: Aprobado).
+
+### Plan de implementación de integración
+| Fase | Specs | Duración estimada | Entregable |
+|------|-------|-------------------|------------|
+| 1 | INT-008 | 4h | Documentación y CHANGELOG actualizados |
+| 2 | INT-001, INT-002 | 10h | Atmósfera, sonido y música reactivos |
+| 3 | INT-007 | 12h | UI Overhaul 5.0 con paneles base |
+| 4 | INT-003 | 8h | Estructuras narrativas en generación de mundo |
+| 5 | INT-004 | 12h | AI Server conectado y NPCs persistentes |
+| 6 | INT-005, INT-006 | 20h | Quests, eventos, civilizaciones y lore |
+| 7 | Integración + QA | 10h | Todos los tests pasan, juego estable |
+| **Total** | | **~76h** | JardVoxel 5.0 completamente integrado |
+
+---
+
+## v5.1.0 — 27 Junio 2026 — Core Test Suite (163 tests)
+
+### Testing del Core Engine
+- **Vitest 2.1.9** + jsdom como framework de testing
+- **163 tests** en **9 archivos** cubriendo los modulos core:
+  - `blocks-registry.test.js` (22 tests) — BLOCK, MC_BLOCKS, colores, nombres, hardness, placeable blocks
+  - `engine.test.js` (31 tests) — PRNG, PerlinNoise3D, Spline, WorldGenPipeline, VoxelChunk, GreedyMesher
+  - `crafting.test.js` (12 tests) — RECIPES, CraftingManager (shaped/shapeless, normalizacion)
+  - `health.test.js` (21 tests) — HealthHungerSystem (damage, hunger, regen, drowning, starvation, serialize)
+  - `tools.test.js` (26 tests) — ToolItem, EquipmentManager (durability, mining speed, armor reduction)
+  - `furnace.test.js` (17 tests) — FurnaceEntity, FurnaceManager (smelting, fuel, cook time)
+  - `achievements.test.js` (13 tests) — ACHIEVEMENTS, AchievementManager (unlock, stats, serialize)
+  - `gameplay.test.js` (11 tests) — Inventory (hotbar, addBlock, creative/survival)
+  - `save.test.js` (10 tests) — SaveManager (IndexedDB, save/load world/chunks, autosave)
+- **Mocks:** Three.js (Vector3, Group, Mesh, Scene, etc.), localStorage, indexedDB
+- **Config:** `vitest.config.js` con alias de Three.js, `tests/setup.js` con mocks globales
+- **Dependencias:** symlink a `jardfruit-pro/node_modules` (vitest + jsdom compartidos)
+- Nuevo archivo: `docs/TESTING.md` con documentacion completa de la suite
+- Actualizado: `docs/README.md` (estructura, stack, seccion de testing, version)
+- Actualizado: `core/README.md` (seccion de testing)
+
+## v5.0.2 — 26 Junio 2026 — Procedural Player Body (SPEC-067)
+
+### SPEC-067: Procedural Player Body with Third-Person View
+- **CharacterGenerator**: generates unique humanoid body from seed using PRNG (Xorshift128+)
+  - 12 skin tones, 9 hair colors, 6 eye colors, 10 shirt colors, 8 pants colors, 5 shoe colors
+  - 6 hair styles: bald, short, long, mohawk, bun, crew
+  - 3 body types: slim, normal, stocky (varying torso/arm/leg width)
+  - Accessories: glasses (30%), hat (20%), cape (15%) with flutter animation
+  - Facial features: eyes, eyebrows, optional beard (35%)
+  - ~37 million unique combinations
+- **CharacterAnimator**: walk cycle (sinusoidal arm/leg swing), idle breathing, mining arm swing, cape flutter
+- **ThirdPersonCamera**: camera behind player at 3.5 blocks distance, collision-aware (raycast against solid blocks), smooth lerp
+- **PlayerController integration**: `initBody()`, `toggleView()`, `_mining` flag for arm animation
+- **View toggle**: press `V` to switch between first-person (head hidden) and third-person (full body visible)
+- **Save/Load**: `characterSeed` persisted in savegame, body regenerated on load
+- **Controls hint** updated to include `V vista`
+- New files: `core/jardvoxel-survival-character.js` (~330 lines), `core/jardvoxel-survival-thirdperson.js` (~80 lines)
+- Modified: `core/jardvoxel-survival-gameplay.js` (imports + PlayerController), `jardvoxel-survival.html` (import, initBody, V key, mining sync, save/load)
+- PRD: `docs/PRD-PROCEDURAL-BODY.md`
+
 ## v5.0.1 — 26 Junio 2026 — Mobile Menu System for jardvoxel.html (SPEC-063)
 
 ### SPEC-063: Game Menu + Settings Expansion — jardvoxel.html

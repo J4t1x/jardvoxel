@@ -1,0 +1,12 @@
+[
+  { "id": "lore-001", "context": { "subject": "ancient_ruin", "biome": "forest", "era": "age_of_stone" } },
+  { "id": "lore-002", "context": { "subject": "lost_civilization", "biome": "desert", "era": "age_of_bronze" } },
+  { "id": "lore-003", "context": { "subject": "magical_artifact", "biome": "mountains", "era": "age_of_magic" } },
+  { "id": "lore-004", "context": { "subject": "hero_tale", "biome": "plains", "era": "age_of_bronze" } },
+  { "id": "lore-005", "context": { "subject": "ancient_temple", "biome": "jungle", "era": "age_of_stone" } },
+  { "id": "lore-006", "context": { "subject": "shipwreck", "biome": "ocean", "era": "age_of_bronze" } },
+  { "id": "lore-007", "context": { "subject": "observatory", "biome": "mountains", "era": "age_of_magic" } },
+  { "id": "lore-008", "context": { "subject": "library", "biome": "forest", "era": "age_of_magic" } },
+  { "id": "lore-009", "context": { "subject": "mineshaft", "biome": "taiga", "era": "age_of_bronze" } },
+  { "id": "lore-010", "context": { "subject": "camp_ruins", "biome": "savanna", "era": "age_of_stone" } }
+]

@@ -300,6 +300,63 @@ canvas{display:block}
   .hotbar-slot{width:44px;height:44px}
   #inventory-grid{grid-template-columns:repeat(6,65px)}
 }
+
+/* ===== INT-007: Dialogue Panel ===== */
+#dialogue-panel{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(120%);width:500px;max-width:90vw;background:rgba(15,15,25,0.95);border:2px solid rgba(124,58,237,0.5);border-radius:12px;padding:1rem 1.2rem;z-index:38;transition:transform 0.25s ease;pointer-events:auto}
+#dialogue-panel.show{transform:translateX(-50%) translateY(0)}
+#dialogue-npc-name{color:#7C3AED;font-size:0.9rem;font-weight:bold;margin-bottom:0.4rem}
+#dialogue-text{color:#ddd;font-size:0.85rem;line-height:1.5;min-height:2.5rem;margin-bottom:0.6rem}
+#dialogue-options{display:flex;flex-direction:column;gap:0.3rem}
+.dialogue-option{padding:8px 12px;background:rgba(30,30,50,0.8);border:1px solid #333;border-radius:6px;color:#aaa;font-size:0.8rem;cursor:pointer;pointer-events:auto;transition:all 0.15s;text-align:left}
+.dialogue-option:hover{border-color:#7C3AED;color:#fff;background:rgba(40,30,60,0.9)}
+.dialogue-option .opt-num{color:#7C3AED;font-weight:bold;margin-right:0.5rem}
+#dialogue-close{position:absolute;top:8px;right:10px;color:#666;cursor:pointer;font-size:1rem;pointer-events:auto}
+#dialogue-close:hover{color:#fff}
+
+/* ===== INT-007: Quest Tracker ===== */
+#quest-tracker{position:fixed;top:150px;right:10px;width:220px;z-index:15;pointer-events:none}
+.quest-item{background:rgba(10,10,20,0.7);border-left:3px solid #f59e0b;border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:4px;font-size:0.7rem;color:#ccc}
+.quest-item .quest-title{color:#f59e0b;font-weight:bold;font-size:0.75rem;margin-bottom:2px}
+.quest-item .quest-desc{color:#888;font-size:0.65rem;line-height:1.3}
+.quest-progress-bar{width:100%;height:4px;background:#333;border-radius:2px;margin-top:4px;overflow:hidden}
+.quest-progress-fill{height:100%;background:#f59e0b;transition:width 0.3s}
+.quest-item.completed{border-left-color:#10b981;opacity:0.5}
+.quest-item.completed .quest-title{color:#10b981}
+
+/* ===== INT-007: Journal Panel ===== */
+#journal-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;max-width:90vw;max-height:80vh;background:rgba(15,15,25,0.97);border:2px solid #555;border-radius:12px;padding:1.5rem;z-index:40;display:none;flex-direction:column;pointer-events:auto}
+#journal-panel.show{display:flex}
+#journal-panel h3{font-size:1.3rem;color:#f59e0b;margin-bottom:0.8rem}
+.journal-tabs{display:flex;gap:0.4rem;margin-bottom:0.8rem}
+.journal-tab{padding:6px 14px;font-size:0.75rem;background:rgba(30,30,50,0.6);color:#888;border:1px solid #333;border-radius:6px;cursor:pointer;pointer-events:auto;transition:all 0.15s}
+.journal-tab:hover{border-color:#f59e0b;color:#fff}
+.journal-tab.active{background:rgba(245,158,11,0.2);color:#f59e0b;border-color:#f59e0b}
+.journal-content{flex:1;overflow-y:auto;max-height:50vh}
+.journal-entry{padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.journal-entry .entry-title{color:#ddd;font-size:0.8rem;font-weight:bold;margin-bottom:2px}
+.journal-entry .entry-text{color:#888;font-size:0.72rem;line-height:1.4}
+.journal-entry .entry-type{display:inline-block;font-size:0.6rem;padding:1px 6px;border-radius:3px;margin-right:6px}
+.entry-type.biome{background:rgba(34,197,94,0.2);color:#22c55e}
+.entry-type.structure{background:rgba(168,85,247,0.2);color:#a855f7}
+.entry-type.civilization{background:rgba(245,158,11,0.2);color:#f59e0b}
+.entry-type.lore{background:rgba(59,130,246,0.2);color:#3b82f6}
+.journal-empty{color:#555;font-size:0.8rem;text-align:center;padding:2rem}
+#journal-close{position:absolute;top:10px;right:14px;color:#666;cursor:pointer;font-size:1.2rem;pointer-events:auto}
+#journal-close:hover{color:#fff}
+
+/* ===== INT-007: Toast Notifications ===== */
+#toast-container{position:fixed;top:50px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;z-index:45;pointer-events:none}
+.toast{background:rgba(10,10,20,0.85);border-radius:6px;padding:6px 16px;font-size:0.75rem;color:#fff;opacity:0;transform:translateY(-10px);transition:all 0.3s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.discovery{border-left:3px solid #22c55e}
+.toast.quest{border-left:3px solid #f59e0b}
+.toast.event{border-left:3px solid #ef4444}
+.toast.dialog{border-left:3px solid #7C3AED}
+.toast.info{border-left:3px solid #3b82f6}
+
+/* ===== INT-007: Biome Indicator ===== */
+#biome-indicator{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,0.8);border-radius:8px;padding:8px 20px;font-size:0.85rem;color:#22c55e;z-index:20;opacity:0;transition:opacity 0.5s;pointer-events:none}
+#biome-indicator.show{opacity:1}
 </style>
 </head>
 <body>
@@ -324,7 +381,7 @@ canvas{display:block}
     Mirando: <span id="looking-at">--</span><br>
     Seleccionado: <span id="selected-block">Grass</span>
   </div>
-  <div id="controls-hint">WASD mover · Click izq romper · Click der colocar/abrir · 1-9 seleccionar · F volar · Shift correr · E inventario · C modo · J joysticks</div>
+  <div id="controls-hint">WASD mover · Click izq romper · Click der colocar/abrir · 1-9 seleccionar · F volar · Shift correr · E inventario · C modo · V vista · J joysticks · L diario</div>
   <div id="hotbar"></div>
   <div id="mining-overlay"></div>
   <div id="mode-indicator">Creativo</div>
@@ -341,6 +398,31 @@ canvas{display:block}
   <div id="sleep-overlay"></div>
   <div id="underwater-overlay"></div>
   <canvas id="minimap" width="120" height="120"></canvas>
+</div>
+
+<!-- INT-007: Living World UI -->
+<div id="biome-indicator"></div>
+<div id="toast-container"></div>
+<div id="quest-tracker"></div>
+
+<div id="dialogue-panel">
+  <span id="dialogue-close">✕</span>
+  <div id="dialogue-npc-name"></div>
+  <div id="dialogue-text"></div>
+  <div id="dialogue-options"></div>
+</div>
+
+<div id="journal-panel">
+  <span id="journal-close">✕</span>
+  <h3>📖 Diario</h3>
+  <div class="journal-tabs">
+    <button class="journal-tab active" data-jtab="all">Todo</button>
+    <button class="journal-tab" data-jtab="biome">Biomas</button>
+    <button class="journal-tab" data-jtab="structure">Estructuras</button>
+    <button class="journal-tab" data-jtab="civilization">Civilizaciones</button>
+    <button class="journal-tab" data-jtab="lore">Lore</button>
+  </div>
+  <div class="journal-content" id="journal-content"></div>
 </div>
 
 <div id="touch-controls">
@@ -492,8 +574,8 @@ canvas{display:block}
     <h3>Graficos</h3>
     <div class="setting-row">
       <label>Distancia de render</label>
-      <input type="range" id="setting-render-dist" min="2" max="8" step="1" value="3">
-      <span class="setting-value" id="setting-render-dist-val">3</span>
+      <input type="range" id="setting-render-dist" min="2" max="16" step="1" value="5">
+      <span class="setting-value" id="setting-render-dist-val">5</span>
     </div>
     <div class="setting-row">
       <label>FOV</label>
@@ -515,6 +597,10 @@ canvas{display:block}
     <div class="setting-toggle">
       <label>Tone mapping</label>
       <div class="toggle-switch" id="setting-tone-mapping"></div>
+    </div>
+    <div class="setting-toggle">
+      <label>Postprocessing (SSAO + Bloom)</label>
+      <div class="toggle-switch" id="setting-postprocessing"></div>
     </div>
   </div>
 
@@ -688,9 +774,12 @@ import {
 } from './core/jardvoxel-survival-gameplay.js';
 import { generateChunkWithFeatures } from './core/jardvoxel-survival-features.js';
 import {
-  MC_BLOCKS, MC_BLOCK_COLORS, MC_BLOCK_NAMES, MC_BLOCK_HARDNESS,
-  MC_PLACEABLE_BLOCKS, BLOCK,
-} from './core/jardvoxel-survival-mesher.js';
+  MC_BLOCKS, BLOCK,
+  ALL_BLOCK_COLORS as MC_BLOCK_COLORS,
+  ALL_BLOCK_NAMES as MC_BLOCK_NAMES,
+  ALL_BLOCK_HARDNESS as MC_BLOCK_HARDNESS,
+  ALL_PLACEABLE_BLOCKS as MC_PLACEABLE_BLOCKS,
+} from './core/blocks-registry.js';
 import {
   BIOMES, BIOME_COLORS, WORLD_MIN_Y, SEA_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
 } from './core/jardvoxel-survival-engine.js';
@@ -713,6 +802,25 @@ import { ShieldManager, ShieldItem, SHIELD_BLOCKS, SHIELD_RECIPES } from './core
 import { AchievementManager, ACHIEVEMENTS } from './core/jardvoxel-survival-achievements.js';
 import { AnvilManager, ANVIL_BLOCKS, ANVIL_RECIPES } from './core/jardvoxel-survival-anvil.js';
 import { MapManager, MAP_BLOCKS, MAP_RECIPES, MAP_ITEMS } from './core/jardvoxel-survival-map.js';
+import { PostprocessingManager, QUALITY } from './core/jardvoxel-survival-postprocessing.js';
+import { ShadowManager, SHADOW_QUALITY } from './core/jardvoxel-survival-shadow.js';
+import { VolumetricFog } from './core/jardvoxel-survival-fog.js';
+import { WaterMaterialManager, WATER_COLORS } from './core/jardvoxel-survival-water.js';
+import { InteriorLightingManager } from './core/jardvoxel-survival-interior-lighting.js';
+import { AmbientParticleSystem } from './core/jardvoxel-survival-ambient-particles.js';
+import { ForestCanopyManager } from './core/jardvoxel-survival-forest-canopy.js';
+import { CharacterGenerator, CharacterAnimator } from './core/jardvoxel-survival-character.js';
+import { generateNarrativeStructure, getStructureDescription, STRUCTURE_TYPES } from './core/jardvoxel-survival-narrative-structures.js';
+import { LoreGenerator } from './core/jardvoxel-survival-lore.js';
+import { AncientCivilizationSystem } from './core/jardvoxel-survival-civilizations.js';
+import { UIManager, getPixelFontCSS } from './core/jardvoxel-survival-ui.js';
+import { AmbientSoundManager } from './core/jardvoxel-survival-ambient-sound.js';
+import { BiomeIdentityManager } from './core/jardvoxel-survival-biome-identity.js';
+import { AIClient } from './core/jardvoxel-survival-ai-client.js';
+import { NPCMemorySystem } from './core/jardvoxel-survival-npc-memory.js';
+import { ConversationManager } from './core/jardvoxel-survival-conversation.js';
+import { QuestManager, QUEST_TYPES, QUEST_STATES } from './core/jardvoxel-survival-quests.js';
+import { EventManager, EVENT_TYPES } from './core/jardvoxel-survival-events.js';
 
 const BIOME_NAMES = {
   [BIOMES.OCEAN]: 'Ocean', [BIOMES.DEEP_OCEAN]: 'Deep Ocean',
@@ -1003,6 +1111,21 @@ class TouchControls {
 class SurvivalGame {
   constructor() {
     this.seed = Math.floor(Math.random() * 2147483647);
+    this.settings = {
+      renderDistance: 5, fov: 75, clouds: true, fog: true, shadows: true,
+      toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
+      ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
+      sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
+      joystickDeadZone: 10, joystickSize: 120, buttonSize: 70,
+      difficulty: 'normal', autoSaveInterval: 60,
+      showFPS: true, showCoords: true, showMinimap: true,
+      showClock: true, showControlsHint: true,
+      ambientSoundEnabled: true,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('jardvoxel-settings'));
+      if (saved) Object.assign(this.settings, saved);
+    } catch (e) {}
     this.initScene();
     this.initWorld();
     this.initPlayer();
@@ -1047,6 +1170,7 @@ class SurvivalGame {
     this.autoSaveTimer = 0;
 
     this._initSave();
+    this._initJournalTabs();
     this.animate();
   }
 
@@ -1100,6 +1224,17 @@ class SurvivalGame {
       achievements: this.achievementManager ? this.achievementManager.serialize() : null,
       anvil: this.anvilManager ? this.anvilManager.serialize() : null,
       map: this.mapManager ? this.mapManager.serialize() : null,
+      characterSeed: this.player.characterSeed || 0,
+      npcMemory: this.npcMemory ? this.npcMemory.serializeAll() : null,
+      quests: this.questManager ? this.questManager.serialize() : null,
+      events: this.eventManager ? this.eventManager.serialize() : null,
+      civilizations: this.civilizationSystem ? this.civilizationSystem.serialize() : null,
+      conversations: this.conversationManager ? this.conversationManager.serialize() : null,
+      discoveredBiomes: this.discoveredBiomes ? Array.from(this.discoveredBiomes) : [],
+      discoveredStructures: this._discoveredStructures ? Array.from(this._discoveredStructures) : [],
+      journalEntries: this._journalEntries || [],
+      ambientVolume: this.settings ? (this.settings.ambientVolume ?? 0.5) : 0.5,
+      ambientSoundEnabled: this.settings ? (this.settings.ambientSoundEnabled !== false) : true,
     };
   }
 
@@ -1168,6 +1303,31 @@ class SurvivalGame {
       if (d.achievements && this.achievementManager) this.achievementManager.deserialize(d.achievements);
       if (d.anvil && this.anvilManager) this.anvilManager.deserialize(d.anvil);
       if (d.map && this.mapManager) this.mapManager.deserialize(d.map);
+      if (d.npcMemory && this.npcMemory) this.npcMemory.deserializeAll(d.npcMemory);
+      if (d.quests && this.questManager) this.questManager.deserialize(d.quests);
+      if (d.events && this.eventManager) this.eventManager.deserialize(d.events);
+      if (d.civilizations && this.civilizationSystem) this.civilizationSystem.deserialize(d.civilizations);
+      if (d.conversations && this.conversationManager) this.conversationManager.deserialize(d.conversations);
+      if (d.journalEntries && Array.isArray(d.journalEntries)) this._journalEntries = d.journalEntries;
+      if (d.characterSeed !== undefined && this.player) {
+        // Regenerate body with saved seed
+        if (this.player.body) {
+          this.scene.remove(this.player.body);
+        }
+        this.player.initBody(this.scene, d.characterSeed);
+      }
+      if (d.discoveredBiomes && Array.isArray(d.discoveredBiomes)) {
+        this.discoveredBiomes = new Set(d.discoveredBiomes);
+      }
+      if (d.discoveredStructures && Array.isArray(d.discoveredStructures)) {
+        this._discoveredStructures = new Set(d.discoveredStructures);
+      }
+      if (d.ambientVolume !== undefined && this.settings) {
+        this.settings.ambientVolume = d.ambientVolume;
+      }
+      if (d.ambientSoundEnabled !== undefined && this.settings) {
+        this.settings.ambientSoundEnabled = d.ambientSoundEnabled;
+      }
       this._buildHotbar();
       document.getElementById('seed-display').textContent = this.seed;
       document.getElementById('pause-seed').textContent = this.seed;
@@ -1244,7 +1404,7 @@ class SurvivalGame {
     this.player.velocity.set(0, 0, 0);
 
     // Force chunk regeneration around player
-    this.world.update(this.player.position.x, this.player.position.z, this.fps);
+    this.world.update(this.player.position.x, this.player.position.z, this.fps, this.camera);
 
     // Update dimension HUD indicator
     const dimIndicator = document.getElementById('dimension-indicator');
@@ -1257,7 +1417,9 @@ class SurvivalGame {
   initScene() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb);
-    this.scene.fog = new THREE.Fog(0x87ceeb, 30, 55);
+    // SPEC-071: Volumetric fog system
+    this.fogManager = new VolumetricFog(this.scene);
+    this.fogManager.setEnabled(this.settings.fog);
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
 
@@ -1268,10 +1430,15 @@ class SurvivalGame {
     this.renderer.toneMappingExposure = 1.0;
     document.body.appendChild(this.renderer.domElement);
 
+    // SPEC-070: Postprocessing pipeline
+    this.postprocessing = new PostprocessingManager(this.renderer, this.scene, this.camera);
+    this.postprocessing.setEnabled(this.settings.postprocessing !== false);
+
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      if (this.postprocessing) this.postprocessing.resize(window.innerWidth, window.innerHeight);
     });
   }
 
@@ -1281,10 +1448,23 @@ class SurvivalGame {
     this.world.onChunkGenerated = (cx, cz) => {
       this._applyChunkModifications(cx, cz);
     };
+    // SPEC-072: Shadow manager with cascaded shadow maps
+    this.shadowManager = new ShadowManager(this.renderer, this.dayNight.sunLight, this.camera);
+    this.shadowManager.addToScene(this.scene);
+    this.shadowManager.setEnabled(this.settings.shadows);
+    // SPEC-073: Stylized water reflections
+    this.world.initWaterMaterialManager(this.renderer, this.camera);
+    // SPEC-074: Interior lighting
+    this.interiorLighting = new InteriorLightingManager(this.scene, this.dayNight);
+    // SPEC-076: Biome ambient particles
+    this.ambientParticles = new AmbientParticleSystem(this.scene);
+    // SPEC-079: Forest canopy system
+    this.forestCanopy = new ForestCanopyManager();
   }
 
   initPlayer() {
     this.player = new PlayerController(this.camera, this.world);
+    this.player.initBody(this.scene);
     this.pointerLocked = false;
 
     this.inventory = new Inventory();
@@ -1395,65 +1575,123 @@ class SurvivalGame {
     // Map
     this.mapManager = new MapManager();
 
+    // SPEC-081: Lore generator for world names, history, books, legends
+    this.loreGenerator = new LoreGenerator(this.seed);
+
+    // SPEC-090: Ancient civilizations system
+    this.civilizationSystem = new AncientCivilizationSystem(this.seed);
+    this.civilizationSystem.generate();
+
+    // SPEC-082: UI manager for biome indicators, toasts, quest tracker
+    this.uiManager = new UIManager();
+
+    // SPEC-084: Ambient sound manager for biome audio
+    this.ambientSoundManager = new AmbientSoundManager();
+
+    // SPEC-075: Biome identity manager for biome fingerprints and discovery
+    this.biomeIdentityManager = new BiomeIdentityManager();
+    this.discoveredBiomes = new Set();
+    this._lastBiomeKey = null;
+    this._biomeToastCooldown = 0;
+
+    // SPEC-085: AI client for LLM-powered NPC dialogue, quests, events
+    this.aiClient = new AIClient({ url: 'ws://localhost:3001' });
+    this.aiClient.connect();
+
+    // SPEC-086: NPC memory system with persistent identity and relationships
+    this.npcMemory = new NPCMemorySystem(this.seed);
+
+    // SPEC-087: Conversation manager for NPC dialogue with typewriter effect
+    this.conversationManager = new ConversationManager({
+      aiClient: this.aiClient,
+      npcMemory: this.npcMemory,
+    });
+
+    // SPEC-088: Quest manager with 7 quest types and AI integration
+    this.questManager = new QuestManager({
+      aiClient: this.aiClient,
+      npcMemory: this.npcMemory,
+      worldSeed: this.seed,
+    });
+
+    // SPEC-089: Event manager for dynamic world events
+    this.eventManager = new EventManager();
+    this.eventManager.on('event_started', (event) => {
+      if (this.uiManager) this.uiManager.showToast(`${event.name}: ${event.description}`, 'event');
+      this._addJournalEntry('lore', `Event: ${event.name}`, event.description || `Un evento emergente ha comenzado.`);
+    });
+    this.eventManager.on('event_ended', (event) => {
+      if (this.uiManager) this.uiManager.showToast(`Event ended: ${event.name}`, 'info');
+    });
+
+    // SPEC-088: Quest manager event handlers
+    this.questManager.on('quest_created', (quest) => {
+      if (this.uiManager) {
+        this.uiManager.addQuest(quest);
+        this.uiManager.showToast(`New Quest: ${quest.title}`, 'quest');
+      }
+      this._addJournalEntry('lore', `Quest: ${quest.title}`, quest.description || quest.objective || 'Nueva misión disponible.');
+    });
+    this.questManager.on('quest_completed', (quest) => {
+      if (this.uiManager) this.uiManager.showToast(`Quest Complete: ${quest.title}`, 'quest');
+      if (this.achievementManager) this.achievementManager.unlock('first_quest');
+      this._addJournalEntry('lore', `Quest Complete: ${quest.title}`, `Completaste la misión "${quest.title}".`);
+    });
+    this.questManager.on('quest_failed', (data) => {
+      if (this.uiManager) this.uiManager.showToast(`Quest Failed: ${data.quest.title}`, 'warn');
+    });
+
+    // SPEC-087: Conversation manager event handlers
+    this.conversationManager.on('quest_triggered', (trigger) => {
+      if (this.questManager && this.questManager.canAcceptMore()) {
+        this.questManager.createQuest({
+          type: QUEST_TYPES.FETCH,
+          npcId: trigger.npcId,
+          trigger: 'conversation',
+        });
+      }
+    });
+
     // Generate spawn chunk asynchronously to avoid blocking
     this._generateSpawnChunkAsync();
   }
 
   async _generateSpawnChunkAsync() {
-    // Show loading message
     const loadingMsg = document.getElementById('loading-message');
     if (loadingMsg) loadingMsg.textContent = 'Generando mundo...';
 
-    // Generate spawn chunk in batches to avoid blocking
-    const spawnChunk = this.world._getOrCreateChunk(0, 0);
-    
-    // Generate terrain in batches (split by Y layers)
-    const BATCH_SIZE = 64; // Process 64 Y-levels at a time
-    for (let yStart = 0; yStart < 384; yStart += BATCH_SIZE) {
-      await new Promise(resolve => setTimeout(resolve, 0)); // Yield to browser
-      
-      const offsetX = spawnChunk.cx * 16;
-      const offsetZ = spawnChunk.cz * 16;
-      const yEnd = Math.min(yStart + BATCH_SIZE, 384);
-      
-      for (let x = 0; x < 16; x++) {
-        for (let z = 0; z < 16; z++) {
-          for (let y = yStart; y < yEnd; y++) {
-            const worldX = offsetX + x;
-            const worldY = -64 + y;
-            const worldZ = offsetZ + z;
-            const blockType = spawnChunk.worldGen.getBlockType(worldX, worldY, worldZ);
-            const blockId = spawnChunk.blockTypeToId(blockType);
-            const idx = x + z * 16 + y * 16 * 16;
-            spawnChunk.blocks[idx] = blockId;
+    if (this.world.worker) {
+      // Use Web Worker for non-blocking chunk generation
+      const chunkReady = new Promise((resolve) => {
+        const orig = this.world.onChunkGenerated;
+        let resolved = false;
+        this.world.onChunkGenerated = (cx, cz) => {
+          if (orig) orig(cx, cz);
+          if (cx === 0 && cz === 0 && !resolved) {
+            resolved = true;
+            this.world.onChunkGenerated = orig;
+            resolve();
           }
-        }
-      }
-      
-      // Update progress
-      const progress = Math.floor((yEnd / 384) * 100);
-      if (loadingMsg) loadingMsg.textContent = `Generando mundo... ${progress}%`;
+        };
+      });
+
+      this.world.generateChunk(0, 0);
+      await chunkReady;
+    } else {
+      // Fallback: generate synchronously with yield for UI
+      const spawnChunk = this.world._getOrCreateChunk(0, 0);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      generateChunkWithFeatures(spawnChunk, this.world);
+      this._applyChunkModifications(0, 0);
+      this.world._rebuildChunkMesh(0, 0);
     }
-    
-    spawnChunk.generated = true;
-    
-    // Generate features (trees, ores, etc.)
-    if (loadingMsg) loadingMsg.textContent = 'Generando vegetación...';
-    await new Promise(resolve => setTimeout(resolve, 0));
-    generateChunkWithFeatures(spawnChunk, this.world);
-    
-    // Build mesh
-    if (loadingMsg) loadingMsg.textContent = 'Construyendo geometría...';
-    await new Promise(resolve => setTimeout(resolve, 0));
-    this._applyChunkModifications(0, 0);
-    this.world._rebuildChunkMesh(0, 0);
-    
+
     // Spawn player and villager
+    if (loadingMsg) loadingMsg.textContent = 'Listo';
     this.player.spawn();
     this._applySaveData();
     this.villagerManager.spawnVillager(3, 80, 3, 'farmer');
 
-    // Update loading message
     if (loadingMsg) loadingMsg.textContent = 'Click para jugar';
   }
 
@@ -1597,36 +1835,23 @@ class SurvivalGame {
   }
 
   _initSettings() {
-    this.settings = {
-      renderDistance: 3,
-      fov: 75,
-      clouds: true,
-      fog: true,
-      shadows: true,
-      toneMapping: true,
-      volume: 0.5,
-      sfxVolume: 0.8,
-      ambientVolume: 0.3,
-      musicVolume: 0.35,
-      musicEnabled: true,
-      sensitivity: 2.0,
-      invertY: false,
-      touchJoysticks: 'auto',
-      joystickDeadZone: 10,
-      joystickSize: 120,
-      buttonSize: 70,
-      difficulty: 'normal',
-      autoSaveInterval: 60,
-      showFPS: true,
-      showCoords: true,
-      showMinimap: true,
-      showClock: true,
-      showControlsHint: true,
-    };
-    try {
-      const saved = JSON.parse(localStorage.getItem('jardvoxel-settings'));
-      if (saved) Object.assign(this.settings, saved);
-    } catch (e) {}
+    if (!this.settings) {
+      this.settings = {
+        renderDistance: 5, fov: 75, clouds: true, fog: true, shadows: true,
+        toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
+        ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
+        sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
+        joystickDeadZone: 10, joystickSize: 120, buttonSize: 70,
+        difficulty: 'normal', autoSaveInterval: 60,
+        showFPS: true, showCoords: true, showMinimap: true,
+        showClock: true, showControlsHint: true,
+        ambientSoundEnabled: true,
+      };
+      try {
+        const saved = JSON.parse(localStorage.getItem('jardvoxel-settings'));
+        if (saved) Object.assign(this.settings, saved);
+      } catch (e) {}
+    }
 
     this._applySettings();
 
@@ -1664,6 +1889,11 @@ class SurvivalGame {
       this.settings.renderDistance = parseInt(rd.value);
       rdVal.textContent = this.settings.renderDistance;
       this.world.renderDistance = this.settings.renderDistance;
+      // SPEC-CHUNK-OPT: Update fog dynamically with render distance
+      if (this.fogManager) this.fogManager.setRenderDistance(this.settings.renderDistance);
+      else if (this.settings.fog && this.scene.fog) {
+        this.scene.fog.far = this.settings.renderDistance * 16 * 1.2;
+      }
       this._saveSettings();
     });
 
@@ -1685,13 +1915,18 @@ class SurvivalGame {
     }
     });
     wireToggle('setting-fog', 'fog', (v) => {
-      if (this.scene) this.scene.fog = v ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.5) : null;
+      if (this.fogManager) this.fogManager.setEnabled(v);
+      else if (this.scene) this.scene.fog = v ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.2) : null;
     });
     wireToggle('setting-shadows', 'shadows', (v) => {
-      if (this.renderer) this.renderer.shadowMap.enabled = v;
+      if (this.shadowManager) this.shadowManager.setEnabled(v);
+      else if (this.renderer) this.renderer.shadowMap.enabled = v;
     });
     wireToggle('setting-tone-mapping', 'toneMapping', (v) => {
       if (this.renderer) this.renderer.toneMapping = v ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    });
+    wireToggle('setting-postprocessing', 'postprocessing', (v) => {
+      if (this.postprocessing) this.postprocessing.setEnabled(v);
     });
 
     // === Audio tab ===
@@ -1845,19 +2080,23 @@ class SurvivalGame {
   }
 
   _applySettings() {
-    this.world.renderDistance = this.settings.renderDistance;
-    this.camera.fov = this.settings.fov;
-    this.camera.updateProjectionMatrix();
+    if (this.world) this.world.renderDistance = this.settings.renderDistance;
+    if (this.camera) { this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix(); }
 
     // Graphics
     if (this.dayNight && this.dayNight.cloudPlanes) {
       for (const cp of this.dayNight.cloudPlanes) cp.mesh.visible = this.settings.clouds;
     }
-    if (this.scene) this.scene.fog = this.settings.fog ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.5) : null;
+    if (this.scene) {
+      if (this.fogManager) this.fogManager.setEnabled(this.settings.fog);
+      else this.scene.fog = this.settings.fog ? new THREE.Fog(0x87ceeb, 20, this.settings.renderDistance * 16 * 1.2) : null;
+    }
     if (this.renderer) {
       this.renderer.shadowMap.enabled = this.settings.shadows;
       this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
     }
+    if (this.shadowManager) this.shadowManager.setEnabled(this.settings.shadows);
+    if (this.postprocessing) this.postprocessing.setEnabled(this.settings.postprocessing);
 
     // Audio
     if (this.audio) {
@@ -1867,6 +2106,10 @@ class SurvivalGame {
     }
     if (this.chilltune) {
       this.chilltune.setVolume(this.settings.musicVolume);
+    }
+    if (this.ambientSoundManager) {
+      this.ambientSoundManager.setVolume(this.settings.ambientVolume || 0.5);
+      this.ambientSoundManager.setEnabled(this.settings.ambientSoundEnabled !== false);
     }
 
     // Controls
@@ -2133,6 +2376,26 @@ class SurvivalGame {
         this.touchControls.toggle();
       }
 
+      // INT-007: L = toggle journal
+      if (e.code === 'KeyL') {
+        e.preventDefault();
+        const jp = document.getElementById('journal-panel');
+        if (jp) {
+          jp.classList.toggle('show');
+          if (jp.classList.contains('show')) {
+            this._renderJournal();
+            if (this.pointerLocked) document.exitPointerLock();
+          } else {
+            if (!(this.touchControls && this.touchControls.enabled)) document.body.requestPointerLock();
+          }
+        }
+      }
+
+      // V = toggle first/third person view
+      if (e.code === 'KeyV') {
+        this.player.toggleView();
+      }
+
       // E = inventory
       if (e.code === 'KeyE') {
         e.preventDefault();
@@ -2183,6 +2446,14 @@ class SurvivalGame {
       if (e.code === 'Escape' && this.tradeUIOpen) {
         this._closeTradeUI();
         document.body.requestPointerLock();
+      }
+      // INT-007: ESC closes journal
+      if (e.code === 'Escape') {
+        const jp = document.getElementById('journal-panel');
+        if (jp && jp.classList.contains('show')) {
+          jp.classList.remove('show');
+          if (!(this.touchControls && this.touchControls.enabled)) document.body.requestPointerLock();
+        }
       }
       const achScreen = document.getElementById('achievements-screen');
       if (e.code === 'Escape' && achScreen && achScreen.style.display !== 'none') {
@@ -2248,7 +2519,42 @@ class SurvivalGame {
         const villager = this.villagerManager.getNearbyVillager(target.x + 0.5, target.y, target.z + 0.5, 2);
         if (villager) {
           if (this.achievementManager) this.achievementManager.unlock('find_village');
-          this._openTradeUI(villager);
+          // INT-004: Create NPC memory entry for new villagers
+          const npcId = `villager_${villager.id}`;
+          if (this.npcMemory && !this.npcMemory.hasNPC(npcId)) {
+            const biomeName = BIOME_NAMES[this.world.getBiome(
+              Math.floor(villager.position.x),
+              Math.floor(villager.position.z)
+            )] || 'plains';
+            this.npcMemory.createNPC(npcId, {
+              name: villager.name || `Villager ${villager.id}`,
+              biome: biomeName.toLowerCase().replace(/\s+/g, '_'),
+              profession: villager.profession || 'villager',
+            });
+            this._addJournalEntry('lore', `NPC: ${villager.name || 'Villager ' + villager.id}`, `Conociste a ${villager.name || 'un aldeano'} en ${biomeName}.`);
+          }
+          // SPEC-087: Start AI-driven conversation with NPC
+          if (this.conversationManager && this.npcMemory && this.npcMemory.hasNPC(npcId)) {
+            const biomeName = BIOME_NAMES[this.world.getBiome(
+              Math.floor(this.player.position.x),
+              Math.floor(this.player.position.z)
+            )] || 'plains';
+            this.conversationManager.startConversation(npcId, {
+              biome: biomeName.toLowerCase().replace(/\s+/g, '_'),
+              time: this.dayNight ? this.dayNight.time : 0,
+              weather: this.weatherManager ? this.weatherManager.currentWeather : 'clear',
+              activeQuests: this.questManager ? this.questManager.getActiveQuests().map(q => q.title) : [],
+            });
+            this.conversationManager.generateResponse().then(() => {
+              const conv = this.conversationManager.getActiveConversation();
+              if (conv && conv.response) {
+                if (this.uiManager) this.uiManager.showToast(`${conv.npc.identity.name}: ${conv.response.substring(0, 60)}...`, 'dialog');
+              }
+            });
+          } else {
+            // Fallback: open trade UI if no conversation system
+            this._openTradeUI(villager);
+          }
           return;
         }
         // Fishing: right-click water with fishing rod
@@ -3491,7 +3797,7 @@ class SurvivalGame {
       const touchInput = this.touchControls ? this.touchControls.getMoveInput() : null;
       if (this.touchControls) this.touchControls.updateLook(dt);
       this.player.update(dt, this.keys, touchInput);
-      this.world.update(this.player.position.x, this.player.position.z, this.fps);
+      this.world.update(this.player.position.x, this.player.position.z, this.fps, this.camera);
 
       // Auto-save timer
       if (this.settings.autoSaveInterval > 0) {
@@ -3553,12 +3859,12 @@ class SurvivalGame {
       const overlay = document.getElementById('underwater-overlay');
       if (underwater) {
         overlay.style.opacity = '1';
-        if (!this._underwaterFog) this._underwaterFog = new THREE.Fog(0x1a4080, 0.5, 12);
-        this.scene.fog = this._underwaterFog;
+        if (this.fogManager) this.fogManager.setUnderwater(true);
+        else { if (!this._underwaterFog) this._underwaterFog = new THREE.Fog(0x1a4080, 0.5, 12); this.scene.fog = this._underwaterFog; }
       } else {
         overlay.style.opacity = '0';
-        // Restore fog — DayNightCycle will update color dynamically
-        if (this.scene.fog !== this._normalFog) {
+        if (this.fogManager) this.fogManager.setUnderwater(false);
+        else if (this.scene.fog !== this._normalFog) {
           if (!this._normalFog) this._normalFog = new THREE.Fog(0x87ceeb, 30, 55);
           this.scene.fog = this._normalFog;
         }
@@ -3566,6 +3872,12 @@ class SurvivalGame {
     }
 
     this.currentDt = dt;
+
+    // Sync mining flag for character animation
+    if (this.player) {
+      this.player._mining = !!(this.mouseLeftDown || (this.touchControls && this.touchControls.breaking)) &&
+        !this.inventoryOpen && !this.furnaceUIOpen && !this.brewingUIOpen && !this.anvilUIOpen && !this.mapOpen && !this.enchantUIOpen && !this.tradeUIOpen;
+    }
 
     // Hold-to-mine
     if (this.gameStarted && (this.mouseLeftDown || (this.touchControls && this.touchControls.breaking)) && (this.pointerLocked || (this.touchControls && this.touchControls.enabled)) && !this.inventoryOpen && !this.furnaceUIOpen && !this.brewingUIOpen && !this.anvilUIOpen && !this.mapOpen && !this.enchantUIOpen && !this.tradeUIOpen) {
@@ -3596,6 +3908,64 @@ class SurvivalGame {
     }
 
     this.dayNight.update(dt, this.player.position);
+    // SPEC-072: Update shadow cascades based on player position and camera direction
+    if (this.shadowManager) {
+      const camDir = new THREE.Vector3();
+      this.camera.getWorldDirection(camDir);
+      this.shadowManager.update(this.player.position, camDir);
+    }
+    // SPEC-071: Update volumetric fog with biome, height, and time-of-day
+    if (this.fogManager) {
+      const biomeName = BIOME_NAMES[this.world.getBiome(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.z)
+      )] || 'default';
+      this.fogManager.setBiome(biomeName);
+      const headBlock = this.world.getBlock(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.y + 2),
+        Math.floor(this.player.position.z)
+      );
+      this.fogManager.setCave(headBlock !== BLOCK.AIR && headBlock !== BLOCK.WATER);
+      this.fogManager.update(dt, this.player.position.y, this.dayNight.time);
+    }
+    // SPEC-073: Update stylized water reflections
+    if (this.world.waterMaterialManager) {
+      const skyColor = this.dayNight.skyDome
+        ? this.dayNight.skyDome.material.uniforms.bottomColor.value
+        : null;
+      const sunDir = new THREE.Vector3();
+      this.camera.getWorldDirection(sunDir);
+      sunDir.negate().normalize();
+      this.world.waterMaterialManager.update(
+        dt, this.camera.position, skyColor, sunDir
+      );
+    }
+    // SPEC-074: Update interior lighting
+    if (this.interiorLighting) {
+      this.interiorLighting.update(dt, this.world, this.player.position, !this.player.inWater);
+    }
+    // SPEC-076: Update biome ambient particles
+    if (this.ambientParticles) {
+      const dayFactor = Math.max(0, Math.sin(this.dayNight.time * Math.PI * 2));
+      this.ambientParticles.setNight(dayFactor < 0.15);
+      const biomeName = this.world.getBiome(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.z)
+      );
+      const headBlock = this.world.getBlock(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.y + 2),
+        Math.floor(this.player.position.z)
+      );
+      this.ambientParticles.setCave(headBlock !== BLOCK.AIR && headBlock !== BLOCK.WATER);
+      this.ambientParticles.setBiome(biomeName);
+      this.ambientParticles.update(dt, this.player.position, dayFactor);
+    }
+    // SPEC-079: Update forest canopy effects
+    if (this.forestCanopy) {
+      this.forestCanopy.update(dt, this.world, this.player.position, this.dayNight, this.fog);
+    }
     // Night vision: boost ambient light to full brightness
     if (this.dayNight && this.dayNight.ambientLight) {
       if (this.player.nightVision) {
@@ -3713,6 +4083,20 @@ class SurvivalGame {
       if (this.villagerManager.naturalSpawnTimer <= 0) {
         this.villagerManager.tryNaturalSpawn(this.player.position.x, this.player.position.z);
       }
+      // SPEC-086: Create NPC memory entries for new villagers
+      if (this.npcMemory) {
+        for (const villager of this.villagerManager.villagers) {
+          const npcId = `villager_${villager.id}`;
+          if (!this.npcMemory.hasNPC(npcId)) {
+            this.npcMemory.createNPC(npcId, {
+              profession: villager.profession || 'farmer',
+            });
+          }
+          // Update daily routine based on time of day
+          const hour = Math.floor((this.dayNight.time * 24 + 6) % 24);
+          this.npcMemory.updateActivity(npcId, hour);
+        }
+      }
     }
 
     // Fishing
@@ -3749,22 +4133,250 @@ class SurvivalGame {
     // Minimap
     this._renderMinimap();
 
-    // ChillTune: update music state once per second
+    // INT-002: ChillTune 2.0 — full reactive tick with biome, weather, time, village, cave
     if (this.chilltune && this.gameStarted) {
       this._chilltuneTimer = (this._chilltuneTimer || 0) + dt;
       if (this._chilltuneTimer >= 1.0) {
         this._chilltuneTimer = 0;
         const nearbyHostiles = this.mobManager ? this.mobManager.mobs.filter(m => !m.dead && m.hostile).length : 0;
-        this.chilltune.tick(
+        const ctBiome = this.world.getBiome(
+          Math.floor(this.player.position.x),
+          Math.floor(this.player.position.z)
+        );
+        const AMBIENT_BIOME_MAP_CT = {
+          [BIOMES.OCEAN]: 'ocean', [BIOMES.DEEP_OCEAN]: 'ocean', [BIOMES.BEACH]: 'ocean',
+          [BIOMES.PLAINS]: 'plains', [BIOMES.MEADOW]: 'plains',
+          [BIOMES.FOREST]: 'forest', [BIOMES.JUNGLE]: 'forest', [BIOMES.TAIGA]: 'forest',
+          [BIOMES.CHERRY_GROVE]: 'forest', [BIOMES.AUTUMN_FOREST]: 'forest',
+          [BIOMES.DESERT]: 'desert', [BIOMES.SAVANNA]: 'desert',
+          [BIOMES.MOUNTAINS]: 'mountains', [BIOMES.SNOWY_PEAKS]: 'mountains', [BIOMES.STONY_PEAKS]: 'mountains',
+          [BIOMES.SWAMP]: 'swamp', [BIOMES.RIVER]: 'ocean', [BIOMES.MYSTIC_GROVE]: 'mystic_grove',
+        };
+        let ctBiomeKey = AMBIENT_BIOME_MAP_CT[ctBiome] || 'plains';
+        const ctHeadBlock = this.world.getBlock(
+          Math.floor(this.player.position.x),
+          Math.floor(this.player.position.y) + 2,
+          Math.floor(this.player.position.z)
+        );
+        const ctInCave = this.player.position.y < 35 && ctHeadBlock !== BLOCK.AIR && ctHeadBlock !== BLOCK.WATER;
+        if (this.world.dimension === 'nether') ctBiomeKey = 'nether';
+        else if (ctInCave) ctBiomeKey = 'caves';
+        const ctWeather = this.weatherManager ? this.weatherManager.getCurrentWeather() : 'clear';
+        const ctNearVillage = this.villagerManager ? this.villagerManager.getNearbyVillager(
+          this.player.position.x, this.player.position.y, this.player.position.z, 20
+        ) !== null : false;
+        this.chilltune.tickExtended(
           this.player.position,
           this.dayNight ? this.dayNight.time : 0.5,
           nearbyHostiles,
-          this.player.inWater
+          this.player.inWater,
+          ctBiomeKey,
+          ctWeather,
+          ctNearVillage,
+          ctInCave
         );
       }
     }
 
-    this.renderer.render(this.scene, this.camera);
+    // SPEC-082: Update UI manager (biome indicator, compass, toasts, quest tracker)
+    if (this.uiManager && this.gameStarted) {
+      const biomeName = BIOME_NAMES[this.world.getBiome(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.z)
+      )] || 'Unknown';
+      if (biomeName !== this._lastBiomeName) {
+        this._lastBiomeName = biomeName;
+        this.uiManager.showBiomeIndicator(biomeName);
+      }
+      this.uiManager.updateBiomeIndicator(dt);
+      this.uiManager.updateCompass(dt);
+      this.uiManager.updateToasts(dt);
+      // INT-007: Render DOM elements for Living World UI
+      this._renderToasts();
+      this._renderBiomeIndicator();
+      this._renderQuestTracker();
+      this._renderDialoguePanel();
+    }
+
+    // INT-001: Update atmosphere and ambient sound with biome, weather, indoor
+    if (this.ambientSoundManager && this.gameStarted && this.audio && this.audio.ctx) {
+      if (!this.ambientSoundManager.ctx) {
+        this.ambientSoundManager.init(this.audio.ctx, this.audio.masterGain);
+      }
+      const px = Math.floor(this.player.position.x);
+      const py = Math.floor(this.player.position.y);
+      const pz = Math.floor(this.player.position.z);
+      const biome = this.world.getBiome(px, pz);
+
+      // Map world biome to ambient sound profile
+      const AMBIENT_BIOME_MAP = {
+        [BIOMES.OCEAN]: 'ocean', [BIOMES.DEEP_OCEAN]: 'ocean', [BIOMES.BEACH]: 'ocean',
+        [BIOMES.PLAINS]: 'plains', [BIOMES.MEADOW]: 'plains',
+        [BIOMES.FOREST]: 'forest', [BIOMES.JUNGLE]: 'forest', [BIOMES.TAIGA]: 'forest',
+        [BIOMES.CHERRY_GROVE]: 'forest', [BIOMES.AUTUMN_FOREST]: 'forest',
+        [BIOMES.DESERT]: 'desert', [BIOMES.SAVANNA]: 'desert',
+        [BIOMES.MOUNTAINS]: 'mountains', [BIOMES.SNOWY_PEAKS]: 'mountains', [BIOMES.STONY_PEAKS]: 'mountains',
+        [BIOMES.SWAMP]: 'swamp', [BIOMES.RIVER]: 'ocean', [BIOMES.MYSTIC_GROVE]: 'mystic_grove',
+      };
+      let ambientKey = AMBIENT_BIOME_MAP[biome] || 'plains';
+
+      // Detect indoor/cave mode
+      const headY = py + 2;
+      const headBlock = this.world.getBlock(px, headY, pz);
+      const isIndoor = py < 35 && headBlock !== BLOCK.AIR && headBlock !== BLOCK.WATER;
+      if (this.world.dimension === 'nether') {
+        ambientKey = 'nether';
+      } else if (isIndoor) {
+        ambientKey = 'caves';
+      }
+
+      this.ambientSoundManager.setBiome(ambientKey);
+      this.ambientSoundManager.setIndoor(isIndoor);
+      const currentWeather = this.weatherManager ? this.weatherManager.getCurrentWeather() : 'clear';
+      this.ambientSoundManager.setWeather(currentWeather);
+
+      // INT-001: Time-of-day ambient modulation
+      const dayTime = this.dayNight ? this.dayNight.time : 0.5;
+      let timePhase = 'day';
+      if (dayTime < 0.2 || dayTime > 0.8) timePhase = 'night';
+      else if (dayTime < 0.3) timePhase = 'dawn';
+      else if (dayTime > 0.7) timePhase = 'sunset';
+      this.ambientSoundManager.setTimeOfDay(timePhase);
+
+      // Biome discovery tracking + toast + stinger
+      if (biome && this.biomeIdentityManager && this.biomeIdentityManager.hasFingerprint(biome)) {
+        if (!this.discoveredBiomes.has(biome)) {
+          this.discoveredBiomes.add(biome);
+          const displayName = BIOME_NAMES[biome] || biome;
+          if (this.uiManager) this.uiManager.showToast(`Discovered: ${displayName}`, 'discovery');
+          this._addJournalEntry('biome', `Bioma: ${displayName}`, `Descubriste el bioma ${displayName} durante tu exploración.`);
+          // INT-002: Play new_biome stinger
+          if (this.chilltune && this.chilltune.playStinger) {
+            this.chilltune.playStinger('new_biome');
+          }
+        }
+      }
+
+      const fwd = new THREE.Vector3();
+      this.camera.getWorldDirection(fwd);
+      this.ambientSoundManager.updateListener(
+        this.player.position.x, this.player.position.y, this.player.position.z,
+        fwd.x, fwd.z
+      );
+    }
+
+    // SPEC-089: Update event manager with player context
+    if (this.eventManager && this.gameStarted) {
+      if (!this.eventManager.isRunning()) {
+        this.eventManager.start();
+      }
+      const biomeName = BIOME_NAMES[this.world.getBiome(
+        Math.floor(this.player.position.x),
+        Math.floor(this.player.position.z)
+      )] || 'plains';
+      this.eventManager.setPlayerContext({
+        biome: biomeName.toLowerCase().replace(/\s+/g, '_'),
+        dayTime: this.dayNight ? this.dayNight.time : 0.5,
+        playerLevel: this.xpManager ? this.xpManager.level : 1,
+      });
+    }
+
+    // SPEC-088: Update quest tracker UI
+    if (this.questManager && this.uiManager && this.gameStarted) {
+      const activeQuests = this.questManager.getActiveQuests();
+      for (const quest of activeQuests) {
+        this.uiManager.updateQuestProgress(quest.id, quest.progress);
+      }
+    }
+
+    // SPEC-085: Sync state to AI server periodically
+    if (this.aiClient && this.aiClient.isConnected() && this.gameStarted) {
+      this._aiSyncTimer = (this._aiSyncTimer || 0) + dt;
+      if (this._aiSyncTimer >= 5.0) {
+        this._aiSyncTimer = 0;
+        this.aiClient.syncState({
+          playerPos: { x: this.player.position.x, y: this.player.position.y, z: this.player.position.z },
+          biome: this._lastBiomeName || 'plains',
+          dayTime: this.dayNight ? this.dayNight.time : 0,
+          health: this.healthSystem ? this.healthSystem.health : 20,
+          level: this.xpManager ? this.xpManager.level : 1,
+        });
+      }
+    }
+
+    // INT-003: Structure proximity detection — discover narrative structures
+    if (this.gameStarted && this.world && this.world.chunks) {
+      if (!this._structureScanTimer) this._structureScanTimer = 0;
+      this._structureScanTimer += dt;
+      if (this._structureScanTimer >= 1.0) {
+        this._structureScanTimer = 0;
+        if (!this._discoveredStructures) this._discoveredStructures = new Set();
+        const pcx = Math.floor(this.player.position.x / 16);
+        const pcz = Math.floor(this.player.position.z / 16);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const chunkKey = `${pcx + dx},${pcz + dz}`;
+            const chunk = this.world.chunks.get(chunkKey);
+            if (chunk && chunk.narrativeStructures) {
+              for (const ns of chunk.narrativeStructures) {
+                const dist = Math.sqrt(
+                  (ns.worldX - this.player.position.x) ** 2 +
+                  (ns.worldZ - this.player.position.z) ** 2
+                );
+                if (dist < 16 && !this._discoveredStructures.has(ns.id || `${ns.worldX},${ns.worldZ}`)) {
+                  const nsId = ns.id || `${ns.worldX},${ns.worldZ}`;
+                  this._discoveredStructures.add(nsId);
+                  const desc = getStructureDescription(ns);
+                  const title = ns.type ? ns.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Unknown Structure';
+                  this._addJournalEntry('structure', title, desc || `Descubriste ${title} en (${ns.worldX}, ${ns.worldZ}).`);
+                  if (this.uiManager) this.uiManager.showToast(`Structure: ${title}`, 'discovery');
+                  // INT-006: Generate lore for structures with books
+                  if (ns.books && this.loreGenerator) {
+                    const book = this.loreGenerator.generateBook(ns.type === 'library' ? 'journal' : 'lore');
+                    if (book) {
+                      this._addJournalEntry('lore', `Book: ${book.title}`, book.content || book.text || 'Un texto antiguo encontrado en las ruinas.');
+                    }
+                  }
+                  // INT-002: Play discovery stinger
+                  if (this.chilltune && this.chilltune.playStinger) {
+                    this.chilltune.playStinger('structure_discover');
+                  }
+                  // INT-006: Link to civilization system — check nearby civ structures
+                  if (this.civilizationSystem) {
+                    const civs = this.civilizationSystem.getCivilizations();
+                    for (const civ of civs) {
+                      for (let si = 0; si < civ.structures.length; si++) {
+                        const cs = civ.structures[si];
+                        if (cs.discovered) continue;
+                        const csDist = Math.sqrt((cs.x - ns.worldX) ** 2 + (cs.z - ns.worldZ) ** 2);
+                        if (csDist < 50) {
+                          const lore = this.civilizationSystem.discoverStructure(civ.id, si);
+                          if (lore) {
+                            this._addJournalEntry('civilization', `Civilization: ${civ.name}`, `${lore.title} — ${lore.text}`);
+                            if (this.uiManager) this.uiManager.showToast(`Ancient: ${civ.name}`, 'discovery');
+                            if (this.chilltune && this.chilltune.playStinger) {
+                              this.chilltune.playStinger('structure_discover');
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // SPEC-070: Use postprocessing composer instead of direct render
+    if (this.postprocessing && this.postprocessing.isEnabled()) {
+      this.postprocessing.update(dt, this.fps || 60);
+      this.postprocessing.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   _animateWater(dt) {
@@ -3847,6 +4459,151 @@ class SurvivalGame {
     }
   }
 
+  // INT-007: Render toast notifications from UIManager
+  _renderToasts() {
+    if (!this.uiManager) return;
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toasts = this.uiManager.getActiveToasts();
+    container.innerHTML = '';
+    for (const t of toasts) {
+      const el = document.createElement('div');
+      el.className = `toast ${t.type || 'info'} show`;
+      el.textContent = t.message;
+      container.appendChild(el);
+    }
+  }
+
+  // INT-007: Render biome indicator
+  _renderBiomeIndicator() {
+    if (!this.uiManager) return;
+    const el = document.getElementById('biome-indicator');
+    if (!el) return;
+    const result = this.uiManager.updateBiomeIndicator(this.currentDt || 0.016);
+    if (result.visible) {
+      el.textContent = result.biome || '';
+      el.classList.add('show');
+    } else {
+      el.classList.remove('show');
+    }
+  }
+
+  // INT-007: Render quest tracker
+  _renderQuestTracker() {
+    if (!this.questManager || !this.uiManager) return;
+    const container = document.getElementById('quest-tracker');
+    if (!container) return;
+    const quests = this.questManager.getActiveQuests();
+    if (quests.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = '';
+    for (const q of quests.slice(0, 3)) {
+      const el = document.createElement('div');
+      el.className = 'quest-item' + (q.progress >= 1 ? ' completed' : '');
+      el.innerHTML = `
+        <div class="quest-title">${q.title || q.type || 'Quest'}</div>
+        <div class="quest-desc">${q.description || q.objective || ''}</div>
+        <div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${Math.round((q.progress || 0) * 100)}%"></div></div>
+      `;
+      container.appendChild(el);
+    }
+  }
+
+  // INT-007: Render dialogue panel
+  _renderDialoguePanel() {
+    if (!this.conversationManager) return;
+    const panel = document.getElementById('dialogue-panel');
+    if (!panel) return;
+    const conv = this.conversationManager.getActiveConversation();
+    if (!conv) {
+      panel.classList.remove('show');
+      return;
+    }
+    panel.classList.add('show');
+    const nameEl = document.getElementById('dialogue-npc-name');
+    const textEl = document.getElementById('dialogue-text');
+    const optionsEl = document.getElementById('dialogue-options');
+    if (nameEl) nameEl.textContent = conv.npc ? conv.npc.identity.name : 'Unknown';
+    if (textEl) {
+      const progress = this.conversationManager.getTypewriterProgress();
+      textEl.textContent = conv.response ? conv.response.substring(0, progress) : '...';
+    }
+    if (optionsEl) {
+      optionsEl.innerHTML = '';
+      const state = this.conversationManager.getState();
+      if (state === 'showing_options' && conv.options) {
+        conv.options.forEach((opt, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'dialogue-option';
+          btn.innerHTML = `<span class="opt-num">${i + 1}.</span>${opt}`;
+          btn.onclick = () => {
+            this.conversationManager.selectOption(i);
+          };
+          optionsEl.appendChild(btn);
+        });
+      }
+    }
+  }
+
+  // INT-007: Journal system
+  _journalEntries = [];
+  _journalFilter = 'all';
+
+  _addJournalEntry(type, title, text) {
+    this._journalEntries.push({ type, title, text, timestamp: Date.now() });
+    if (this.uiManager) {
+      this.uiManager.showToast(`${title}`, type === 'biome' ? 'discovery' : type);
+    }
+  }
+
+  _renderJournal() {
+    const content = document.getElementById('journal-content');
+    if (!content) return;
+    const filtered = this._journalFilter === 'all'
+      ? this._journalEntries
+      : this._journalEntries.filter(e => e.type === this._journalFilter);
+    if (filtered.length === 0) {
+      content.innerHTML = '<div class="journal-empty">No hay entradas aún. Explora el mundo para descubrir.</div>';
+      return;
+    }
+    content.innerHTML = '';
+    for (const entry of filtered.slice(-50).reverse()) {
+      const el = document.createElement('div');
+      el.className = 'journal-entry';
+      el.innerHTML = `
+        <div class="entry-title"><span class="entry-type ${entry.type}">${entry.type}</span>${entry.title}</div>
+        <div class="entry-text">${entry.text}</div>
+      `;
+      content.appendChild(el);
+    }
+  }
+
+  _initJournalTabs() {
+    const tabs = document.querySelectorAll('.journal-tab');
+    tabs.forEach(tab => {
+      tab.onclick = () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this._journalFilter = tab.dataset.jtab;
+        this._renderJournal();
+      };
+    });
+    const closeBtn = document.getElementById('journal-close');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        document.getElementById('journal-panel').classList.remove('show');
+      };
+    }
+    const dlgClose = document.getElementById('dialogue-close');
+    if (dlgClose) {
+      dlgClose.onclick = () => {
+        if (this.conversationManager) this.conversationManager.closeConversation();
+      };
+    }
+  }
+
   _renderMinimap() {
     if (!this._minimapTimer) this._minimapTimer = 0;
     this._minimapTimer += this.currentDt;
@@ -3913,7 +4670,38 @@ class SurvivalGame {
   }
 }
 
-new SurvivalGame();
+// ═══════════════════════════════════════════════════════════
+// Init — Wait for DOM ready before initializing game
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('seed-display').textContent = 'pending...';
+
+  // Safety timeout — force-hide loading after 10s no matter what
+  const safetyTimer = setTimeout(() => {
+    const loading = document.getElementById('loading');
+    if (loading && loading.style.display !== 'none') {
+      console.error('[JardVoxel Survival] Loading timeout — forcing hide');
+      loading.style.opacity = '0';
+      loading.style.display = 'none';
+    }
+  }, 10000);
+
+  setTimeout(() => {
+    try {
+      const game = new SurvivalGame();
+      window._game = game;
+      document.getElementById('seed-display').textContent = game.seed || 'N/A';
+      clearTimeout(safetyTimer);
+    } catch (err) {
+      console.error('[JardVoxel Survival] Init failed:', err);
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.innerHTML = '<h1 style="color:#ff4444">Error</h1><p style="color:#aa8888">' + (err.message || 'No se pudo iniciar el juego') + '</p><p style="margin-top:1rem;color:#666">Revisa la consola (F12)</p>';
+      }
+      clearTimeout(safetyTimer);
+    }
+  }, 500);
+});
 </script>
 </body>
 </html>

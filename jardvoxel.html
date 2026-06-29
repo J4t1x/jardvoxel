@@ -194,7 +194,7 @@ input:checked + .toggle-slider:before{transform:translateX(26px)}
     Mirando: <span id="looking-at">--</span><br>
     Seleccionado: <span id="selected-block">Grass</span>
   </div>
-  <div id="controls-hint">WASD mover · Click izq romper · Click der colocar · 1-9 seleccionar · F volar · Shift correr · E inventario · C modo · J joysticks</div>
+  <div id="controls-hint">WASD mover · Click izq romper · Click der colocar · 1-9 seleccionar · F volar · Shift correr · E inventario · C modo · V vista · J joysticks</div>
   <div id="hotbar"></div>
   <div id="mining-overlay"></div>
   <div id="mode-indicator">Creativo</div>
@@ -256,7 +256,7 @@ input:checked + .toggle-slider:before{transform:translateX(26px)}
     <div class="tab-content active" id="tab-graphics">
       <div class="setting-row">
         <label>Render Distance: <span class="value-display" id="val-render">3</span></label>
-        <input type="range" id="set-render" min="2" max="8" value="3" step="1">
+        <input type="range" id="set-render" min="2" max="16" value="5" step="1">
       </div>
       <div class="setting-row">
         <label>FOV: <span class="value-display" id="val-fov">75</span></label>
@@ -450,6 +450,8 @@ import {
   WorldGenerator, ChunkManager, VoxelChunk, WATER_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
   BLOCKS, BLOCK_COLORS, BLOCK_NAMES, BIOME_NAMES, BLOCK_HARDNESS, PLACEABLE_BLOCKS
 } from './core/jardvoxel-engine.js';
+import { CharacterGenerator, CharacterAnimator } from './core/jardvoxel-survival-character.js';
+import { ThirdPersonCamera } from './core/jardvoxel-survival-thirdperson.js';
 
 // ═══════════════════════════════════════════════════════════
 // TouchJoystick — Virtual joystick for mobile controls
@@ -715,6 +717,34 @@ class Game {
   constructor() {
     this.seed = Math.floor(Math.random() * 2147483647);
     this.world = new WorldGenerator(this.seed);
+
+    // SPEC-063: Settings with expanded options (must be before initScene)
+    this.settings = {
+      // Graphics
+      renderDistance: 5,
+      fov: 75,
+      clouds: true,
+      fog: true,
+      shadows: true,
+      toneMapping: true,
+      // Audio
+      volume: 0.5,
+      sfxVolume: 0.8,
+      ambientVolume: 0.3,
+      // Controls
+      sensitivity: 2.0,
+      invertY: false,
+      // Gameplay
+      difficulty: 'normal',
+      autoSaveInterval: 60,
+      showFPS: true,
+      showCoords: true,
+      showMinimap: true,
+      showClock: true,
+      showControlsHint: true,
+    };
+    this._loadSettings();
+
     this.initScene();
     this.initLights();
     this.initControls();
@@ -731,6 +761,16 @@ class Game {
     this.jumpVel = 9;
     this.playerHeight = 1.8;
     this.playerWidth = 0.3;
+
+    // SPEC-067: Procedural character body
+    this.characterSeed = Math.floor(Math.random() * 2147483647);
+    this.body = null;
+    this.animator = null;
+    this.viewMode = 'first';
+    this._mining = false;
+    this.thirdPersonCamera = new ThirdPersonCamera();
+    this._savedPlayerPos = new THREE.Vector3();
+    this._hasSavedPos = false;
 
     // Hotbar — blocks the player can place
     this.hotbar = [
@@ -779,32 +819,6 @@ class Game {
     this.minimapCtx = document.getElementById('minimap-canvas').getContext('2d');
     this.dead = false;
 
-    // SPEC-063: Settings with expanded options
-    this.settings = {
-      // Graphics
-      renderDistance: 3,
-      fov: 75,
-      clouds: true,
-      fog: true,
-      shadows: true,
-      toneMapping: true,
-      // Audio
-      volume: 0.5,
-      sfxVolume: 0.8,
-      ambientVolume: 0.3,
-      // Controls
-      sensitivity: 2.0,
-      invertY: false,
-      // Gameplay
-      difficulty: 'normal',
-      autoSaveInterval: 60,
-      showFPS: true,
-      showCoords: true,
-      showMinimap: true,
-      showClock: true,
-      showControlsHint: true,
-    };
-    this._loadSettings();
     this._initMenuSystem();
 
     // Start
@@ -852,7 +866,7 @@ class Game {
     this.skyDome = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.skyDome);
 
-    this.scene.fog = new THREE.Fog(0x87CEEB, 40, 120);
+    this.scene.fog = new THREE.Fog(0x87CEEB, 40, this.settings.renderDistance * 16 * 1.2);
 
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
     this.camera.position.set(0, 50, 0);
@@ -1079,6 +1093,61 @@ class Game {
     }
 
     this.camera.rotation.x = -0.1;
+
+    // SPEC-067: Init procedural character body
+    if (!this.body) {
+      this.body = CharacterGenerator.generate(this.characterSeed);
+      this.animator = new CharacterAnimator();
+      this.scene.add(this.body);
+      this._updateBodyVisibility();
+    }
+  }
+
+  // SPEC-067: Toggle first/third person view
+  _toggleView() {
+    this.viewMode = this.viewMode === 'first' ? 'third' : 'first';
+    this._updateBodyVisibility();
+  }
+
+  _updateBodyVisibility() {
+    if (!this.body) return;
+    const ud = this.body.userData;
+    if (this.viewMode === 'first') {
+      if (ud.head) ud.head.visible = false;
+      this.body.visible = true;
+    } else {
+      if (ud.head) ud.head.visible = true;
+      this.body.visible = true;
+    }
+  }
+
+  _updateCharacterBody(dt) {
+    if (!this.body || !this.animator) return;
+
+    const pos = this.camera.position;
+    const yaw = this.camera.rotation.y;
+
+    // Pseudo-player object that maps Game properties to what CharacterAnimator expects
+    const pseudoPlayer = {
+      position: pos,
+      yaw: yaw,
+      velocity: this.velocity,
+      _mining: this._mining,
+      onGround: this.onGround,
+      flying: this.flying,
+    };
+
+    // In third-person mode, save player position then move camera back
+    if (this.viewMode === 'third' && this.thirdPersonCamera) {
+      this._savedPlayerPos.copy(pos);
+      this._hasSavedPos = true;
+      this.thirdPersonCamera.update(this.camera, pseudoPlayer, this.chunkMgr);
+    } else {
+      this._hasSavedPos = false;
+    }
+
+    // Animate (animator positions body at player.position and rotates to player.yaw)
+    this.animator.update(dt, pseudoPlayer, this.body);
   }
 
   _setupInput() {
@@ -1097,6 +1166,10 @@ class Game {
       // J = toggle touch joysticks
       if (e.code === 'KeyJ') {
         this.touchControls.toggle();
+      }
+      // SPEC-067: V = toggle first/third person view
+      if (e.code === 'KeyV') {
+        this._toggleView();
       }
       // Hotbar selection 1-9
       if (e.code >= 'Digit1' && e.code <= 'Digit9') {
@@ -1858,6 +1931,10 @@ class Game {
       this.settings.renderDistance = parseInt(e.target.value);
       document.getElementById('val-render').textContent = e.target.value;
       this.chunkMgr.renderDistance = this.settings.renderDistance;
+      // SPEC-CHUNK-OPT: Update fog dynamically with render distance
+      if (this.settings.fog && this.scene.fog) {
+        this.scene.fog.far = this.settings.renderDistance * 16 * 1.2;
+      }
       this._saveSettings();
     });
 
@@ -1878,7 +1955,7 @@ class Game {
 
     document.getElementById('set-fog').addEventListener('change', (e) => {
       this.settings.fog = e.target.checked;
-      this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, 120) : null;
+      this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, this.settings.renderDistance * 16 * 1.2) : null;
       this._saveSettings();
     });
 
@@ -1977,7 +2054,7 @@ class Game {
     this.camera.fov = this.settings.fov;
     this.camera.updateProjectionMatrix();
     if (this.cloudMeshes) this.cloudMeshes.forEach(m => m.visible = this.settings.clouds);
-    this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, 120) : null;
+    this.scene.fog = this.settings.fog ? new THREE.Fog(0x87CEEB, 40, this.settings.renderDistance * 16 * 1.2) : null;
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
 
@@ -2059,10 +2136,20 @@ class Game {
     }
 
     if (this.gameStarted && (this.controls.isLocked || (this.touchControls && this.touchControls.enabled))) {
+      // SPEC-067: Restore player position before physics if third-person camera moved it
+      if (this.viewMode === 'third' && this._hasSavedPos) {
+        this.camera.position.copy(this._savedPlayerPos);
+      }
       if (this.touchControls) this.touchControls.updateLook(dt);
       this.updatePhysics(dt);
       this._updateBlockHighlight();
       this._updateMining(dt);
+    }
+
+    // SPEC-067: Update character body (position, rotation, animation, third-person camera)
+    if (this.gameStarted && this.body) {
+      this._mining = !!(this.mouseDown && this.mouseButton === 0) && !this.inventoryOpen;
+      this._updateCharacterBody(dt);
     }
 
     // Update chunks around player (throttled)

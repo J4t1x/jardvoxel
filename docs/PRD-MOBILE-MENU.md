@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-06-25  
 **Autor**: ja  
-**Estado**: Pendiente  
+**Estado**: ✅ Completado (v5.0.0 — SPEC-062 + SPEC-063)  
 **Version objetivo**: v5.0.0  
 **Specs**: SPEC-062 (Touch Controls), SPEC-063 (Game Menu)
 

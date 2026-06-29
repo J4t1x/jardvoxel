@@ -3,7 +3,7 @@
 // SPEC-038: Crafting System
 // ═══════════════════════════════════════════════════════════
 
-import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS, BLOCK } from './blocks-registry.js';
 import { TOOL_RECIPES } from './jardvoxel-survival-tools.js';
 import { ENCHANT_RECIPES } from './jardvoxel-survival-enchanting.js';
 import { FISHING_RECIPES } from './jardvoxel-survival-fishing.js';

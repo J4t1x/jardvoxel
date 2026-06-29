@@ -241,7 +241,7 @@ export const WATER_LEVEL = 20;
 export const CHUNK_SIZE = 16;
 export const CHUNK_HEIGHT = 64;
 export const WORLD_MIN_Y = 0;
-export const RENDER_DIST = 5;
+export const RENDER_DIST = 16; // SPEC-CHUNK-OPT: Max render distance (chunks) — adaptive scales down from this
 
 // SPEC-033: Block hardness — time in seconds to mine
 export const BLOCK_HARDNESS = {
@@ -1631,6 +1631,178 @@ function getOreVertexColor(x, y, z, oreColor) {
   return (h / 0x7fffffff) > 0.6 ? oreColor : STONE_COLOR_REF;
 }
 
+// SPEC-CHUNK-OPT: Procedural detail helpers — deterministic noise for visual richness
+
+// Micro-height variation for surface (±0.15 blocks)
+function _microHeight(worldX, worldZ, seed) {
+  const h = ((worldX * 374761393) ^ (worldZ * 668265263) ^ (seed * 1274126177)) & 0x7fffffff;
+  return ((h / 0x7fffffff) - 0.5) * 0.3;
+}
+
+// Altitude-based color multiplier (higher = darker)
+function _altitudeColorMul(worldY) {
+  if (worldY > 45) return 0.85;
+  if (worldY > 30) return 0.92;
+  if (worldY > 20) return 1.0;
+  return 0.75;
+}
+
+// Dirt patches on grass (~25% of surface)
+function _isDirtPatch(worldX, worldZ, seed) {
+  const h = ((worldX * 2246822519) ^ (worldZ * 3266489917) ^ (seed * 668265263)) & 0x7fffffff;
+  return (h / 0x7fffffff) > 0.75;
+}
+
+// Erosion color for cliff faces (darker, worn look)
+function _erosionColor(baseColor, heightDiff) {
+  if (heightDiff > 3) {
+    return [baseColor[0] * 0.7, baseColor[1] * 0.65, baseColor[2] * 0.6];
+  }
+  return baseColor;
+}
+
+// Moisture variation for grass color (greener in moist areas)
+function _moistureVariation(worldX, worldZ, baseColor, seed) {
+  const h = ((worldX * 40503) ^ (worldZ * 65599) ^ (seed * 2246822519)) & 0x7fffffff;
+  const moisture = h / 0x7fffffff;
+  if (moisture > 0.6) {
+    return [baseColor[0] * 0.9, Math.min(1, baseColor[1] * 1.1), baseColor[2] * 0.9];
+  }
+  return baseColor;
+}
+
+// SPEC-CHUNK-OPT: Simplified mesh for distant chunks (LOD 2/3/4)
+// LOD 2: 2x2 block merge — top faces only, averaged colors
+// LOD 3: 4x4 block merge — top faces only, flat bioma color
+// LOD 4: Heightmap only — 1 quad per XZ column, silhouette + fog blend
+function _buildSimplifiedMesh(chunk, world, lodLevel, ox, oz) {
+  const positions = [];
+  const colors = [];
+  const indices = [];
+  let vertexCount = 0;
+
+  const mergeSize = lodLevel >= 4 ? 1 : lodLevel >= 3 ? 4 : 2;
+  const topOnly = lodLevel >= 2; // All simplified LODs only render top faces
+
+  for (let bx = 0; bx < CHUNK_SIZE; bx += mergeSize) {
+    for (let bz = 0; bz < CHUNK_SIZE; bz += mergeSize) {
+      // Find the highest solid block in the merge area
+      let topY = -1;
+      let topBlock = BLOCKS.AIR;
+      let colorSum = [0, 0, 0];
+      let colorCount = 0;
+
+      for (let mx = 0; mx < mergeSize && bx + mx < CHUNK_SIZE; mx++) {
+        for (let mz = 0; mz < mergeSize && bz + mz < CHUNK_SIZE; mz++) {
+          for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+            const b = chunk.getBlock(bx + mx, y, bz + mz);
+            if (b !== BLOCKS.AIR && b !== BLOCKS.WATER) {
+              if (y > topY) {
+                topY = y;
+                topBlock = b;
+              }
+              const bc = BLOCK_COLORS[b] || [0.5, 0.5, 0.5];
+              colorSum[0] += bc[0];
+              colorSum[1] += bc[1];
+              colorSum[2] += bc[2];
+              colorCount++;
+              break;
+            }
+          }
+        }
+      }
+
+      if (topY < 0 || topBlock === BLOCKS.AIR) continue;
+
+      // Averaged color
+      const avgColor = colorCount > 0
+        ? [colorSum[0] / colorCount, colorSum[1] / colorCount, colorSum[2] / colorCount]
+        : (BLOCK_COLORS[topBlock] || [0.5, 0.5, 0.5]);
+
+      // Apply altitude shading
+      const altMul = _altitudeColorMul(topY);
+      let r = avgColor[0] * altMul;
+      let g = avgColor[1] * altMul;
+      let b = avgColor[2] * altMul;
+
+      // SPEC-CHUNK-OPT: LOD 4 — blend with fog color for distant horizon
+      if (lodLevel >= 4) {
+        const fogR = 0x87 / 255;
+        const fogG = 0xCE / 255;
+        const fogB = 0xEB / 255;
+        r = r * 0.4 + fogR * 0.6;
+        g = g * 0.4 + fogG * 0.6;
+        b = b * 0.4 + fogB * 0.6;
+      }
+
+      // Emit top face quad for the merged area
+      const x0 = ox + bx;
+      const z0 = oz + bz;
+      const x1 = ox + bx + mergeSize;
+      const z1 = oz + bz + mergeSize;
+      const y = topY + 1;
+
+      positions.push(x0, y, z0, x0, y, z1, x1, y, z1, x1, y, z0);
+      colors.push(r, g, b, r, g, b, r, g, b, r, g, b);
+      indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+      vertexCount += 4;
+
+      // LOD 2: Also emit side faces for height differences with neighbors (simplified)
+      if (lodLevel === 2) {
+        // Check neighbor heights for side faces
+        const neighbors = [
+          { dir: [-1, 0], face: [x0, y, z0, x0, y, z1] }, // -X face
+          { dir: [1, 0], face: [x1, y, z0, x1, y, z1] },  // +X face
+          { dir: [0, -1], face: [x0, y, z0, x1, y, z0] }, // -Z face
+          { dir: [0, 1], face: [x0, y, z1, x1, y, z1] },  // +Z face
+        ];
+
+        for (const n of neighbors) {
+          // Check if neighbor area is lower (would expose a side face)
+          let neighborTopY = -1;
+          const nwx = ox + bx + n.dir[0] * mergeSize;
+          const nwz = oz + bz + n.dir[1] * mergeSize;
+
+          // Sample world height at neighbor position
+          if (nwx >= 0 && nwz >= 0) {
+            for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+              const wb = world.getBlock(nwx, y, nwz);
+              if (wb !== BLOCKS.AIR && wb !== BLOCKS.WATER) {
+                neighborTopY = y;
+                break;
+              }
+            }
+          }
+
+          if (neighborTopY < topY - 1) {
+            // Emit side face from neighborTopY+1 to topY+1
+            const sideY0 = neighborTopY < 0 ? 0 : neighborTopY + 1;
+            const sideY1 = topY + 1;
+            const sr = r * 0.8;
+            const sg = g * 0.8;
+            const sb = b * 0.8;
+
+            if (n.dir[0] === -1) {
+              positions.push(x0, sideY0, z0, x0, sideY0, z1, x0, sideY1, z1, x0, sideY1, z0);
+            } else if (n.dir[0] === 1) {
+              positions.push(x1, sideY0, z0, x1, sideY1, z0, x1, sideY1, z1, x1, sideY0, z1);
+            } else if (n.dir[1] === -1) {
+              positions.push(x0, sideY0, z0, x0, sideY1, z0, x1, sideY1, z0, x1, sideY0, z0);
+            } else {
+              positions.push(x0, sideY0, z1, x1, sideY0, z1, x1, sideY1, z1, x0, sideY1, z1);
+            }
+            colors.push(sr, sg, sb, sr, sg, sb, sr, sg, sb, sr, sg, sb);
+            indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+            vertexCount += 4;
+          }
+        }
+      }
+    }
+  }
+
+  return { positions, colors, indices };
+}
+
 // ═══════════════════════════════════════════════════════════
 // Chunk Mesher — Greedy meshing with face culling + AO + color variation
 // SPEC-036: Greedy meshing merges adjacent same-block faces into larger quads
@@ -1658,6 +1830,11 @@ function buildChunkMesh(chunk, world, lodLevel = 0) {
 
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
+
+  // SPEC-CHUNK-OPT: LOD 2/3/4 — Simplified meshing for distant chunks
+  if (lodLevel >= 2) {
+    return _buildSimplifiedMesh(chunk, world, lodLevel, ox, oz);
+  }
 
   const TRANSPARENT_BLOCKS = new Set([BLOCKS.GLASS, BLOCKS.LEAVES, BLOCKS.FERN, BLOCKS.DEAD_BUSH, BLOCKS.FLOWER_RED, BLOCKS.FLOWER_YELLOW, BLOCKS.TALL_GRASS, BLOCKS.ICE, BLOCKS.OAK_LEAVES_DARK, BLOCKS.MOSS, BLOCKS.TORCH, BLOCKS.BAMBOO, BLOCKS.LANTERN]);
   const EMISSIVE_BLOCKS = new Set([BLOCKS.TORCH, BLOCKS.LANTERN, BLOCKS.LAVA, BLOCKS.AMETHYST]);
@@ -1813,10 +1990,26 @@ function buildChunkMesh(chunk, world, lodLevel = 0) {
             let vc;
             if (isGrass) {
               vc = getGrassFaceColor(face, aoCorners[ci]);
+              // SPEC-CHUNK-OPT: Procedural details for grass (LOD 0 only)
+              if (lodLevel === 0) {
+                // Dirt patches: replace some grass with dirt color
+                if (_isDirtPatch(corner[0], corner[2], world.seed)) {
+                  vc = BLOCK_COLORS[BLOCKS.DIRT] || [0.55, 0.40, 0.25];
+                } else {
+                  // Moisture variation: greener in moist areas
+                  vc = _moistureVariation(corner[0], corner[2], vc, world.seed);
+                }
+              }
             } else if (isOre) {
               vc = getOreVertexColor(corner[0], corner[1], corner[2], baseColor);
             } else {
               vc = colorVariation(corner[0], corner[1], corner[2], baseColor);
+            }
+
+            // SPEC-CHUNK-OPT: Altitude-based color variation (LOD 0 only)
+            if (lodLevel === 0 && !isEmissive) {
+              const altMul = _altitudeColorMul(corner[1]);
+              vc = [vc[0] * altMul, vc[1] * altMul, vc[2] * altMul];
             }
 
             let r = vc[0] * faceShade;
@@ -1829,10 +2022,27 @@ function buildChunkMesh(chunk, world, lodLevel = 0) {
               b = Math.min(1, vc[2] * 1.5);
             }
 
+            // SPEC-CHUNK-OPT: Erosion visual on cliff side faces (LOD 0 only)
+            if (lodLevel === 0 && !isEmissive && face.dir[1] === 0) {
+              // Check if block above this face is air (exposed cliff)
+              const bk = aoBlocks[ci];
+              const aboveBlock = getNeighborBlock(bk[0], bk[1], bk[2], [0, 1, 0]);
+              if (aboveBlock === BLOCKS.AIR) {
+                // This face is exposed vertically — apply erosion darkening
+                r *= 0.85; g *= 0.82; b *= 0.80;
+              }
+            }
+
             if (!isEmissive && lodLevel === 0) {
               const bk = aoBlocks[ci];
               const ao = _getCachedAO(chunk, world, bk[0], bk[1], bk[2], dir, aoCorners[ci], ox, oz);
               r *= ao; g *= ao; b *= ao;
+            }
+
+            // SPEC-CHUNK-OPT: Micro-height variation for top faces (LOD 0)
+            if (lodLevel === 0 && face.dir[1] === 1) {
+              const microH = _microHeight(corner[0], corner[2], world.seed);
+              corner[1] += microH;
             }
 
             positions.push(corner[0], corner[1], corner[2]);
@@ -1955,6 +2165,10 @@ export class ChunkManager {
     this._projScreenMatrix = new THREE.Matrix4();
     this._adaptiveRenderDist = RENDER_DIST;
     this._fpsHistory = [];
+    // SPEC-CHUNK-OPT: User-configured render distance (from settings)
+    this.renderDistance = 5;
+    // SPEC-CHUNK-OPT: Heightmap cache for occlusion culling
+    this._heightmaps = new Map();
     // SPEC-036: PointLight pool for torches/lanterns (max 8 active)
     this.pointLights = [];
     for (let i = 0; i < 8; i++) {
@@ -2007,6 +2221,9 @@ export class ChunkManager {
     // Determine LOD level based on distance from player
     const lodLevel = this._getLODLevel(cx, cz);
 
+    // SPEC-CHUNK-OPT: Build heightmap for occlusion culling
+    this._buildHeightmap(cx, cz, chunk);
+
     // Build terrain mesh
     const meshData = buildChunkMesh(chunk, this.world, lodLevel);
     if (meshData.positions.length > 0) {
@@ -2022,31 +2239,60 @@ export class ChunkManager {
       this.meshes.set(key, mesh);
     }
 
-    // Build water mesh
-    const waterData = buildWaterMesh(chunk, this.world);
-    if (waterData.positions.length > 0) {
-      const wgeo = new THREE.BufferGeometry();
-      wgeo.setAttribute('position', new THREE.Float32BufferAttribute(waterData.positions, 3));
-      wgeo.setAttribute('color', new THREE.Float32BufferAttribute(waterData.colors, 3));
-      wgeo.setIndex(waterData.indices);
-      wgeo.computeVertexNormals();
-      const wmesh = new THREE.Mesh(wgeo, this.waterMaterial);
-      wmesh.userData.waveOffsets = waterData.waveOffsets;
-      wmesh.userData.basePositions = new Float32Array(waterData.positions);
-      this.scene.add(wmesh);
-      this.waterMeshes.set(key, wmesh);
+    // Build water mesh (skip for LOD 3+ — too far for water detail)
+    if (lodLevel < 3) {
+      const waterData = buildWaterMesh(chunk, this.world);
+      if (waterData.positions.length > 0) {
+        const wgeo = new THREE.BufferGeometry();
+        wgeo.setAttribute('position', new THREE.Float32BufferAttribute(waterData.positions, 3));
+        wgeo.setAttribute('color', new THREE.Float32BufferAttribute(waterData.colors, 3));
+        wgeo.setIndex(waterData.indices);
+        wgeo.computeVertexNormals();
+        const wmesh = new THREE.Mesh(wgeo, this.waterMaterial);
+        wmesh.userData.waveOffsets = waterData.waveOffsets;
+        wmesh.userData.basePositions = new Float32Array(waterData.positions);
+        this.scene.add(wmesh);
+        this.waterMeshes.set(key, wmesh);
+      }
     }
   }
 
-  // SPEC-037: LOD level — 0=full (close), 1=no AO (medium), 2=no AO+no transparent (far)
+  // SPEC-CHUNK-OPT: Build heightmap for a chunk (used for occlusion culling)
+  _buildHeightmap(cx, cz, chunk) {
+    const heights = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+    let sum = 0;
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+      for (let z = 0; z < CHUNK_SIZE; z++) {
+        let topY = 0;
+        for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+          const b = chunk.getBlock(x, y, z);
+          if (b !== BLOCKS.AIR && b !== BLOCKS.WATER) {
+            topY = y;
+            break;
+          }
+        }
+        heights[x + z * CHUNK_SIZE] = topY;
+        sum += topY;
+      }
+    }
+    this._heightmaps.set(this._chunkKey(cx, cz), {
+      heights,
+      avgHeight: sum / (CHUNK_SIZE * CHUNK_SIZE),
+    });
+  }
+
+  // SPEC-CHUNK-OPT: LOD level — 5 levels for progressive detail
+  // 0=full (close), 1=no AO (medium), 2=2x2 merge (far), 3=4x4 merge (very far), 4=heightmap only (horizon)
   _getLODLevel(cx, cz) {
     if (this._playerCX === undefined) return 0;
     const dx = cx - this._playerCX;
     const dz = cz - this._playerCZ;
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist <= 3) return 0;
-    if (dist <= 5) return 1;
-    return 2;
+    if (dist <= 6) return 1;
+    if (dist <= 10) return 2;
+    if (dist <= 14) return 3;
+    return 4;
   }
 
   generateChunk(cx, cz) {
@@ -2098,6 +2344,7 @@ export class ChunkManager {
     if (wmesh) { this.scene.remove(wmesh); wmesh.geometry.dispose(); this.waterMeshes.delete(key); }
     this.chunks.delete(key);
     this.pendingChunks.delete(key);
+    this._heightmaps.delete(key);
   }
 
   update(playerX, playerZ, camera, fps) {
@@ -2106,7 +2353,8 @@ export class ChunkManager {
     this._playerCX = pcx;
     this._playerCZ = pcz;
 
-    // SPEC-037: Adaptive render distance based on FPS
+    // SPEC-CHUNK-OPT: Adaptive render distance — capped by user setting
+    const maxDist = this.renderDistance || RENDER_DIST;
     if (fps !== undefined) {
       this._fpsHistory.push(fps);
       if (this._fpsHistory.length > 60) this._fpsHistory.shift();
@@ -2114,29 +2362,64 @@ export class ChunkManager {
         const avgFps = this._fpsHistory.reduce((a, b) => a + b, 0) / this._fpsHistory.length;
         if (avgFps < 30 && this._adaptiveRenderDist > 3) {
           this._adaptiveRenderDist = Math.max(3, this._adaptiveRenderDist - 0.5);
-        } else if (avgFps > 55 && this._adaptiveRenderDist < RENDER_DIST) {
-          this._adaptiveRenderDist = Math.min(RENDER_DIST, this._adaptiveRenderDist + 0.2);
+        } else if (avgFps > 55 && this._adaptiveRenderDist < maxDist) {
+          this._adaptiveRenderDist = Math.min(maxDist, this._adaptiveRenderDist + 0.2);
         }
       }
     }
-    const renderDist = Math.round(this._adaptiveRenderDist);
+    const renderDist = Math.min(Math.round(this._adaptiveRenderDist), maxDist);
 
-    // Generate chunks sorted by distance (closest first)
+    // SPEC-CHUNK-OPT: Camera direction for view-direction loading
+    let cameraYaw = 0;
+ if (camera) {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      cameraYaw = Math.atan2(dir.x, dir.z);
+    }
+
+    // SPEC-CHUNK-OPT: Priority queue — front > side > back, then by distance
     const toGen = [];
+    const PI = Math.PI;
+    const frontArc = PI / 3;   // 60° half-angle = 120° front cone
+    const sideArc = PI / 2;    // 90° half-angle = includes periferal
+
     for (let dx = -renderDist; dx <= renderDist; dx++) {
       for (let dz = -renderDist; dz <= renderDist; dz++) {
         const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist <= renderDist) {
-          const cx = pcx + dx, cz = pcz + dz;
-          if (!this.chunks.has(this._chunkKey(cx, cz)) && !this.pendingChunks.has(this._chunkKey(cx, cz))) {
-            toGen.push({ cx, cz, dist });
+        if (dist > renderDist) continue;
+
+        const cx = pcx + dx, cz = pcz + dz;
+        const key = this._chunkKey(cx, cz);
+        if (this.chunks.has(key) || this.pendingChunks.has(key)) continue;
+
+        // Classify by angle relative to camera direction
+        let priority = 2; // back (default)
+        if (camera && dist > 1.5) {
+          const chunkAngle = Math.atan2(dx, dz);
+          let angleDiff = Math.abs(chunkAngle - cameraYaw);
+          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
+          if (angleDiff < frontArc) {
+            priority = 0; // front — highest priority
+          } else if (angleDiff < sideArc) {
+            priority = 1; // side — medium priority
+          } else {
+            // Back chunks: skip generation entirely (save CPU)
+            continue;
           }
+        } else {
+          // Very close chunks or no camera: always generate
+          priority = 0;
         }
+
+        toGen.push({ cx, cz, dist, priority });
       }
     }
-    toGen.sort((a, b) => a.dist - b.dist);
-    // Generate up to 2 chunks per frame to avoid stutter
-    for (let i = 0; i < Math.min(2, toGen.length); i++) {
+    // Sort: priority ASC, then distance ASC
+    toGen.sort((a, b) => a.priority - b.priority || a.dist - b.dist);
+
+    // SPEC-CHUNK-OPT: Generate up to 3 per frame (more budget since back chunks skipped)
+    const genBudget = camera ? 3 : 2;
+    for (let i = 0; i < Math.min(genBudget, toGen.length); i++) {
       this.generateChunk(toGen[i].cx, toGen[i].cz);
     }
 
@@ -2149,7 +2432,7 @@ export class ChunkManager {
       }
     }
 
-    // SPEC-037: Frustum culling — hide meshes outside camera view
+    // SPEC-CHUNK-OPT: Frustum culling + heightmap-based occlusion
     if (camera) {
       this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
@@ -2159,11 +2442,19 @@ export class ChunkManager {
         const chunkCenterZ = cz * CHUNK_SIZE + CHUNK_SIZE / 2;
         const dx = chunkCenterX - playerX;
         const dz = chunkCenterZ - playerZ;
+        const chunkDist = Math.sqrt(dx * dx + dz * dz);
         // Skip frustum check for close chunks (always visible)
-        if (Math.sqrt(dx * dx + dz * dz) < CHUNK_SIZE * 2) {
+        if (chunkDist < CHUNK_SIZE * 2) {
           mesh.visible = true;
         } else {
-          mesh.visible = this._frustum.containsPoint(new THREE.Vector3(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
+          // Frustum check
+          const inFrustum = this._frustum.containsPoint(new THREE.Vector3(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
+          if (!inFrustum) {
+            mesh.visible = false;
+          } else {
+            // SPEC-CHUNK-OPT: Heightmap occlusion — skip chunks hidden behind taller terrain
+            mesh.visible = this._checkOcclusion(cx, cz, pcx, pcz, chunkDist, cameraYaw);
+          }
         }
       }
       for (const [key, wmesh] of this.waterMeshes) {
@@ -2173,6 +2464,35 @@ export class ChunkManager {
 
     // SPEC-036: Update point lights for torches/lanterns near player
     this._updatePointLights(playerX, camera ? camera.position.y : 0, playerZ);
+  }
+
+  // SPEC-CHUNK-OPT: Heightmap occlusion culling
+  _checkOcclusion(cx, cz, pcx, pcz, chunkDist, cameraYaw) {
+    // Only apply occlusion for chunks > 4 chunks away
+    if (chunkDist < CHUNK_SIZE * 4) return true;
+
+    // Get heightmap for this chunk
+    const key = this._chunkKey(cx, cz);
+    const hm = this._heightmaps.get(key);
+    if (!hm) return true; // No heightmap — render it
+
+    // Check if any chunk between this and the player is tall enough to occlude
+    const dx = cx - pcx;
+    const dz = cz - pcz;
+    const steps = Math.max(Math.abs(dx), Math.abs(dz));
+    if (steps <= 1) return true;
+
+    for (let s = 1; s < steps; s++) {
+      const ix = pcx + Math.round(dx * s / steps);
+      const iz = pcz + Math.round(dz * s / steps);
+      const iKey = this._chunkKey(ix, iz);
+      const iHm = this._heightmaps.get(iKey);
+      if (!iHm) continue;
+      // If intermediate chunk is 5+ blocks taller, it occludes
+      if (iHm.avgHeight > hm.avgHeight + 5) return false;
+    }
+
+    return true;
   }
 
   // SPEC-036: Find nearest torch/lantern blocks and assign PointLights

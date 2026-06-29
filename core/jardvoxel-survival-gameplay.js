@@ -9,12 +9,20 @@ import {
   BIOMES, WorldGenPipeline, VoxelChunk,
 } from './jardvoxel-survival-engine.js';
 import {
-  MC_BLOCKS, MC_BLOCK_COLORS, MC_BLOCK_NAMES, MC_BLOCK_HARDNESS,
-  MC_PLACEABLE_BLOCKS, BLOCK,
+  MC_BLOCKS, BLOCK,
+  ALL_BLOCK_COLORS as MC_BLOCK_COLORS,
+  ALL_BLOCK_NAMES as MC_BLOCK_NAMES,
+  ALL_BLOCK_HARDNESS as MC_BLOCK_HARDNESS,
+  ALL_PLACEABLE_BLOCKS as MC_PLACEABLE_BLOCKS,
+} from './blocks-registry.js';
+import {
   buildChunkMesh, buildWaterMesh,
 } from './jardvoxel-survival-mesher.js';
 import { generateChunkWithFeatures } from './jardvoxel-survival-features.js';
 import { NetherGenerator, NETHER_BLOCKS } from './jardvoxel-survival-nether.js';
+import { CharacterGenerator, CharacterAnimator } from './jardvoxel-survival-character.js';
+import { ThirdPersonCamera } from './jardvoxel-survival-thirdperson.js';
+import { WaterMaterialManager, WATER_COLORS } from './jardvoxel-survival-water.js';
 
 // ═══════════════════════════════════════════════════════════
 // World — manages chunks, block access, meshing
@@ -39,7 +47,18 @@ export class SurvivalWorld {
     this.dimension = 'overworld';
     this.netherGenerator = new NetherGenerator();
     this.redstoneManager = null;
+    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion
+    this._frustum = new THREE.Frustum();
+    this._projScreenMatrix = new THREE.Matrix4();
+    this._heightmaps = new Map();
+    this._camera = null;
+    this.waterMaterialManager = null;
     this._initWorker();
+  }
+
+  initWaterMaterialManager(renderer, camera) {
+    this.waterMaterialManager = new WaterMaterialManager(renderer, this.scene, camera);
+    return this.waterMaterialManager;
   }
 
   _initWorker() {
@@ -141,13 +160,21 @@ export class SurvivalWorld {
       this.waterMeshes.delete(key);
     }
 
-    // Determine LOD level based on distance to player chunk
+    // SPEC-CHUNK-OPT: 5-level LOD based on distance to player chunk
     let lod = 0;
     if (this._playerChunkX !== undefined) {
-      const dist = Math.max(Math.abs(cx - this._playerChunkX), Math.abs(cz - this._playerChunkZ));
-      if (dist > this.renderDistance * 0.6) lod = 1;
-      if (dist > this.renderDistance * 0.8) lod = 2;
+      const dx = cx - this._playerChunkX;
+      const dz = cz - this._playerChunkZ;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist <= 3) lod = 0;
+      else if (dist <= 6) lod = 1;
+      else if (dist <= 10) lod = 2;
+      else if (dist <= 14) lod = 3;
+      else lod = 4;
     }
+
+    // SPEC-CHUNK-OPT: Build heightmap for occlusion culling
+    this._buildHeightmap(cx, cz, chunk);
 
     const meshData = buildChunkMesh(chunk, this, lod);
     if (meshData.positions.length === 0) return;
@@ -158,31 +185,67 @@ export class SurvivalWorld {
     geometry.setIndex(meshData.indices);
     geometry.computeVertexNormals();
 
-    const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // Low-poly look: flatShading for near chunks (LOD 0-1), Lambert for distant
+    const material = lod <= 1
+      ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0.0, flatShading: true, side: THREE.FrontSide })
+      : new THREE.MeshLambertMaterial({ vertexColors: true });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = true;
     mesh.userData.chunkKey = key;
     this.scene.add(mesh);
     this.meshes.set(key, mesh);
 
-    // Water mesh
+    // Water mesh (skip for LOD 3+ — too far for water detail)
+    if (lod < 3) {
     const waterData = buildWaterMesh(chunk, this);
     if (waterData.positions.length > 0) {
       const wGeo = new THREE.BufferGeometry();
       wGeo.setAttribute('position', new THREE.Float32BufferAttribute(waterData.positions, 3));
       wGeo.setAttribute('color', new THREE.Float32BufferAttribute(waterData.colors, 3));
+      if (waterData.uvs && waterData.uvs.length > 0) {
+        wGeo.setAttribute('uv', new THREE.Float32BufferAttribute(waterData.uvs, 2));
+      }
       wGeo.setIndex(waterData.indices);
       wGeo.computeVertexNormals();
 
-      const wMat = new THREE.MeshLambertMaterial({
-        vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false,
-      });
+      const wMat = this.waterMaterialManager
+        ? this.waterMaterialManager.getMaterial()
+        : new THREE.MeshStandardMaterial({
+            vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false,
+            roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide,
+            emissive: 0x112244, emissiveIntensity: 0.15,
+          });
       const wMesh = new THREE.Mesh(wGeo, wMat);
       wMesh.frustumCulled = true;
       wMesh.userData.chunkKey = key;
       this.scene.add(wMesh);
       this.waterMeshes.set(key, wMesh);
     }
+    } // end if lod < 3
+  }
+
+  // SPEC-CHUNK-OPT: Build heightmap for a chunk (occlusion culling)
+  _buildHeightmap(cx, cz, chunk) {
+    const heights = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+    let sum = 0;
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+      for (let z = 0; z < CHUNK_SIZE; z++) {
+        let topY = 0;
+        for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+          const b = chunk.getBlock(x, y, z);
+          if (b !== BLOCK.AIR && b !== BLOCK.WATER) {
+            topY = y;
+            break;
+          }
+        }
+        heights[x + z * CHUNK_SIZE] = topY;
+        sum += topY;
+      }
+    }
+    this._heightmaps.set(this._chunkKey(cx, cz), {
+      heights,
+      avgHeight: sum / (CHUNK_SIZE * CHUNK_SIZE),
+    });
   }
 
   getBlock(worldX, worldY, worldZ) {
@@ -197,6 +260,21 @@ export class SurvivalWorld {
     const lz = ((worldZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const ly = worldY - WORLD_MIN_Y;
     return chunk.getBlock(lx, ly, lz);
+  }
+
+  isBlockSolidForCamera(worldX, worldY, worldZ) {
+    if (worldY < WORLD_MIN_Y || worldY >= WORLD_MIN_Y + CHUNK_HEIGHT) return false;
+    const cx = Math.floor(worldX / CHUNK_SIZE);
+    const cz = Math.floor(worldZ / CHUNK_SIZE);
+    const key = this._chunkKey(cx, cz);
+    if (!this.chunks.has(key)) return false;
+    const chunk = this.chunks.get(key);
+    if (!chunk.generated) return false;
+    const lx = ((worldX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const lz = ((worldZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = worldY - WORLD_MIN_Y;
+    const block = chunk.getBlock(lx, ly, lz);
+    return block !== BLOCK.AIR && block !== BLOCK.WATER;
   }
 
   setBlock(worldX, worldY, worldZ, block) {
@@ -223,11 +301,12 @@ export class SurvivalWorld {
     return this.generator.getBiome(worldX, worldZ);
   }
 
-  update(playerX, playerZ, fps = 60) {
+  update(playerX, playerZ, fps = 60, camera = null) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
     this._playerChunkX = pcx;
     this._playerChunkZ = pcz;
+    this._camera = camera;
 
     // Adaptive render distance
     if (this._adaptiveEnabled) {
@@ -240,24 +319,53 @@ export class SurvivalWorld {
     }
     const rd = this.renderDistance;
 
-    // Generate nearby chunks (limit to 2 per frame to avoid stutter)
-    let generated = 0;
-    const maxPerFrame = 2;
-    for (let ring = 0; ring <= rd && generated < maxPerFrame; ring++) {
-      for (let dx = -ring; dx <= ring && generated < maxPerFrame; dx++) {
-        for (let dz = -ring; dz <= ring && generated < maxPerFrame; dz++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist > rd) continue;
-          const cx = pcx + dx;
-          const cz = pcz + dz;
-          const key = this._chunkKey(cx, cz);
-          if (!this.chunks.has(key) || !this.chunks.get(key).generated) {
-            this.generateChunk(cx, cz);
-            generated++;
-          }
+    // SPEC-CHUNK-OPT: Camera direction for view-direction loading
+    let cameraYaw = 0;
+    if (camera) {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      cameraYaw = Math.atan2(dir.x, dir.z);
+    }
+    const PI = Math.PI;
+    const frontArc = PI / 3;
+    const sideArc = PI / 2;
+
+    // SPEC-CHUNK-OPT: Priority queue — front > side, skip back chunks
+    const toGen = [];
+    for (let dx = -rd; dx <= rd; dx++) {
+      for (let dz = -rd; dz <= rd; dz++) {
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist > rd) continue;
+        const cx = pcx + dx, cz = pcz + dz;
+        const key = this._chunkKey(cx, cz);
+        if (this.chunks.has(key) && this.chunks.get(key).generated) continue;
+        if (this.pendingChunks.has(key)) continue;
+
+        // Classify by angle relative to camera direction
+        if (camera && dist > 1.5) {
+          const chunkAngle = Math.atan2(dx, dz);
+          let angleDiff = Math.abs(chunkAngle - cameraYaw);
+          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
+          if (angleDiff >= sideArc) continue; // Skip back chunks
         }
+
+        let priority = 0;
+        if (camera && dist > 1.5) {
+          const chunkAngle = Math.atan2(dx, dz);
+          let angleDiff = Math.abs(chunkAngle - cameraYaw);
+          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
+          priority = angleDiff < frontArc ? 0 : 1;
+        }
+
+        toGen.push({ cx, cz, dist, priority });
       }
+    }
+    toGen.sort((a, b) => a.priority - b.priority || a.dist - b.dist);
+
+    // SPEC-CHUNK-OPT: Generate up to 3 per frame (more budget since back skipped)
+    const maxPerFrame = camera ? 3 : 2;
+    for (let i = 0; i < Math.min(maxPerFrame, toGen.length); i++) {
+      this.generateChunk(toGen[i].cx, toGen[i].cz);
     }
 
     // Unload distant chunks
@@ -278,8 +386,57 @@ export class SurvivalWorld {
           this.waterMeshes.delete(key);
         }
         this.chunks.delete(key);
+        this._heightmaps.delete(key);
       }
     }
+
+    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion
+    if (camera) {
+      this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
+      for (const [key, mesh] of this.meshes) {
+        const [cx, cz] = key.split(',').map(Number);
+        const chunkCenterX = cx * CHUNK_SIZE + CHUNK_SIZE / 2;
+        const chunkCenterZ = cz * CHUNK_SIZE + CHUNK_SIZE / 2;
+        const dx = chunkCenterX - playerX;
+        const dz = chunkCenterZ - playerZ;
+        const chunkDist = Math.sqrt(dx * dx + dz * dz);
+        if (chunkDist < CHUNK_SIZE * 2) {
+          mesh.visible = true;
+        } else {
+          const inFrustum = this._frustum.containsPoint(new THREE.Vector3(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
+          if (!inFrustum) {
+            mesh.visible = false;
+          } else {
+            mesh.visible = this._checkOcclusion(cx, cz, pcx, pcz, chunkDist);
+          }
+        }
+      }
+      for (const [key, wmesh] of this.waterMeshes) {
+        wmesh.visible = this.meshes.get(key) ? this.meshes.get(key).visible : true;
+      }
+    }
+  }
+
+  // SPEC-CHUNK-OPT: Heightmap occlusion culling
+  _checkOcclusion(cx, cz, pcx, pcz, chunkDist) {
+    if (chunkDist < CHUNK_SIZE * 4) return true;
+    const key = this._chunkKey(cx, cz);
+    const hm = this._heightmaps.get(key);
+    if (!hm) return true;
+    const dx = cx - pcx;
+    const dz = cz - pcz;
+    const steps = Math.max(Math.abs(dx), Math.abs(dz));
+    if (steps <= 1) return true;
+    for (let s = 1; s < steps; s++) {
+      const ix = pcx + Math.round(dx * s / steps);
+      const iz = pcz + Math.round(dz * s / steps);
+      const iKey = this._chunkKey(ix, iz);
+      const iHm = this._heightmaps.get(iKey);
+      if (!iHm) continue;
+      if (iHm.avgHeight > hm.avgHeight + 5) return false;
+    }
+    return true;
   }
 
   getLoadedChunkCount() {
@@ -316,6 +473,12 @@ export class PlayerController {
     this.position = new THREE.Vector3(0, 80, 0);
     this.yaw = 0;
     this.pitch = 0;
+    this.body = null;
+    this.viewMode = 'first';
+    this.animator = null;
+    this.characterSeed = 0;
+    this._mining = false;
+    this.thirdPersonCamera = new ThirdPersonCamera();
   }
 
   spawn() {
@@ -392,10 +555,46 @@ export class PlayerController {
     this._moveAxis('z', this.velocity.z * dt);
     this._moveAxis('y', this.velocity.y * dt);
 
-    this.camera.position.copy(this.position);
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
+    if (this.viewMode === 'third' && this.thirdPersonCamera) {
+      this.thirdPersonCamera.update(this.camera, this, this.world);
+    } else {
+      this.camera.position.copy(this.position);
+      this.camera.rotation.order = 'YXZ';
+      this.camera.rotation.y = this.yaw;
+      this.camera.rotation.x = this.pitch;
+    }
+
+    if (this.animator && this.body) {
+      this.animator.update(dt, this, this.body);
+    }
+  }
+
+  initBody(scene, seed) {
+    this.characterSeed = seed || Math.floor(Math.random() * 2147483647);
+    this.body = CharacterGenerator.generate(this.characterSeed);
+    this.animator = new CharacterAnimator();
+    if (scene) scene.add(this.body);
+    this._updateBodyVisibility();
+  }
+
+  toggleView() {
+    this.viewMode = this.viewMode === 'first' ? 'third' : 'first';
+    this._updateBodyVisibility();
+  }
+
+  _updateBodyVisibility() {
+    if (!this.body) return;
+    const ud = this.body.userData;
+    if (this.viewMode === 'first') {
+      // Hide head entirely so it doesn't block view
+      if (ud.head) ud.head.visible = false;
+      // Keep body visible for shadow but position below camera
+      this.body.visible = true;
+    } else {
+      // Third person: show everything
+      if (ud.head) ud.head.visible = true;
+      this.body.visible = true;
+    }
   }
 
   _moveAxis(axis, amount) {
@@ -741,8 +940,8 @@ export class DayNightCycle {
     // Background color follows horizon
     this.scene.background = bottomColor.clone();
 
-    // Dynamic fog color
-    if (this.scene.fog) {
+    // Dynamic fog color — only for linear Fog, not FogExp2 (managed by VolumetricFog)
+    if (this.scene.fog && this.scene.fog.isFog) {
       this.scene.fog.color.copy(bottomColor);
     }
 

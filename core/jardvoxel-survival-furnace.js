@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
-import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS, BLOCK } from './blocks-registry.js';
 import { FISHING_BLOCKS } from './jardvoxel-survival-fishing.js';
 
 // Smelting recipes: input -> output + cook time (seconds)

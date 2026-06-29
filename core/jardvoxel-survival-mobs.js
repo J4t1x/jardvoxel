@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
-import { BLOCK } from './jardvoxel-survival-mesher.js';
+import { BLOCK } from './blocks-registry.js';
 import { BIOMES } from './jardvoxel-survival-engine.js';
 
 // Mob types configuration

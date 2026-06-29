@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-06-25  
 **Autor**: ja  
-**Estado**: Pendiente  
+**Estado**: ✅ Completado (v5.0.0 — SPEC-062)  
 **Version objetivo**: v4.3.0  
 **Spec**: SPEC-062
 

@@ -7,9 +7,12 @@ import {
   CHUNK_SIZE, CHUNK_HEIGHT, WORLD_MIN_Y, SEA_LEVEL,
   BIOMES, WorldGenPipeline, VoxelChunk,
 } from './jardvoxel-survival-engine.js';
-import { MC_BLOCKS, BLOCK } from './jardvoxel-survival-mesher.js';
+import { MC_BLOCKS, BLOCK, VEGETATION_BLOCKS } from './blocks-registry.js';
 import { PRNG } from './jardvoxel-survival-engine.js';
 import { NetherGenerator } from './jardvoxel-survival-nether.js';
+import { generateTree, getTreeTypeForBiome, TREE_TYPES } from './jardvoxel-survival-tree-personality.js';
+import { biomeIdentityManager } from './jardvoxel-survival-biome-identity.js';
+import { generateNarrativeStructure, getStructureDescription, STRUCTURE_TYPES } from './jardvoxel-survival-narrative-structures.js';
 
 // ═══════════════════════════════════════════════════════════
 // Ore generation — vein-based, depth-dependent
@@ -57,6 +60,20 @@ export function generateOres(chunk, world) {
 // Tree generation — 4 types by biome
 // ═══════════════════════════════════════════════════════════
 
+function findSurfaceY(chunk, world, x, z) {
+  const worldX = chunk.cx * CHUNK_SIZE + x;
+  const worldZ = chunk.cz * CHUNK_SIZE + z;
+  const baseHeight = world.generator.getBaseHeight(worldX, worldZ);
+  const startY = Math.min(CHUNK_HEIGHT - 1, Math.ceil(baseHeight) + 16 - WORLD_MIN_Y);
+  for (let y = startY; y >= 0; y--) {
+    const block = chunk.getBlock(x, y, z);
+    if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
+      return y;
+    }
+  }
+  return -1;
+}
+
 export function generateTrees(chunk, world) {
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
@@ -64,48 +81,23 @@ export function generateTrees(chunk, world) {
 
   for (let x = 2; x < CHUNK_SIZE - 2; x++) {
     for (let z = 2; z < CHUNK_SIZE - 2; z++) {
-      // Find surface
-      let surfaceY = -1;
-      for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-        const block = chunk.getBlock(x, y, z);
-        if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-          surfaceY = y;
-          break;
-        }
-      }
+      const surfaceY = findSurfaceY(chunk, world, x, z);
       if (surfaceY < 0 || surfaceY < SEA_LEVEL - WORLD_MIN_Y) continue;
 
       const worldX = ox + x;
       const worldZ = oz + z;
       const biome = world.getBiome(worldX, worldZ);
 
-      // Tree density by biome
-      let treeChance = 0;
-      let treeType = 'oak';
-      switch (biome) {
-        case BIOMES.FOREST: treeChance = 0.08; treeType = 'oak'; break;
-        case BIOMES.PLAINS: treeChance = 0.02; treeType = 'oak'; break;
-        case BIOMES.JUNGLE: treeChance = 0.10; treeType = 'jungle'; break;
-        case BIOMES.TAIGA: treeChance = 0.07; treeType = 'spruce'; break;
-        case BIOMES.SNOWY_PLAINS: treeChance = 0.04; treeType = 'spruce'; break;
-        case BIOMES.MEADOW: treeChance = 0.03; treeType = 'birch'; break;
-        case BIOMES.CHERRY_GROVE: treeChance = 0.05; treeType = 'oak'; break;
-        case BIOMES.SWAMP: treeChance = 0.04; treeType = 'oak'; break;
-        case BIOMES.SAVANNA: treeChance = 0.03; treeType = 'oak'; break;
-        default: continue;
-      }
+      const treeType = getTreeTypeForBiome(biome);
+      if (!treeType) continue;
 
+      const treeChance = biomeIdentityManager.getTreeChance(biome);
       if (rng.next() > treeChance) continue;
 
       const surfaceBlock = chunk.getBlock(x, surfaceY, z);
       if (surfaceBlock !== BLOCK.GRASS && surfaceBlock !== BLOCK.DIRT && surfaceBlock !== BLOCK.MUD) continue;
 
-      switch (treeType) {
-        case 'oak': placeOakTree(chunk, x, surfaceY + 1, z, rng); break;
-        case 'birch': placeBirchTree(chunk, x, surfaceY + 1, z, rng); break;
-        case 'spruce': placeSpruceTree(chunk, x, surfaceY + 1, z, rng); break;
-        case 'jungle': placeJungleTree(chunk, x, surfaceY + 1, z, rng); break;
-      }
+      generateTree(chunk, x, surfaceY + 1, z, treeType, worldX, worldZ, rng);
     }
   }
 }
@@ -220,15 +212,7 @@ export function generateDecoration(chunk, world) {
 
   for (let x = 0; x < CHUNK_SIZE; x++) {
     for (let z = 0; z < CHUNK_SIZE; z++) {
-      // Find surface
-      let surfaceY = -1;
-      for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-        const block = chunk.getBlock(x, y, z);
-        if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-          surfaceY = y;
-          break;
-        }
-      }
+      const surfaceY = findSurfaceY(chunk, world, x, z);
       if (surfaceY < 0) continue;
 
       const worldX = ox + x;
@@ -245,10 +229,17 @@ export function generateDecoration(chunk, world) {
           if (rng.next() < 0.05) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_RED);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_YELLOW);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_WHITE);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_SUNFLOWER);
+          if (rng.next() < 0.005) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
           break;
         case BIOMES.FOREST:
           if (rng.next() < 0.06) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
           if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_PURPLE);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
           break;
         case BIOMES.DESERT:
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.DEAD_BUSH);
@@ -262,21 +253,56 @@ export function generateDecoration(chunk, world) {
         case BIOMES.SAVANNA:
           if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
           if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.DEAD_BUSH);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_YELLOW);
           break;
         case BIOMES.SWAMP:
           if (rng.next() < 0.04) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.MOSS);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
+          if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.VINES);
+          if (surfaceBlock === BLOCK.WATER && rng.next() < 0.08) {
+            setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.LILY_PAD);
+          }
           break;
         case BIOMES.TAIGA:
           if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_RED);
           break;
         case BIOMES.JUNGLE:
           if (rng.next() < 0.08) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
           if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_RED);
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.BAMBOO);
+          if (rng.next() < 0.04) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.VINES);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
           break;
         case BIOMES.SNOWY_PLAINS:
           if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.SNOW_BLOCK);
+          if (rng.next() < 0.005) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_WHITE);
+          break;
+        case BIOMES.CHERRY_GROVE:
+          if (rng.next() < 0.04) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
+          if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_PINK);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_LILY);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
+          break;
+        case BIOMES.MYSTIC_GROVE:
+          if (rng.next() < 0.04) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
+          if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_RED);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.MUSHROOM_BROWN);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_PURPLE);
+          break;
+        case BIOMES.AUTUMN_FOREST:
+          if (rng.next() < 0.06) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
+          if (rng.next() < 0.03) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_TULIP);
+          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FERN);
+          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
+          break;
+        case BIOMES.OCEAN:
+        case BIOMES.DEEP_OCEAN:
+          if (surfaceBlock === BLOCK.WATER && rng.next() < 0.02) {
+            setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.CORAL_FAN);
+          }
           break;
       }
     }
@@ -298,41 +324,73 @@ export function generateStructures(chunk, world) {
   // Find center surface
   const cx = Math.floor(CHUNK_SIZE / 2);
   const cz = Math.floor(CHUNK_SIZE / 2);
-  let surfaceY = -1;
-  for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-    const block = chunk.getBlock(cx, y, cz);
-    if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-      surfaceY = y;
-      break;
-    }
-  }
+  const surfaceY = findSurfaceY(chunk, world, cx, cz);
   if (surfaceY < 0 || surfaceY < SEA_LEVEL - WORLD_MIN_Y) return;
 
   const worldX = ox + cx;
   const worldZ = oz + cz;
   const biome = world.getBiome(worldX, worldZ);
+  const worldSeed = world.seed || 0;
 
+  // INT-003: Map biome+roll to narrative structure type
+  let narrativeType = null;
   const structureRoll = rng.next();
   if (biome === BIOMES.PLAINS || biome === BIOMES.SAVANNA || biome === BIOMES.MEADOW) {
     if (structureRoll < 0.4) {
       placeVillageHouse(chunk, cx, surfaceY + 1, cz, rng);
+      narrativeType = STRUCTURE_TYPES.VILLAGE;
     } else if (structureRoll < 0.6) {
       placeWell(chunk, cx, surfaceY + 1, cz);
+    } else if (structureRoll < 0.75) {
+      narrativeType = STRUCTURE_TYPES.CAMP;
+    } else if (structureRoll < 0.85) {
+      narrativeType = STRUCTURE_TYPES.RUINED_TOWER;
     }
   } else if (biome === BIOMES.DESERT) {
     if (structureRoll < 0.3) {
       placeDesertTemple(chunk, cx, surfaceY + 1, cz);
+      narrativeType = STRUCTURE_TYPES.ANCIENT_TEMPLE;
     } else if (structureRoll < 0.5) {
       placeWell(chunk, cx, surfaceY + 1, cz);
+    } else if (structureRoll < 0.6) {
+      narrativeType = STRUCTURE_TYPES.ARCHAEOLOGICAL_SITE;
     }
   } else if (biome === BIOMES.JUNGLE) {
     if (structureRoll < 0.2) {
       placeJungleTemple(chunk, cx, surfaceY + 1, cz);
+      narrativeType = STRUCTURE_TYPES.ANCIENT_TEMPLE;
+    } else if (structureRoll < 0.3) {
+      narrativeType = STRUCTURE_TYPES.LIBRARY;
     }
   } else if (biome === BIOMES.OCEAN || biome === BIOMES.DEEP_OCEAN) {
     if (structureRoll < 0.15) {
       placeOceanMonument(chunk, cx, surfaceY + 1, cz);
+      narrativeType = STRUCTURE_TYPES.SHIPWRECK;
     }
+  } else if (biome === BIOMES.MOUNTAINS || biome === BIOMES.SNOWY_PEAKS || biome === BIOMES.STONY_PEAKS) {
+    if (structureRoll < 0.15) {
+      narrativeType = STRUCTURE_TYPES.OBSERVATORY;
+    } else if (structureRoll < 0.25) {
+      narrativeType = STRUCTURE_TYPES.CASTLE_RUINS;
+    }
+  } else if (biome === BIOMES.FOREST || biome === BIOMES.TAIGA || biome === BIOMES.CHERRY_GROVE) {
+    if (structureRoll < 0.1) {
+      narrativeType = STRUCTURE_TYPES.MINESHAFT;
+    } else if (structureRoll < 0.15) {
+      narrativeType = STRUCTURE_TYPES.LIBRARY;
+    }
+  }
+
+  // INT-003: Generate narrative metadata and attach to chunk
+  if (narrativeType) {
+    const narrative = generateNarrativeStructure(narrativeType, chunk.cx, chunk.cz, worldSeed);
+    if (!chunk.narrativeStructures) chunk.narrativeStructures = [];
+    chunk.narrativeStructures.push({
+      ...narrative,
+      worldX,
+      worldZ,
+      worldY: surfaceY + WORLD_MIN_Y + 1,
+    });
   }
 }
 

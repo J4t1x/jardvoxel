@@ -34,6 +34,20 @@ jardvoxel/
 ├── jardvoxel-survival-achievements.js # AchievementManager (SPEC-064)
 ├── jardvoxel-survival-anvil.js # AnvilManager (SPEC-065)
 ├── jardvoxel-survival-map.js   # MapManager, cartografia (SPEC-066)
+├── tests/                        # Suite de tests del core (163 tests)
+│   ├── setup.js                  # Mocks: localStorage, indexedDB, Three.js
+│   ├── mocks/three.js            # Mock minimal de Three.js
+│   ├── blocks-registry.test.js   # 22 tests: BLOCK, MC_BLOCKS, colores, nombres, hardness
+│   ├── engine.test.js            # 31 tests: PRNG, PerlinNoise3D, Spline, WorldGen, VoxelChunk, GreedyMesher
+│   ├── crafting.test.js          # 12 tests: RECIPES, CraftingManager (shaped/shapeless)
+│   ├── health.test.js            # 21 tests: HealthHungerSystem (damage, hunger, regen, drowning)
+│   ├── tools.test.js             # 26 tests: ToolItem, EquipmentManager (durability, armor)
+│   ├── furnace.test.js           # 17 tests: FurnaceEntity, FurnaceManager (smelting, fuel)
+│   ├── achievements.test.js      # 13 tests: ACHIEVEMENTS, AchievementManager
+│   ├── gameplay.test.js          # 11 tests: Inventory (hotbar, addBlock, creative/survival)
+│   └── save.test.js              # 10 tests: SaveManager (IndexedDB, save/load world/chunks)
+├── package.json                  # Config npm (vitest + jsdom devDeps)
+├── vitest.config.js              # Config Vitest con alias Three.js mock
 └── docs/
     ├── README.md               # Este archivo (indice de documentacion)
     ├── ARCHITECTURE.md         # Arquitectura tecnica del motor
@@ -62,6 +76,7 @@ jardvoxel/
 | [PRD-CHILLTUNE-MUSIC.md](./PRD-CHILLTUNE-MUSIC.md) | PRD: Sistema de musica 8-bit dinamica relajante |
 | [PRD-TOUCH-JOYSTICK.md](./PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles (pendiente) |
 | [PRD-MOBILE-MENU.md](./PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones (pendiente) |
+| [TESTING.md](./TESTING.md) | Suite de tests del core: 163 tests con Vitest |
 
 ## Stack Tecnologico
 
@@ -69,6 +84,7 @@ jardvoxel/
 - **PointerLockControls** (three/addons)
 - **Vanilla JS** (sin frameworks, sin build tools)
 - **WebGL** (renderizado 3D con sombras)
+- **Vitest 2.1.9** (testing del core, con jsdom + mocks de Three.js/indexedDB)
 
 ## Como Jugar
 
@@ -114,12 +130,47 @@ Abrir `jardvoxel.html` en un navegador moderno (Chrome/Firefox/Edge). Click en l
 - **Particulas**: efectos de minado, colocacion, clima
 - **Bug audit**: 10 bugs encontrados y resueltos (3 critical, 3 moderate, 4 minor)
 
+## Testing del Core
+
+La suite de tests usa **Vitest** con entorno **jsdom** y mocks de Three.js e IndexedDB.
+
+### Ejecutar tests
+
+```bash
+cd games/jardvoxel
+npx vitest run          # una vez
+npx vitest              # watch mode
+```
+
+### Cobertura
+
+| Archivo | Tests | Modulo cubierto |
+|---------|-------|-----------------|
+| `blocks-registry.test.js` | 22 | BLOCK, MC_BLOCKS, colores, nombres, hardness, placeable blocks |
+| `engine.test.js` | 31 | PRNG, PerlinNoise3D, Spline, WorldGenPipeline, VoxelChunk, GreedyMesher |
+| `crafting.test.js` | 12 | RECIPES, CraftingManager (shaped/shapeless, normalizacion, consume) |
+| `health.test.js` | 21 | HealthHungerSystem (damage, hunger, regen, starvation, drowning, serialize) |
+| `tools.test.js` | 26 | ToolItem, EquipmentManager (durability, mining speed, armor reduction) |
+| `furnace.test.js` | 17 | FurnaceEntity, FurnaceManager (smelting, fuel, cook time, serialize) |
+| `achievements.test.js` | 13 | ACHIEVEMENTS, AchievementManager (unlock, stats, serialize) |
+| `gameplay.test.js` | 11 | Inventory (hotbar, addBlock, removeSelected, creative/survival) |
+| `save.test.js` | 10 | SaveManager (init, saveWorld, saveChunk, loadChunk, clearAll, autosave) |
+| **Total** | **163** | **9 modulos core** |
+
+### Configuracion
+
+- `vitest.config.js` — alias de `three` y CDN de Three.js a mock local
+- `tests/setup.js` — mocks globales de `localStorage`, `indexedDB`, `console.warn`
+- `tests/mocks/three.js` — mock minimal de Three.js (Vector3, Group, Mesh, Scene, etc.)
+- `node_modules` — symlink a `jardfruit-pro/node_modules` (dependencias compartidas)
+
 ## Estado
 
-- **Version:** 4.2.0
-- **Estado:** Jugable con gameplay completo + mobs + combate + herramientas + encantamientos + aldeanos + pesca + nether + redstone + musica + pociones + escudos + logros + yunque + mapas
-- **Dependencias:** Three.js (CDN)
-- **Tamaño:** ~500KB total (28 archivos JS + 2 HTML + docs)
-- **Specs completadas:** SPEC-025 a SPEC-066 (42 specs)
+- **Version:** 5.1.0
+- **Estado:** Jugable con gameplay completo + core test suite (163 tests)
+- **Dependencias:** Three.js (CDN), Vitest (dev)
+- **Tamaño:** ~500KB total (28 archivos JS + 2 HTML + docs + tests)
+- **Specs completadas:** SPEC-025 a SPEC-067 (43 specs)
 - **Bugs resueltos:** 10/10 (BUG-001 a BUG-010)
+- **Tests core:** 163 tests en 9 archivos (Vitest + jsdom)
 - **PRDs pendientes:** Touch Joystick (SPEC-062 mobile), Game Menu (SPEC-063 mobile)
