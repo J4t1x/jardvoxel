@@ -7,58 +7,58 @@
 import * as THREE from 'three';
 
 export const BIOME_FOG_DENSITY = {
-  desert: 0.0008,
-  forest: 0.0015,
-  ocean: 0.0012,
-  cave: 0.045,
-  plains: 0.0008,
-  mountains: 0.0005,
-  swamp: 0.008,
-  beach: 0.001,
-  taiga: 0.0015,
-  snowy_plains: 0.001,
-  snowy_peaks: 0.0004,
-  stony_peaks: 0.0005,
-  meadow: 0.0008,
-  jungle: 0.002,
-  savanna: 0.0008,
-  cherry_grove: 0.001,
-  river: 0.0012,
-  deep_ocean: 0.0015,
-  mystic_grove: 0.0015,
-  autumn_forest: 0.0015,
-  default: 0.0008,
+  desert: 0.0010,
+  forest: 0.0018,
+  ocean: 0.0014,
+  cave: 0.035,
+  plains: 0.0010,
+  mountains: 0.0006,
+  swamp: 0.0096,
+  beach: 0.0012,
+  taiga: 0.0018,
+  snowy_plains: 0.0012,
+  snowy_peaks: 0.0005,
+  stony_peaks: 0.0006,
+  meadow: 0.0010,
+  jungle: 0.0024,
+  savanna: 0.0010,
+  cherry_grove: 0.0012,
+  river: 0.0014,
+  deep_ocean: 0.0018,
+  mystic_grove: 0.0018,
+  autumn_forest: 0.0018,
+  default: 0.0010,
 };
 
 // SPEC-BIOME-OVERHAUL: Biome-specific fog colors
 const BIOME_FOG_COLORS = {
-  ocean: 0x6690C0,
-  deep_ocean: 0x4A70A0,
-  beach: 0xC0D8F0,
-  plains: 0xA0D0E0,
-  forest: 0x80A890,
-  jungle: 0x90C0A8,
-  desert: 0xF0D090,
-  savanna: 0xE0D090,
-  taiga: 0x90A8C0,
+  ocean: 0x6A98C8,
+  deep_ocean: 0x4A78A8,
+  beach: 0xC8E0F0,
+  plains: 0xB8D8E0,
+  forest: 0x88B098,
+  jungle: 0x98C8B0,
+  desert: 0xF0D8A0,
+  savanna: 0xE0D8A0,
+  taiga: 0x98B0C8,
   snowy_plains: 0xE0E8F0,
-  snowy_peaks: 0xD8E0EC,
-  stony_peaks: 0xB0B8C0,
-  mountains: 0xA0B0C0,
-  meadow: 0xB0D8E0,
-  cherry_grove: 0xE0B0C8,
-  swamp: 0x708070,
-  river: 0x90B8D0,
-  mystic_grove: 0x9080B0,
-  autumn_forest: 0xC0A070,
-  default: 0x87CEEB,
+  snowy_peaks: 0xD8E8F0,
+  stony_peaks: 0xB0B8C8,
+  mountains: 0x98A8B8,
+  meadow: 0xC0E0E8,
+  cherry_grove: 0xE8B8D0,
+  swamp: 0x788878,
+  river: 0x98C0D8,
+  mystic_grove: 0x9088B8,
+  autumn_forest: 0xC8A878,
+  default: 0xA8C8E0,
 };
 
 const TIME_COLORS = {
-  dawn: { color: new THREE.Color(0xffb07a), density: 0.0008 },
-  day: { color: new THREE.Color(0x87ceeb), density: 0.0004 },
-  sunset: { color: new THREE.Color(0xff8c5a), density: 0.001 },
-  night: { color: new THREE.Color(0x0a0a2a), density: 0.0015 },
+  dawn: { color: new THREE.Color(0xFFC8A0), density: 0.0010 },
+  day: { color: new THREE.Color(0xA8C8E0), density: 0.0006 },
+  sunset: { color: new THREE.Color(0xFFB890), density: 0.0012 },
+  night: { color: new THREE.Color(0x1A1A3A), density: 0.0012 },
 };
 
 const CAVE_FOG_COLOR = new THREE.Color(0x050505);
@@ -72,19 +72,19 @@ export class VolumetricFog {
     this._currentBiome = null;
     this._targetDensity = 0.0008;
     this._currentDensity = 0.0008;
-    this._targetColor = new THREE.Color(0x87ceeb);
-    this._currentColor = new THREE.Color(0x87ceeb);
+    this._targetColor = new THREE.Color(0xA8C8E0);
+    this._currentColor = new THREE.Color(0xA8C8E0);
     this._isCave = false;
     this._underwaterFog = null;
     this._normalFog = null;
-    this._lerpSpeed = 2.0;
+    this._lerpSpeed = 3.0;
 
     this._init();
   }
 
   _init() {
-    this._normalFog = new THREE.FogExp2(0x87ceeb, 0.0008);
-    this._underwaterFog = new THREE.FogExp2(0x1a4080, 0.08);
+    this._normalFog = new THREE.FogExp2(0xA8C8E0, 0.0010);
+    this._underwaterFog = new THREE.FogExp2(0x1A5078, 0.07);
     this.scene.fog = this._normalFog;
   }
 
@@ -180,7 +180,9 @@ export class VolumetricFog {
       // Horizon blending: increase fog exponentially at distance for smooth skydome transition
       // This creates the illusion of infinite world by fading terrain into sky
       const horizonFactor = Math.pow(this._rdDensityMultiplier || 1, 2);
-      finalDensity *= horizonFactor;
+      // DistantTerrainRing: boost fog at horizon to blend fake terrain with sky
+      const horizonBoost = 1.0 + (1.0 - (this._rdDensityMultiplier || 1)) * 0.8;
+      finalDensity *= horizonFactor * horizonBoost;
       
       // Reduce fog density near camera to avoid hiding terrain
       // Apply a falloff based on render distance - less fog closer to player

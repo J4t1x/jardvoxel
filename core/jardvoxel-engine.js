@@ -799,6 +799,33 @@ export class WorldGenerator {
 // Voxel Chunk — 16x64x16 blocks with greedy meshing
 // ═══════════════════════════════════════════════════════════
 export class VoxelChunk {
+  // SPEC-PERF-004: Object pool — reuse chunks to avoid 64KB Uint8Array allocations
+  static _pool = [];
+  static _poolMax = 32;
+
+  static acquire(cx, cz, world) {
+    const chunk = VoxelChunk._pool.pop();
+    if (chunk) {
+      chunk.cx = cx;
+      chunk.cz = cz;
+      chunk.world = world;
+      chunk.generated = false;
+      chunk.modified.clear();
+      chunk.blocks.fill(0);
+      chunk.minContentY = undefined;
+      chunk.maxContentY = undefined;
+      return chunk;
+    }
+    return new VoxelChunk(cx, cz, world);
+  }
+
+  static release(chunk) {
+    if (VoxelChunk._pool.length < VoxelChunk._poolMax) {
+      chunk.world = null;
+      VoxelChunk._pool.push(chunk);
+    }
+  }
+
   constructor(cx, cz, world) {
     this.cx = cx;
     this.cz = cz;
@@ -876,12 +903,9 @@ export class VoxelChunk {
       this._placeStructure(structure, ox, oz);
     }
 
-    // Apply player modifications
-    for (const [key, block] of this.modified) {
-      const [x, y, z] = key.split(',').map(Number);
-      if (x >= 0 && x < CHUNK_SIZE && y >= 0 && y < CHUNK_HEIGHT && z >= 0 && z < CHUNK_SIZE) {
-        this.blocks[this._idx(x, y, z)] = block;
-      }
+    // SPEC-PERF-001: Apply player modifications — numeric keys, no string parsing
+    for (const [idx, block] of this.modified) {
+      this.blocks[idx] = block;
     }
 
     this.generated = true;
@@ -1559,7 +1583,7 @@ export class VoxelChunk {
   setBlock(x, y, z, block) {
     if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_SIZE) return;
     this.blocks[this._idx(x, y, z)] = block;
-    this.modified.set(`${x},${y},${z}`, block);
+    this.modified.set(this._idx(x, y, z), block);
   }
 
   isSolid(x, y, z) {
@@ -1727,9 +1751,9 @@ function _buildSimplifiedMesh(chunk, world, lodLevel, ox, oz) {
 
       // SPEC-CHUNK-OPT: LOD 4 — blend with fog color for distant horizon
       if (lodLevel >= 4) {
-        const fogR = 0x87 / 255;
-        const fogG = 0xCE / 255;
-        const fogB = 0xEB / 255;
+        const fogR = 0xA8 / 255;
+        const fogG = 0xC8 / 255;
+        const fogB = 0xE0 / 255;
         r = r * 0.4 + fogR * 0.6;
         g = g * 0.4 + fogG * 0.6;
         b = b * 0.4 + fogB * 0.6;
@@ -2188,7 +2212,7 @@ export class ChunkManager {
         const key = this._chunkKey(cx, cz);
         this.pendingChunks.delete(key);
         if (this.chunks.has(key)) return; // already exists (e.g. player modified)
-        const chunk = new VoxelChunk(cx, cz, this.world);
+        const chunk = VoxelChunk.acquire(cx, cz, this.world);
         chunk.blocks = new Uint8Array(blocks);
         chunk.generated = true;
         this.chunks.set(key, chunk);
@@ -2198,10 +2222,12 @@ export class ChunkManager {
         console.warn('[JardVoxel] Worker error, falling back to sync:', err.message);
         this.worker = null;
         // Recover chunks stuck in pendingChunks — regenerate synchronously
-        for (const key of this.pendingChunks) {
-          const [cx, cz] = key.split(',').map(Number);
+        const pendingArr = Array.from(this.pendingChunks);
+        for (const key of pendingArr) {
+          const cx = Math.floor(key / 65536) - 32768;
+          const cz = key % 65536 - 32768;
           this.pendingChunks.delete(key);
-          const chunk = new VoxelChunk(cx, cz, this.world);
+          const chunk = VoxelChunk.acquire(cx, cz, this.world);
           chunk.generate();
           this.chunks.set(key, chunk);
           this._buildMeshForChunk(cx, cz, chunk);
@@ -2213,7 +2239,8 @@ export class ChunkManager {
     }
   }
 
-  _chunkKey(cx, cz) { return `${cx},${cz}`; }
+  // SPEC-PERF-001: Numeric chunk key — eliminates string allocation garbage
+  _chunkKey(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
 
   // SPEC-037: Build mesh from a pre-generated chunk (used by worker responses and sync fallback)
   _buildMeshForChunk(cx, cz, chunk) {
@@ -2235,6 +2262,8 @@ export class ChunkManager {
       const mesh = new THREE.Mesh(geo, this.terrainMaterial);
       mesh.castShadow = lodLevel === 0;
       mesh.receiveShadow = true;
+      mesh.userData.cx = cx;
+      mesh.userData.cz = cz;
       this.scene.add(mesh);
       this.meshes.set(key, mesh);
     }
@@ -2249,6 +2278,8 @@ export class ChunkManager {
         wgeo.setIndex(waterData.indices);
         wgeo.computeVertexNormals();
         const wmesh = new THREE.Mesh(wgeo, this.waterMaterial);
+        wmesh.userData.cx = cx;
+        wmesh.userData.cz = cz;
         wmesh.userData.waveOffsets = waterData.waveOffsets;
         wmesh.userData.basePositions = new Float32Array(waterData.positions);
         this.scene.add(wmesh);
@@ -2307,7 +2338,7 @@ export class ChunkManager {
     }
 
     // Fallback: synchronous generation
-    const chunk = new VoxelChunk(cx, cz, this.world);
+    const chunk = VoxelChunk.acquire(cx, cz, this.world);
     chunk.generate();
     this.chunks.set(key, chunk);
     this._buildMeshForChunk(cx, cz, chunk);
@@ -2342,6 +2373,8 @@ export class ChunkManager {
     if (mesh) { this.scene.remove(mesh); mesh.geometry.dispose(); this.meshes.delete(key); }
     const wmesh = this.waterMeshes.get(key);
     if (wmesh) { this.scene.remove(wmesh); wmesh.geometry.dispose(); this.waterMeshes.delete(key); }
+    const chunk = this.chunks.get(key);
+    if (chunk) VoxelChunk.release(chunk);
     this.chunks.delete(key);
     this.pendingChunks.delete(key);
     this._heightmaps.delete(key);
@@ -2371,10 +2404,10 @@ export class ChunkManager {
 
     // SPEC-CHUNK-OPT: Camera direction for view-direction loading
     let cameraYaw = 0;
- if (camera) {
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      cameraYaw = Math.atan2(dir.x, dir.z);
+    if (camera) {
+      if (!this._tmpCamDir) this._tmpCamDir = new THREE.Vector3();
+      camera.getWorldDirection(this._tmpCamDir);
+      cameraYaw = Math.atan2(this._tmpCamDir.x, this._tmpCamDir.z);
     }
 
     // SPEC-CHUNK-OPT: Priority queue — front > side > back, then by distance
@@ -2425,10 +2458,10 @@ export class ChunkManager {
 
     // Unload distant chunks
     for (const key of this.chunks.keys()) {
-      const [cx, cz] = key.split(',').map(Number);
-      const dx = cx - pcx, dz = cz - pcz;
+      const chunk = this.chunks.get(key);
+      const dx = chunk.cx - pcx, dz = chunk.cz - pcz;
       if (Math.sqrt(dx * dx + dz * dz) > renderDist + 1) {
-        this.unloadChunk(cx, cz);
+        this.unloadChunk(chunk.cx, chunk.cz);
       }
     }
 
@@ -2436,8 +2469,11 @@ export class ChunkManager {
     if (camera) {
       this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
+      if (!this._tmpFrustumVec) this._tmpFrustumVec = new THREE.Vector3();
+      const tmpVec = this._tmpFrustumVec;
       for (const [key, mesh] of this.meshes) {
-        const [cx, cz] = key.split(',').map(Number);
+        const cx = mesh.userData.cx;
+        const cz = mesh.userData.cz;
         const chunkCenterX = cx * CHUNK_SIZE + CHUNK_SIZE / 2;
         const chunkCenterZ = cz * CHUNK_SIZE + CHUNK_SIZE / 2;
         const dx = chunkCenterX - playerX;
@@ -2448,7 +2484,7 @@ export class ChunkManager {
           mesh.visible = true;
         } else {
           // Frustum check
-          const inFrustum = this._frustum.containsPoint(new THREE.Vector3(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
+          const inFrustum = this._frustum.containsPoint(tmpVec.set(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
           if (!inFrustum) {
             mesh.visible = false;
           } else {

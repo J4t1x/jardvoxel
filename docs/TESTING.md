@@ -14,12 +14,14 @@ npx vitest run --reporter verbose  # salida detallada
 ## Resultado actual
 
 ```
-Test Files  9 passed (9)
-     Tests  163 passed (163)
-  Duration  ~7s
+Test Files  33 passed (33)
+     Tests  163+ passed
+  Duration  ~10s
 ```
 
 ## Cobertura por modulo
+
+### Core Tests (9 archivos, 163 tests)
 
 | Archivo | Tests | Modulo | Que se testea |
 |---------|-------|--------|---------------|
@@ -32,6 +34,35 @@ Test Files  9 passed (9)
 | `achievements.test.js` | 13 | `jardvoxel-survival-achievements.js` | ACHIEVEMENTS, AchievementManager (unlock, stats, auto-unlock, serialize) |
 | `gameplay.test.js` | 11 | `jardvoxel-survival-gameplay.js` | Inventory (hotbar, addBlock, removeSelected, creative vs survival) |
 | `save.test.js` | 10 | `jardvoxel-survival-save.js` | SaveManager (init, saveWorld/loadWorld, saveChunk/loadChunk, getAllChunkKeys, clearAll, autosave) |
+
+### Extended Tests (24 archivos adicionales)
+
+| Archivo | Modulo testado |
+|---------|----------------|
+| `noise-system.test.js` | SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender |
+| `biome-identity.test.js` | BiomeIdentityManager (identidad visual, sonido, fauna por bioma) |
+| `ambient-sound.test.js` | AmbientSoundManager (perfiles, ciclo fauna dawn/day/dusk/night, reverberacion) |
+| `ambient-particles.test.js` | AmbientParticleSystem (particulas por bioma) |
+| `chilltune2.test.js` | ChillTuneEngine 2.0 (estados, escalas, crossfade, stingers) |
+| `conversation.test.js` | ConversationSystem (dialogo natural, contexto, JSON) |
+| `quests.test.js` | QuestManager (misiones dinamicas, progreso, completado) |
+| `npc-memory.test.js` | NPCMemorySystem (memoria persistente, relaciones) |
+| `civilizations.test.js` | CivilizationSystem (civilizaciones antiguas, descubrimiento) |
+| `lore.test.js` | LoreGenerator (lore procedural, libros) |
+| `narrative-structures.test.js` | NarrativeStructures (estructuras con historia, loot) |
+| `events.test.js` | EventManager (eventos emergentes) |
+| `fog.test.js` | VolumetricFog (niebla atmosferica, getter .fog) |
+| `forest-canopy.test.js` | ForestCanopyManager (canopy visual, fog enhancement) |
+| `interior-lighting.test.js` | InteriorLightingManager (luz interior) |
+| `postprocessing.test.js` | PostprocessingManager (bloom, tonemapping) |
+| `shadow.test.js` | ShadowManager (sombras suaves PCF) |
+| `water.test.js` | WaterMaterialManager (agua transparente) |
+| `tree-personality.test.js` | TreePersonalitySystem (personalidad de arboles) |
+| `ground-vegetation.test.js` | GroundVegetation (vegetacion de suelo) |
+| `ui-overhaul.test.js` | UIManager 5.0 (dialogue, quest tracker, journal, toasts) |
+| `ai-server.test.js` | AI Server (Ollama integration, LLM interface) |
+| `hydrology.test.js` | HydrologySystem (rios, lagos, erosion) |
+| `voronoi.test.js` | VoronoiBiomes (fronteras naturales) |
 
 ## Configuracion
 
@@ -68,18 +99,19 @@ Mock minimal de Three.js con las clases usadas por el core:
 ln -sf ../jardfruit-pro/node_modules node_modules
 ```
 
-## Que NO se testea (todavia)
+## Modulos no testeados (aun)
 
-Los siguientes modulos requieren mocks mas complejos de Three.js o dependencias cruzadas:
+Los siguientes modulos requieren mocks mas complejos de Three.js o integracion completa:
 
-- `jardvoxel-survival-mobs.js` — requiere mock de Mesh/Geometry
+- `jardvoxel-survival-mobs.js` — requiere mock de Mesh/Geometry + IA
 - `jardvoxel-survival-features.js` — requiere WorldGenPipeline + VoxelChunk integrados
 - `jardvoxel-survival-mesher.js` — requiere mock de BufferGeometry
 - `jardvoxel-survival-weather.js` — requiere Scene + DayNightCycle
 - `jardvoxel-survival-particles.js` — requiere Scene + BufferGeometry
 - `jardvoxel-survival-character.js` — requiere mock extenso de Three.js
 - `jardvoxel-survival-gameplay.js` (SurvivalWorld, PlayerController, DayNightCycle, GameAudio) — requieren Three.js + DOM
-- Modulos avanzados: enchanting, villagers, fishing, nether, redstone, brewing, shields, anvil, map, chilltune
+- `jardvoxel-zen-game.js` — requiere integracion completa + Three.js
+- Modulos world hierarchy: world-hierarchy, landmarks, ecosystems, contextual, layers, streaming, worker-pool, microsectors, instanced, poisson
 
 ## Como anadir tests nuevos
 

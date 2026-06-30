@@ -117,7 +117,7 @@ export class InstancedFeatureRenderer {
   // Scan chunk for feature blocks and build instanced meshes
   buildForChunk(cx, cz, chunk, lodLevel = 0) {
     if (!this._enabled) return;
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     // Remove old instances for this chunk
     this.disposeChunk(key);
 

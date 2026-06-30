@@ -119,7 +119,7 @@ export const BIOME_FINGERPRINTS = {
     humidity: 0.7,
     ambientSound: AMBIENT_SOUNDS.BIRDS,
     musicMood: MUSIC_MOODS.WARM,
-    particles: BIOME_PARTICLES.POLLEN,
+    particles: BIOME_PARTICLES.FIREFLIES,
     fauna: { passive: ['cow', 'sheep', 'pig', 'chicken'], hostile: ['zombie', 'skeleton', 'spider'] },
   },
   jungle: {
@@ -130,7 +130,7 @@ export const BIOME_FINGERPRINTS = {
     humidity: 0.9,
     ambientSound: AMBIENT_SOUNDS.INSECTS,
     musicMood: MUSIC_MOODS.WARM,
-    particles: BIOME_PARTICLES.NONE,
+    particles: BIOME_PARTICLES.LEAVES,
     fauna: { passive: ['parrot', 'ocelot'], hostile: ['zombie', 'skeleton', 'creeper'] },
   },
   desert: {
@@ -285,7 +285,7 @@ export const BIOME_FINGERPRINTS = {
     humidity: 0.55,
     ambientSound: AMBIENT_SOUNDS.WIND,
     musicMood: MUSIC_MOODS.CALM,
-    particles: BIOME_PARTICLES.NONE,
+    particles: BIOME_PARTICLES.MIST,
     fauna: { passive: ['rabbit'], hostile: [] },
   },
   bamboo_grove: {
@@ -296,7 +296,7 @@ export const BIOME_FINGERPRINTS = {
     humidity: 0.75,
     ambientSound: AMBIENT_SOUNDS.LEAVES_RUSTLING,
     musicMood: MUSIC_MOODS.CALM,
-    particles: BIOME_PARTICLES.POLLEN,
+    particles: BIOME_PARTICLES.LEAVES,
     fauna: { passive: ['panda', 'rabbit'], hostile: [] },
   },
   aurora_tundra: {
@@ -307,7 +307,7 @@ export const BIOME_FINGERPRINTS = {
     humidity: 0.45,
     ambientSound: AMBIENT_SOUNDS.WIND,
     musicMood: MUSIC_MOODS.MAGICAL,
-    particles: BIOME_PARTICLES.SNOWFLAKES,
+    particles: BIOME_PARTICLES.BIOLUMINESCENCE,
     fauna: { passive: ['fox', 'rabbit'], hostile: [] },
   },
 };

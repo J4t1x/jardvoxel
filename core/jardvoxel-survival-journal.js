@@ -39,7 +39,6 @@ export class ExplorationJournal {
       highestResonance: 0,
     };
     this._lastPlayerPos = null;
-    this._load();
   }
 
   // Add a journal entry
@@ -56,7 +55,6 @@ export class ExplorationJournal {
     if (this._entries.length > MAX_ENTRIES) {
       this._entries.shift();
     }
-    this._save();
     return entry;
   }
 
@@ -147,27 +145,9 @@ export class ExplorationJournal {
     }
   }
 
-  // Save to localStorage
-  _save() {
-    try {
-      const data = JSON.stringify(this.serialize());
-      localStorage.setItem(STORAGE_KEY, data);
-    } catch (e) {
-      // localStorage might be full or unavailable
-    }
-  }
+  // Save is handled by ZenGame main save system — no independent localStorage
 
-  // Load from localStorage
-  _load() {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (data) {
-        this.deserialize(JSON.parse(data));
-      }
-    } catch (e) {
-      // Corrupted data, start fresh
-    }
-  }
+  // Load is handled by ZenGame main save system — no independent localStorage
 
   // Clear journal
   clear() {
@@ -183,7 +163,7 @@ export class ExplorationJournal {
       timePlayed: 0,
       highestResonance: 0,
     };
-    this._save();
+    this._save = () => {};
   }
 }
 

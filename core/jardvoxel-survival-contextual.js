@@ -3,7 +3,7 @@
 // SPEC-110: Structures use geographic info for placement
 // ═══════════════════════════════════════════════════════════
 
-import { BIOMES, REGION_TYPES, ZONE_TYPES } from './jardvoxel-survival-world-hierarchy.js';
+import { BIOMES, REGION_TYPES, ZONE_TYPES, CHUNK_SIZE } from './jardvoxel-survival-world-hierarchy.js';
 
 // Structure placement rules
 const STRUCTURE_RULES = {
@@ -81,7 +81,7 @@ export class ContextualStructureSystem {
 
   // Check if a structure should be placed at chunk coordinates
   tryPlaceStructure(cx, cz, context, heightCheckFn) {
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     if (this.placedStructures.has(key)) return this.placedStructures.get(key);
 
     const { zone, region, biomeWeights, heightMap, continent } = context;
@@ -147,7 +147,7 @@ export class ContextualStructureSystem {
 
   // Get structure at chunk coordinates
   getStructure(cx, cz) {
-    return this.placedStructures.get(`${cx},${cz}`) || null;
+    return this.placedStructures.get((cx + 32768) * 65536 + (cz + 32768)) || null;
   }
 
   // Generate structure blocks
@@ -181,8 +181,8 @@ export class ContextualStructureSystem {
   }
 
   _placeVillage(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // 2-3 small houses + well
     this._placeHouse(cx - 4, cz - 2, y, setBlock, 5, 4);
     this._placeHouse(cx + 2, cz - 2, y, setBlock, 5, 4);
@@ -224,8 +224,8 @@ export class ContextualStructureSystem {
   }
 
   _placeTemple(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Pyramid 7x7, 4 layers
     for (let layer = 0; layer < 4; layer++) {
       const half = 3 - layer;
@@ -242,8 +242,8 @@ export class ContextualStructureSystem {
   }
 
   _placePort(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Dock extending toward water
     for (let dz = 0; dz < 8; dz++) {
       setBlock(cx - 1, y, cz + dz, 'planks');
@@ -258,8 +258,8 @@ export class ContextualStructureSystem {
   }
 
   _placeMine(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Mine entrance
     for (let dy = 0; dy < 4; dy++) {
       setBlock(cx - 1, y + dy, cz, 'air');
@@ -285,8 +285,8 @@ export class ContextualStructureSystem {
   }
 
   _placeRuinsStruct(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Broken walls
     const walls = [
       { x: cx - 3, z: cz - 3, len: 6, dir: 'x', broken: [2, 4] },
@@ -313,8 +313,8 @@ export class ContextualStructureSystem {
   }
 
   _placeWatchtower(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Tower 5x5, height 12
     for (let dy = 0; dy < 12; dy++) {
       for (let dx = -2; dx <= 2; dx++) {
@@ -359,11 +359,11 @@ export class ContextualStructureSystem {
   _nearOcean(cx, cz, radius) {
     // Check if ocean is within radius chunks
     // This is a simplified check — in practice would sample continent map
-    const ox = cx * 16;
-    const oz = cz * 16;
+    const ox = cx * CHUNK_SIZE;
+    const oz = cz * CHUNK_SIZE;
     for (let dx = -radius; dx <= radius; dx++) {
       for (let dz = -radius; dz <= radius; dz++) {
-        const value = this._hash(ox + dx * 16, oz + dz * 16);
+        const value = this._hash(ox + dx * CHUNK_SIZE, oz + dz * CHUNK_SIZE);
         if (value < 0.3) return true; // Simplified ocean check
       }
     }

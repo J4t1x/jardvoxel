@@ -97,6 +97,32 @@ export class CharacterGenerator {
     return this._buildBody(dna);
   }
 
+  dispose() {
+    if (this.group) {
+      this.group.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      });
+      if (this.group.parent) this.group.parent.remove(this.group);
+      this.group = null;
+    }
+  }
+
+  static disposeGroup(group) {
+    if (!group) return;
+    group.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+        else obj.material.dispose();
+      }
+    });
+    if (group.parent) group.parent.remove(group);
+  }
+
   static _buildBody(dna) {
     const group = new THREE.Group();
     group.name = 'character';

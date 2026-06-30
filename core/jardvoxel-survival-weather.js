@@ -298,6 +298,10 @@ export class WeatherManager {
     return climateData.type;
   }
 
+  setWeather(weather, playerPos, world) {
+    this._setWeather(weather, playerPos, world);
+  }
+
   _setWeather(weather, playerPos, world) {
     this.currentWeather = weather;
 
@@ -317,8 +321,8 @@ export class WeatherManager {
 
     // Adjust scene visuals
     if (weather === WEATHER.CLEAR) {
-      this.scene.background = new THREE.Color(0x87ceeb);
-      this.scene.fog = new THREE.Fog(0x87ceeb, 30, 55);
+      this.scene.background = new THREE.Color(0xA8C8E0);
+      this.scene.fog = new THREE.Fog(0xA8C8E0, 30, 55);
       this._clearParticles();
     } else if (weather === WEATHER.RAIN) {
       this.scene.background = new THREE.Color(0x6a7a8a);

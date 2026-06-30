@@ -42,11 +42,13 @@ export class WorkerPool {
   _onMessage(workerIdx, e) {
     const { cx, cz } = e.data;
     // Find the matching request in the in-flight map
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     const req = this._inFlight.get(key);
     if (req) {
       this._inFlight.delete(key);
-      req.resolve(e.data);
+      if (!req._cancelled) {
+        req.resolve(e.data);
+      }
     }
     this.busy[workerIdx] = false;
     this._totalGenerated++;
@@ -81,7 +83,7 @@ export class WorkerPool {
     if (!req) return;
 
     req._workerIdx = freeIdx;
-    this._inFlight.set(`${req.cx},${req.cz}`, req);
+    this._inFlight.set((req.cx + 32768) * 65536 + (req.cz + 32768), req);
     this.busy[freeIdx] = true;
     this.workers[freeIdx].postMessage({ cx: req.cx, cz: req.cz });
   }
@@ -107,13 +109,20 @@ export class WorkerPool {
 
   // Cancel all pending requests for a chunk
   cancelChunk(cx, cz) {
+    let cancelled = false;
     for (let i = this.queue.length - 1; i >= 0; i--) {
       if (this.queue[i].cx === cx && this.queue[i].cz === cz) {
         this.queue.splice(i, 1);
-        return true;
+        cancelled = true;
       }
     }
-    return false;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
+    const inFlight = this._inFlight.get(key);
+    if (inFlight) {
+      inFlight._cancelled = true;
+      cancelled = true;
+    }
+    return cancelled;
   }
 
   get pendingCount() { return this.queue.length; }

@@ -12,6 +12,8 @@ export const BLOCK = {
   WATER: 5, LAVA: 6, SNOW: 7, MUD: 8,
 };
 
+export const TREE_LOG_IDS = [9, 11, 13, 15];
+
 // Extended block types for features
 export const MC_BLOCKS = {
   ...BLOCK,
@@ -124,100 +126,100 @@ export const TREE_DETAIL_BLOCKS = {
 // ── Consolidated colors (all blocks) ──
 
 export const ALL_BLOCK_COLORS = {
-  // Base blocks — Colores premium vibrantes y realistas
-  [BLOCK.STONE]: [0.62, 0.62, 0.66],           // Gris piedra natural
-  [BLOCK.GRASS]: [0.48, 0.88, 0.42],           // Verde césped vibrante
-  [BLOCK.DIRT]: [0.65, 0.48, 0.32],            // Marrón tierra rico
-  [BLOCK.SAND]: [0.96, 0.90, 0.72],            // Arena dorada suave
-  [BLOCK.WATER]: [0.15, 0.48, 0.78],           // Azul agua cristalina
-  [BLOCK.LAVA]: [0.95, 0.42, 0.12],            // Naranja lava incandescente
-  [BLOCK.SNOW]: [0.97, 0.98, 0.99],            // Blanco nieve puro
-  [BLOCK.MUD]: [0.45, 0.38, 0.25],             // Marrón barro oscuro
-  // Extended blocks — Colores naturales mejorados
-  [MC_BLOCKS.OAK_LOG]: [0.52, 0.36, 0.20],     // Marrón roble cálido
-  [MC_BLOCKS.OAK_LEAVES]: [0.28, 0.68, 0.28],  // Verde hojas roble
-  [MC_BLOCKS.BIRCH_LOG]: [0.92, 0.88, 0.75],   // Beige abedul claro
-  [MC_BLOCKS.BIRCH_LEAVES]: [0.32, 0.72, 0.32], // Verde hojas abedul
-  [MC_BLOCKS.SPRUCE_LOG]: [0.32, 0.24, 0.18],  // Marrón abeto oscuro
-  [MC_BLOCKS.SPRUCE_LEAVES]: [0.22, 0.52, 0.26], // Verde hojas abeto
-  [MC_BLOCKS.JUNGLE_LOG]: [0.38, 0.32, 0.16],  // Marrón selva profundo
-  [MC_BLOCKS.JUNGLE_LEAVES]: [0.22, 0.72, 0.22], // Verde hojas selva
-  [MC_BLOCKS.COAL_ORE]: [0.28, 0.28, 0.30],    // Gris carbón oscuro
-  [MC_BLOCKS.IRON_ORE]: [0.72, 0.62, 0.48],    // Beige hierro
-  [MC_BLOCKS.GOLD_ORE]: [0.88, 0.72, 0.22],    // Dorado oro brillante
-  [MC_BLOCKS.DIAMOND_ORE]: [0.38, 0.92, 0.92], // Cian diamante brillante
-  [MC_BLOCKS.COBBLESTONE]: [0.52, 0.52, 0.55], // Gris adoquín
-  [MC_BLOCKS.PLANKS]: [0.72, 0.52, 0.32],      // Marrón tablas cálido
-  [MC_BLOCKS.GLASS]: [0.85, 0.93, 0.97],       // Azul vidrio transparente
-  [MC_BLOCKS.BRICKS]: [0.68, 0.42, 0.38],      // Rojo ladrillo
-  [MC_BLOCKS.TORCH]: [0.95, 0.65, 0.25],       // Naranja antorcha cálido
-  [MC_BLOCKS.LANTERN]: [0.98, 0.82, 0.35],     // Amarillo linterna brillante
-  [MC_BLOCKS.CACTUS]: [0.42, 0.72, 0.38],      // Verde cactus
-  [MC_BLOCKS.FLOWER_RED]: [0.95, 0.38, 0.32],  // Rojo flor vibrante
-  [MC_BLOCKS.FLOWER_YELLOW]: [0.95, 0.85, 0.25],
-  [MC_BLOCKS.TALL_GRASS]: [0.45, 0.75, 0.35],
-  [MC_BLOCKS.FERN]: [0.25, 0.50, 0.20],
-  [MC_BLOCKS.DEAD_BUSH]: [0.55, 0.40, 0.25],
-  [MC_BLOCKS.MOSSY_COBBLE]: [0.40, 0.50, 0.35],
-  [MC_BLOCKS.SANDSTONE]: [0.92, 0.82, 0.55],
-  [MC_BLOCKS.GRAVEL]: [0.55, 0.52, 0.48],
-  [MC_BLOCKS.CLAY]: [0.60, 0.65, 0.70],
-  [MC_BLOCKS.OBSIDIAN]: [0.08, 0.06, 0.14],
-  [MC_BLOCKS.BEDROCK]: [0.20, 0.20, 0.22],
-  [MC_BLOCKS.SNOW_BLOCK]: [0.98, 0.98, 1.0],
-  [MC_BLOCKS.ICE]: [0.70, 0.88, 0.98],
-  [MC_BLOCKS.PACKED_ICE]: [0.60, 0.82, 0.95],
-  [MC_BLOCKS.MYCELIUM]: [0.60, 0.55, 0.62],
-  [MC_BLOCKS.MOSS]: [0.30, 0.55, 0.25],
-  [MC_BLOCKS.BAMBOO]: [0.60, 0.80, 0.30],
-  [MC_BLOCKS.GRANITE]: [0.68, 0.45, 0.40],
-  [MC_BLOCKS.ANDESITE]: [0.58, 0.58, 0.62],
-  [MC_BLOCKS.DIORITE]: [0.82, 0.80, 0.78],
-  [MC_BLOCKS.BOOKSHELF]: [0.65, 0.45, 0.25],
-  [MC_BLOCKS.PUMPKIN]: [0.85, 0.55, 0.15],
-  [MC_BLOCKS.MELON]: [0.60, 0.85, 0.35],
-  [MC_BLOCKS.CRAFTING_TABLE]: [0.55, 0.38, 0.20],
-  [MC_BLOCKS.STICK]: [0.65, 0.45, 0.25],
-  [MC_BLOCKS.FURNACE]: [0.45, 0.45, 0.47],
-  [MC_BLOCKS.LEATHER]: [0.65, 0.45, 0.30],
-  [MC_BLOCKS.RAW_BEEF]: [0.75, 0.40, 0.35],
-  [MC_BLOCKS.RAW_PORKCHOP]: [0.85, 0.55, 0.55],
-  [MC_BLOCKS.FEATHER]: [0.90, 0.90, 0.85],
-  [MC_BLOCKS.RAW_CHICKEN]: [0.85, 0.75, 0.65],
-  [MC_BLOCKS.WOOL]: [0.92, 0.92, 0.92],
-  [MC_BLOCKS.RAW_MUTTON]: [0.80, 0.50, 0.45],
-  [MC_BLOCKS.COOKED_BEEF]: [0.55, 0.30, 0.20],
-  [MC_BLOCKS.COOKED_PORKCHOP]: [0.70, 0.40, 0.35],
-  [MC_BLOCKS.COOKED_CHICKEN]: [0.75, 0.60, 0.40],
-  [MC_BLOCKS.COOKED_MUTTON]: [0.65, 0.35, 0.30],
-  [MC_BLOCKS.IRON_INGOT]: [0.80, 0.80, 0.85],
-  [MC_BLOCKS.GOLD_INGOT]: [0.85, 0.70, 0.20],
-  [MC_BLOCKS.ROTTEN_FLESH]: [0.55, 0.45, 0.40],
-  [MC_BLOCKS.BONES]: [0.90, 0.88, 0.82],
-  [MC_BLOCKS.ARROW]: [0.60, 0.50, 0.30],
-  [MC_BLOCKS.GUNPOWDER]: [0.30, 0.30, 0.28],
-  [MC_BLOCKS.STRING]: [0.85, 0.82, 0.78],
-  [MC_BLOCKS.BOW]: [0.65, 0.45, 0.25],
-  [MC_BLOCKS.BED]: [0.85, 0.25, 0.25],
-  [MC_BLOCKS.WHEAT_SEEDS]: [0.65, 0.55, 0.20],
-  [MC_BLOCKS.WHEAT_CROP]: [0.85, 0.75, 0.30],
-  [MC_BLOCKS.FARMLAND]: [0.50, 0.38, 0.22],
-  [MC_BLOCKS.HOE]: [0.65, 0.45, 0.25],
-  [MC_BLOCKS.BREAD]: [0.90, 0.70, 0.40],
-  // Tools & Armor (80-99)
-  80: [0.65, 0.45, 0.25], 81: [0.50, 0.50, 0.52], 82: [0.80, 0.80, 0.85], 83: [0.30, 0.85, 0.85],
-  84: [0.65, 0.45, 0.25], 85: [0.50, 0.50, 0.52], 86: [0.80, 0.80, 0.85], 87: [0.30, 0.85, 0.85],
-  88: [0.65, 0.45, 0.25], 89: [0.50, 0.50, 0.52], 90: [0.80, 0.80, 0.85], 91: [0.30, 0.85, 0.85],
-  92: [0.65, 0.45, 0.25], 93: [0.50, 0.50, 0.52], 94: [0.80, 0.80, 0.85], 95: [0.30, 0.85, 0.85],
+  // Base blocks — Ghibli-inspired palette: vibrant yet soft, warm tone bias
+  [BLOCK.STONE]: [0.58, 0.60, 0.64],           // Soft blue-grey, cooler
+  [BLOCK.GRASS]: [0.52, 0.82, 0.38],           // Warm yellow-green, Ghibli meadow
+  [BLOCK.DIRT]: [0.62, 0.45, 0.28],            // Rich warm earth
+  [BLOCK.SAND]: [0.94, 0.86, 0.62],            // Golden warm sand
+  [BLOCK.WATER]: [0.18, 0.52, 0.72],           // Cerulean Ghibli water
+  [BLOCK.LAVA]: [0.98, 0.48, 0.18],            // Warm orange glow
+  [BLOCK.SNOW]: [0.95, 0.97, 1.0],             // Soft blue-white snow
+  [BLOCK.MUD]: [0.42, 0.35, 0.22],             // Deep warm mud
+  // Extended blocks — Ghibli warm natural tones
+  [MC_BLOCKS.OAK_LOG]: [0.48, 0.33, 0.18],     // Warm dark brown
+  [MC_BLOCKS.OAK_LEAVES]: [0.32, 0.72, 0.30],  // Lush Ghibli green
+  [MC_BLOCKS.BIRCH_LOG]: [0.90, 0.86, 0.72],   // Soft cream birch
+  [MC_BLOCKS.BIRCH_LEAVES]: [0.38, 0.75, 0.35], // Bright yellow-green
+  [MC_BLOCKS.SPRUCE_LOG]: [0.30, 0.22, 0.16],  // Deep warm brown
+  [MC_BLOCKS.SPRUCE_LEAVES]: [0.20, 0.48, 0.28], // Deep forest green
+  [MC_BLOCKS.JUNGLE_LOG]: [0.36, 0.28, 0.14],  // Rich jungle brown
+  [MC_BLOCKS.JUNGLE_LEAVES]: [0.28, 0.78, 0.30], // Vibrant tropical green
+  [MC_BLOCKS.COAL_ORE]: [0.26, 0.26, 0.28],    // Dark warm grey
+  [MC_BLOCKS.IRON_ORE]: [0.70, 0.60, 0.46],    // Warm beige iron
+  [MC_BLOCKS.GOLD_ORE]: [0.86, 0.70, 0.22],    // Warm golden ore
+  [MC_BLOCKS.DIAMOND_ORE]: [0.36, 0.90, 0.90], // Soft cyan diamond
+  [MC_BLOCKS.COBBLESTONE]: [0.50, 0.52, 0.56], // Cool stone
+  [MC_BLOCKS.PLANKS]: [0.68, 0.48, 0.28],      // Warm timber
+  [MC_BLOCKS.GLASS]: [0.82, 0.92, 0.96],       // Soft sea-glass
+  [MC_BLOCKS.BRICKS]: [0.72, 0.40, 0.35],      // Warm terracotta
+  [MC_BLOCKS.TORCH]: [0.95, 0.65, 0.25],       // Warm golden torch
+  [MC_BLOCKS.LANTERN]: [0.98, 0.82, 0.38],     // Warm golden lantern
+  [MC_BLOCKS.CACTUS]: [0.42, 0.72, 0.38],      // Warm desert cactus
+  [MC_BLOCKS.FLOWER_RED]: [0.92, 0.35, 0.30],  // Soft warm red
+  [MC_BLOCKS.FLOWER_YELLOW]: [0.95, 0.82, 0.22], // Golden poppy yellow
+  [MC_BLOCKS.TALL_GRASS]: [0.48, 0.78, 0.32],  // Warm meadow grass
+  [MC_BLOCKS.FERN]: [0.28, 0.52, 0.22],        // Deep forest fern
+  [MC_BLOCKS.DEAD_BUSH]: [0.55, 0.40, 0.25],   // Warm dead bush
+  [MC_BLOCKS.MOSSY_COBBLE]: [0.38, 0.52, 0.32], // Lush mossy stone
+  [MC_BLOCKS.SANDSTONE]: [0.90, 0.78, 0.52],   // Warm sandstone
+  [MC_BLOCKS.GRAVEL]: [0.55, 0.52, 0.48],      // Warm gravel
+  [MC_BLOCKS.CLAY]: [0.60, 0.65, 0.70],        // Soft clay
+  [MC_BLOCKS.OBSIDIAN]: [0.08, 0.06, 0.14],    // Deep dark obsidian
+  [MC_BLOCKS.BEDROCK]: [0.20, 0.20, 0.22],     // Dark bedrock
+  [MC_BLOCKS.SNOW_BLOCK]: [0.95, 0.97, 1.0],   // Soft blue-white snow
+  [MC_BLOCKS.ICE]: [0.70, 0.88, 0.98],         // Soft ice blue
+  [MC_BLOCKS.PACKED_ICE]: [0.60, 0.82, 0.95],  // Deep ice blue
+  [MC_BLOCKS.MYCELIUM]: [0.60, 0.55, 0.62],    // Soft mystic mycelium
+  [MC_BLOCKS.MOSS]: [0.32, 0.58, 0.22],        // Lush Ghibli moss
+  [MC_BLOCKS.BAMBOO]: [0.58, 0.82, 0.28],      // Fresh bamboo green
+  [MC_BLOCKS.GRANITE]: [0.66, 0.44, 0.38],     // Warm granite
+  [MC_BLOCKS.ANDESITE]: [0.56, 0.58, 0.62],    // Cool andesite
+  [MC_BLOCKS.DIORITE]: [0.82, 0.80, 0.78],     // Soft diorite
+  [MC_BLOCKS.BOOKSHELF]: [0.62, 0.43, 0.24],   // Warm bookshelf
+  [MC_BLOCKS.PUMPKIN]: [0.85, 0.55, 0.15],     // Warm pumpkin
+  [MC_BLOCKS.MELON]: [0.60, 0.85, 0.35],       // Fresh melon green
+  [MC_BLOCKS.CRAFTING_TABLE]: [0.52, 0.36, 0.20], // Warm crafting table
+  [MC_BLOCKS.STICK]: [0.62, 0.43, 0.24],       // Warm stick
+  [MC_BLOCKS.FURNACE]: [0.43, 0.43, 0.45],     // Warm furnace
+  [MC_BLOCKS.LEATHER]: [0.65, 0.45, 0.30],     // Warm leather
+  [MC_BLOCKS.RAW_BEEF]: [0.75, 0.40, 0.35],    // Warm raw beef
+  [MC_BLOCKS.RAW_PORKCHOP]: [0.85, 0.55, 0.55], // Warm pork
+  [MC_BLOCKS.FEATHER]: [0.90, 0.90, 0.85],     // Soft feather
+  [MC_BLOCKS.RAW_CHICKEN]: [0.85, 0.75, 0.65], // Warm raw chicken
+  [MC_BLOCKS.WOOL]: [0.92, 0.92, 0.92],        // Soft wool
+  [MC_BLOCKS.RAW_MUTTON]: [0.80, 0.50, 0.45],  // Warm mutton
+  [MC_BLOCKS.COOKED_BEEF]: [0.55, 0.30, 0.20], // Warm cooked beef
+  [MC_BLOCKS.COOKED_PORKCHOP]: [0.70, 0.40, 0.35], // Warm cooked pork
+  [MC_BLOCKS.COOKED_CHICKEN]: [0.75, 0.60, 0.40], // Warm cooked chicken
+  [MC_BLOCKS.COOKED_MUTTON]: [0.65, 0.35, 0.30], // Warm cooked mutton
+  [MC_BLOCKS.IRON_INGOT]: [0.80, 0.80, 0.85],  // Soft iron
+  [MC_BLOCKS.GOLD_INGOT]: [0.85, 0.70, 0.22],  // Warm gold
+  [MC_BLOCKS.ROTTEN_FLESH]: [0.55, 0.45, 0.40], // Dark rotten flesh
+  [MC_BLOCKS.BONES]: [0.90, 0.88, 0.82],       // Warm bone white
+  [MC_BLOCKS.ARROW]: [0.60, 0.50, 0.30],       // Warm arrow
+  [MC_BLOCKS.GUNPOWDER]: [0.30, 0.30, 0.28],   // Dark gunpowder
+  [MC_BLOCKS.STRING]: [0.85, 0.82, 0.78],      // Soft string
+  [MC_BLOCKS.BOW]: [0.62, 0.43, 0.24],         // Warm bow
+  [MC_BLOCKS.BED]: [0.85, 0.25, 0.25],         // Warm bed red
+  [MC_BLOCKS.WHEAT_SEEDS]: [0.65, 0.55, 0.20], // Warm wheat seeds
+  [MC_BLOCKS.WHEAT_CROP]: [0.85, 0.75, 0.30],  // Golden wheat
+  [MC_BLOCKS.FARMLAND]: [0.48, 0.36, 0.22],    // Warm farmland
+  [MC_BLOCKS.HOE]: [0.62, 0.43, 0.24],         // Warm hoe
+  [MC_BLOCKS.BREAD]: [0.90, 0.70, 0.40],        // Warm golden bread
+  // Tools & Armor (80-99) — Ghibli warm tones
+  80: [0.62, 0.43, 0.24], 81: [0.48, 0.50, 0.54], 82: [0.80, 0.80, 0.85], 83: [0.30, 0.85, 0.85],
+  84: [0.62, 0.43, 0.24], 85: [0.48, 0.50, 0.54], 86: [0.80, 0.80, 0.85], 87: [0.30, 0.85, 0.85],
+  88: [0.62, 0.43, 0.24], 89: [0.48, 0.50, 0.54], 90: [0.80, 0.80, 0.85], 91: [0.30, 0.85, 0.85],
+  92: [0.62, 0.43, 0.24], 93: [0.48, 0.50, 0.54], 94: [0.80, 0.80, 0.85], 95: [0.30, 0.85, 0.85],
   96: [0.75, 0.75, 0.80], 97: [0.75, 0.75, 0.80], 98: [0.75, 0.75, 0.80], 99: [0.75, 0.75, 0.80],
-  // Enchanting (100-102)
+  // Enchanting (100-102) — Ghibli mystic tones
   100: [0.30, 0.10, 0.50], 101: [0.15, 0.30, 0.80], 102: [0.85, 0.75, 0.50],
   // Villager (103-104)
   103: [0.10, 0.80, 0.50], 104: [0.90, 0.70, 0.30],
   // Fishing (105-109)
   105: [0.45, 0.35, 0.20], 106: [0.70, 0.60, 0.40], 107: [0.85, 0.75, 0.50],
   108: [0.80, 0.70, 0.10], 109: [0.10, 0.10, 0.10],
-  // Nether (110-119)
+  // Nether (110-119) — Ghibli warm dark tones
   110: [0.35, 0.15, 0.15], 111: [0.25, 0.10, 0.10], 112: [0.30, 0.25, 0.15],
   113: [0.90, 0.75, 0.30], 114: [0.40, 0.35, 0.30], 115: [0.80, 0.30, 0.10],
   116: [0.20, 0.10, 0.40], 117: [0.85, 0.85, 0.80], 118: [0.80, 0.50, 0.15],
@@ -236,20 +238,20 @@ export const ALL_BLOCK_COLORS = {
   // Anvil (153)
   153: [0.30, 0.30, 0.32],
   // Map (154-156)
-  154: [0.85, 0.80, 0.60], 155: [0.80, 0.80, 0.85], 156: [0.65, 0.45, 0.25],
-  // Vegetation (157-170) — SPEC-078
-  157: [0.30, 0.50, 0.90], 158: [0.90, 0.90, 0.95], 159: [0.60, 0.30, 0.80],
-  160: [0.90, 0.55, 0.15], 161: [0.95, 0.60, 0.70], 162: [0.70, 0.60, 0.95],
+  154: [0.85, 0.80, 0.60], 155: [0.80, 0.80, 0.85], 156: [0.62, 0.43, 0.24],
+  // Vegetation (157-170) — SPEC-078 Ghibli warm flower tones
+  157: [0.28, 0.48, 0.88], 158: [0.92, 0.92, 0.96], 159: [0.55, 0.28, 0.75],
+  160: [0.92, 0.52, 0.18], 161: [0.94, 0.58, 0.72], 162: [0.70, 0.60, 0.95],
   163: [0.85, 0.30, 0.35], 164: [0.95, 0.85, 0.20],
   165: [0.80, 0.20, 0.20], 166: [0.55, 0.40, 0.25],
   167: [0.50, 0.30, 0.20], 168: [0.25, 0.45, 0.15], 169: [0.35, 0.55, 0.25], 170: [0.90, 0.55, 0.55],
-  // SPEC-BIOME-OVERHAUL: Terrain blocks (171-175)
-  171: [0.85, 0.50, 0.25],  // RED_SAND
-  172: [0.75, 0.50, 0.35],  // TERRACOTTA
-  173: [0.92, 0.92, 0.90],  // CALCITE
-  174: [0.50, 0.38, 0.22],  // COARSE_DIRT
-  175: [0.28, 0.20, 0.14],  // SPRUCE_WOOD
-  // Tree detail blocks (176-181)
+  // SPEC-BIOME-OVERHAUL: Terrain blocks (171-175) — Ghibli warm tones
+  171: [0.85, 0.50, 0.25],  // RED_SAND — warm terracotta sand
+  172: [0.78, 0.48, 0.32],  // TERRACOTTA — Ghibli terracotta
+  173: [0.92, 0.92, 0.90],  // CALCITE — soft warm white
+  174: [0.48, 0.36, 0.22],  // COARSE_DIRT — warm coarse dirt
+  175: [0.28, 0.20, 0.14],  // SPRUCE_WOOD — deep warm brown
+  // Tree detail blocks (176-181) — Ghibli lush tones
   176: [0.18, 0.48, 0.18],  // DARK_OAK_LEAVES — darker green for old trees
   177: [0.35, 0.62, 0.28],  // BUSH — medium green for bushes
   178: [0.42, 0.28, 0.15],  // ROOT — brown root blocks

@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { BLOCK, MC_BLOCKS } from './blocks-registry.js';
-import { BIOMES } from './jardvoxel-survival-engine.js';
+import { BIOMES, CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 
 // Mob types configuration
 const MOB_TYPES = {
@@ -543,8 +543,8 @@ export class MobManager {
 
     const angle = Math.random() * Math.PI * 2;
     const dist = 12 + Math.random() * 16;
-    const sx = Math.floor(player * 16 + Math.cos(angle) * dist);
-    const sz = Math.floor(playerZ * 16 + Math.sin(angle) * dist);
+    const sx = Math.floor(player * CHUNK_SIZE + Math.cos(angle) * dist);
+    const sz = Math.floor(playerZ * CHUNK_SIZE + Math.sin(angle) * dist);
 
     // Check biome
     const biome = this._getBiomeAt(sx, sz);
@@ -603,8 +603,8 @@ export class MobManager {
 
     const angle = Math.random() * Math.PI * 2;
     const dist = 16 + Math.random() * 16;
-    const sx = Math.floor(player * 16 + Math.cos(angle) * dist);
-    const sz = Math.floor(playerZ * 16 + Math.sin(angle) * dist);
+    const sx = Math.floor(player * CHUNK_SIZE + Math.cos(angle) * dist);
+    const sz = Math.floor(playerZ * CHUNK_SIZE + Math.sin(angle) * dist);
 
     // Find surface height
     let surfaceY = -1;

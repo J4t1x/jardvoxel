@@ -1,89 +1,183 @@
 # JardVoxel — Documentacion del Proyecto
 
-Mundo voxel 3D tipo voxel con generacion procedural de terreno, cuevas, biomas, 6 tipos de arboles, 14 estructuras, 157 bloques, ciclo dia/noche con sol/luna/estrellas, nubes procedurales, inventario, minado con hardness, nado, sprint, audio, mobs hostiles y pasivos, combate cuerpo a cuerpo y a distancia, sistema de salud/hambre, clima, hornos, agricultura, camas, herramientas y armaduras con durabilidad, encantamientos, aldeanos con trading, pesca, dimension Nether, redstone, musica procedural chiptune, pociones brewing, escudos, logros, yunque de reparacion, mapas y cartografia, y mas.
+Mundo voxel 3D con generacion procedural de terreno, sistema de ruido Simplex v6.0, 19 biomas con blending suave, ciclo dia/noche con 8 fases circadianas, sistema wellness completo (musica ambient, komorebi, meditacion, diario, mundo vivo, resonancia), perfil geografico de Patagonia, world identity realista basado en Tierra, touch controls para mobile, y mas.
+
+**Version actual:** v8.0.0 — Zen Unified (29 Junio 2026)
 
 ## Estructura de Archivos
 
 ```
 jardvoxel/
-├── jardvoxel.html              # Juego clasico (UI + game loop + controles + audio)
-├── jardvoxel-engine.js         # Motor clasico (terreno, chunks, greedy meshing, estructuras)
-├── jardvoxel-worker.js         # Web Worker para generacion de chunks off-main-thread
-├── jardvoxel-survival.html     # Juego survival (UI + game loop + imports modulares)
-├── jardvoxel-survival-engine.js  # Motor survival (pipeline, WorldGen, biomas, chunks)
-├── jardvoxel-survival-noise.js   # Sistema de ruido v6.0 (Simplex, Warping, Splines, Blending)
-├── jardvoxel-survival-mesher.js  # Mesher (greedy meshing, AO, water, block registry)
-├── jardvoxel-survival-gameplay.js # World, PlayerController, Inventory, DayNight, Audio
-├── jardvoxel-survival-features.js # Arboles, ores, estructuras, decoracion
-├── jardvoxel-survival-worker.js # Web Worker survival (chunk gen off-main-thread)
-├── jardvoxel-survival-crafting.js # CraftingManager (shaped + shapeless recipes)
-├── jardvoxel-survival-save.js  # SaveManager (IndexedDB, serialize/deserialize)
-├── jardvoxel-survival-particles.js # ParticleSystem (mining, placing, weather)
-├── jardvoxel-survival-mobs.js  # MobManager (pasivos + hostiles, IA, drops)
-├── jardvoxel-survival-health.js # HealthHungerSystem (10 hearts, 10 hunger)
-├── jardvoxel-survival-furnace.js # FurnaceManager (smelting, fuel, recipes)
-├── jardvoxel-survival-weather.js # WeatherManager (lluvia, nieve, tormenta)
-├── jardvoxel-survival-tools.js # EquipmentManager, ToolItem, ARMOR (SPEC-051)
-├── jardvoxel-survival-enchanting.js # XPManager, EnchantManager (SPEC-052)
-├── jardvoxel-survival-villagers.js # VillagerManager, TradingManager (SPEC-053)
-├── jardvoxel-survival-fishing.js # FishingManager (SPEC-054)
-├── jardvoxel-survival-nether.js # PortalManager, NetherGenerator (SPEC-055)
-├── jardvoxel-survival-redstone.js # RedstoneManager (SPEC-056)
-├── jardvoxel-survival-chilltune.js # ChillTuneEngine musica procedural (SPEC-057)
-├── jardvoxel-survival-brewing.js # BrewingManager, PotionEffectManager (SPEC-062)
-├── jardvoxel-survival-shields.js # ShieldManager, ShieldItem (SPEC-063)
-├── jardvoxel-survival-achievements.js # AchievementManager (SPEC-064)
-├── jardvoxel-survival-anvil.js # AnvilManager (SPEC-065)
-├── jardvoxel-survival-map.js   # MapManager, cartografia (SPEC-066)
-├── tests/                        # Suite de tests del core (163 tests)
-│   ├── setup.js                  # Mocks: localStorage, indexedDB, Three.js
-│   ├── mocks/three.js            # Mock minimal de Three.js
-│   ├── blocks-registry.test.js   # 22 tests: BLOCK, MC_BLOCKS, colores, nombres, hardness
-│   ├── engine.test.js            # 31 tests: PRNG, PerlinNoise3D, Spline, WorldGen, VoxelChunk, GreedyMesher
-│   ├── crafting.test.js          # 12 tests: RECIPES, CraftingManager (shaped/shapeless)
-│   ├── health.test.js            # 21 tests: HealthHungerSystem (damage, hunger, regen, drowning)
-│   ├── tools.test.js             # 26 tests: ToolItem, EquipmentManager (durability, armor)
-│   ├── furnace.test.js           # 17 tests: FurnaceEntity, FurnaceManager (smelting, fuel)
-│   ├── achievements.test.js      # 13 tests: ACHIEVEMENTS, AchievementManager
-│   ├── gameplay.test.js          # 11 tests: Inventory (hotbar, addBlock, creative/survival)
-│   └── save.test.js              # 10 tests: SaveManager (IndexedDB, save/load world/chunks)
-├── package.json                  # Config npm (vitest + jsdom devDeps)
-├── vitest.config.js              # Config Vitest con alias Three.js mock
+├── index.html                    # Menu principal (selector de modo)
+├── jardvoxel.html                # Juego clasico (Open World)
+├── jardvoxel-survival.html       # Juego survival completo (4994 lineas)
+├── jardvoxel-zen.html            # Juego Zen Garden (wellness, 390 lineas + core)
+├── logo.png                      # Logo del juego
+├── core/                         # Motor modular (74 archivos JS)
+│   ├── jardvoxel-engine.js       # Motor base (terreno, chunks, greedy meshing)
+│   ├── jardvoxel-worker.js       # Web Worker base
+│   ├── jardvoxel-survival-engine.js  # Motor survival (biomas, ruido, pipeline)
+│   ├── jardvoxel-survival-noise.js   # Sistema ruido v6.0 (Simplex, Warping, Splines, Blending)
+│   ├── jardvoxel-survival-mesher.js  # Mesher (greedy meshing, AO, water)
+│   ├── jardvoxel-survival-gameplay.js # World, PlayerController, Inventory, DayNight, Audio
+│   ├── jardvoxel-survival-features.js # Arboles, ores, estructuras, decoracion
+│   ├── jardvoxel-survival-crafting.js # CraftingManager
+│   ├── jardvoxel-survival-save.js  # SaveManager (IndexedDB)
+│   ├── jardvoxel-survival-particles.js # ParticleSystem
+│   ├── jardvoxel-survival-mobs.js  # MobManager (pasivos + hostiles)
+│   ├── jardvoxel-survival-health.js # HealthHungerSystem
+│   ├── jardvoxel-survival-furnace.js # FurnaceManager
+│   ├── jardvoxel-survival-weather.js # WeatherManager
+│   ├── jardvoxel-survival-tools.js # EquipmentManager, ToolItem, Armor
+│   ├── jardvoxel-survival-enchanting.js # XPManager, EnchantManager
+│   ├── jardvoxel-survival-villagers.js # VillagerManager, TradingManager
+│   ├── jardvoxel-survival-fishing.js # FishingManager
+│   ├── jardvoxel-survival-nether.js # PortalManager, NetherGenerator
+│   ├── jardvoxel-survival-redstone.js # RedstoneManager
+│   ├── jardvoxel-survival-chilltune.js # ChillTuneEngine (musica ambient deep space)
+│   ├── jardvoxel-survival-brewing.js # BrewingManager
+│   ├── jardvoxel-survival-shields.js # ShieldManager
+│   ├── jardvoxel-survival-achievements.js # AchievementManager
+│   ├── jardvoxel-survival-anvil.js # AnvilManager
+│   ├── jardvoxel-survival-map.js   # MapManager, cartografia
+│   ├── jardvoxel-survival-postprocessing.js # Postprocessing (bloom, tonemapping)
+│   ├── jardvoxel-survival-shadow.js # ShadowManager
+│   ├── jardvoxel-survival-fog.js   # VolumetricFog
+│   ├── jardvoxel-survival-water.js # WaterMaterialManager
+│   ├── jardvoxel-survival-interior-lighting.js # InteriorLightingManager
+│   ├── jardvoxel-survival-ambient-particles.js # AmbientParticleSystem
+│   ├── jardvoxel-survival-forest-canopy.js # ForestCanopyManager
+│   ├── jardvoxel-survival-character.js # CharacterGenerator + CharacterAnimator
+│   ├── jardvoxel-survival-thirdperson.js # ThirdPersonCamera
+│   ├── jardvoxel-survival-ui.js    # UIManager
+│   ├── jardvoxel-survival-biome-identity.js # BiomeIdentityManager
+│   ├── jardvoxel-survival-ambient-sound.js # AmbientSoundManager
+│   ├── jardvoxel-survival-komorebi.js # KomorebiSystem (luz filtrada)
+│   ├── jardvoxel-survival-resonance.js # ResonanceSystem (tracking comportamiento)
+│   ├── jardvoxel-survival-meditation-spaces.js # MeditationSpaceGenerator (6 tipos)
+│   ├── jardvoxel-survival-living-world.js # LivingWorldSystem
+│   ├── jardvoxel-survival-journal.js # ExplorationJournal
+│   ├── jardvoxel-survival-narrative-structures.js # NarrativeStructures
+│   ├── jardvoxel-survival-lore.js # LoreGenerator
+│   ├── jardvoxel-survival-civilizations.js # CivilizationSystem
+│   ├── jardvoxel-survival-npc-memory.js # NPCMemorySystem
+│   ├── jardvoxel-survival-conversation.js # ConversationSystem
+│   ├── jardvoxel-survival-quests.js # QuestManager
+│   ├── jardvoxel-survival-events.js # EventManager
+│   ├── jardvoxel-survival-ai-client.js # AIClient (WebSocket)
+│   ├── jardvoxel-survival-hydrology.js # HydrologySystem
+│   ├── jardvoxel-survival-tree-personality.js # TreePersonalitySystem
+│   ├── jardvoxel-survival-voronoi.js # VoronoiBiomes
+│   ├── jardvoxel-survival-poisson.js # PoissonVegetation
+│   ├── jardvoxel-survival-instanced.js # InstancedRenderer
+│   ├── jardvoxel-survival-microsectors.js # MicrosectorSystem
+│   ├── jardvoxel-survival-streaming.js # StreamingSystem
+│   ├── jardvoxel-survival-worker-pool.js # WorkerPool (multi-worker)
+│   ├── jardvoxel-survival-worker.js # Web Worker survival
+│   ├── jardvoxel-survival-world-hierarchy.js # WorldHierarchy (continent/region/zone)
+│   ├── jardvoxel-survival-landmarks.js # LandmarkGenerator
+│   ├── jardvoxel-survival-ecosystems.js # EcosystemSystem
+│   ├── jardvoxel-survival-contextual.js # ContextualGenerator
+│   ├── jardvoxel-survival-layers.js # LayerSystem
+│   ├── jardvoxel-patagonia.js      # Perfil geografico Patagonia (43°S-56°S)
+│   ├── jardvoxel-zen-game.js       # ZenGame class (logica Zen Garden)
+│   ├── jardvoxel-zen-touch.js      # TouchControls para mobile
+│   └── blocks-registry.js          # 157 bloques (colores, hardness, nombres)
+├── ai-server/                     # Servidor IA para NPCs (Ollama)
+│   ├── server.js                  # Express + WebSocket server
+│   ├── llm-interface.js           # Interface a Ollama/cloud APIs
+│   ├── state-manager.js           # Estado de NPCs y quests
+│   ├── harness/                   # LLM Testing Harness (24 items)
+│   └── package.json
+├── tests/                         # Suite de tests (33 archivos)
+│   ├── setup.js                   # Mocks: localStorage, indexedDB, Three.js
+│   ├── mocks/three.js             # Mock minimal de Three.js
+│   └── *.test.js                  # 33 archivos de test
+├── package.json                   # Config npm (vitest + jsdom + ai-server)
+├── vitest.config.js               # Config Vitest con alias Three.js mock
+├── vercel.json                    # Deploy config (COOP/COEP headers)
 └── docs/
-    ├── README.md               # Este archivo (indice de documentacion)
-    ├── ARCHITECTURE.md         # Arquitectura tecnica del motor
-    ├── WORLD-GENERATION.md     # Generacion procedural de terreno y biomas
-    ├── BLOCKS.md               # Catalogo de bloques (157 tipos) y materiales
-    ├── CONTROLS.md             # Controles y mecanicas de gameplay
-    ├── CHANGELOG.md            # Historial de versiones (v1.0.0 a v4.2.0)
-    ├── BUGS-FOUND.md           # Audit de bugs (10 bugs encontrados y resueltos)
-    ├── IMPROVEMENTS-ROADMAP.md # Roadmap de mejoras (SPEC-025 a SPEC-066)
-    ├── PRD-CHILLTUNE-MUSIC.md  # PRD: Sistema de musica 8-bit dinamica
-    ├── PRD-TOUCH-JOYSTICK.md   # PRD: Joysticks touch para moviles
-    ├── PRD-MOBILE-MENU.md      # PRD: Menu de juego + opciones
-    ├── SPEC-099-WELLNESS-SYSTEM.md # SPEC: Sistema de Bienestar y Relajacion v7.0
-    ├── WELLNESS-IMPLEMENTATION-PLAN.md # Plan ejecutable 24h (3 dias)
-    └── WELLNESS-EXECUTIVE-SUMMARY.md # Resumen ejecutivo visual
+    ├── README.md                  # Este archivo (indice de documentacion)
+    ├── ARCHITECTURE.md            # Arquitectura tecnica del motor
+    ├── WORLD-GENERATION.md        # Generacion procedural v6.0
+    ├── WORLD-IDENTITY-REALISM.md  # World identity basado en Tierra real
+    ├── BLOCKS.md                  # Catalogo de bloques (157 tipos)
+    ├── CONTROLS.md                # Controles y mecanicas
+    ├── CHANGELOG.md               # Historial de versiones (v1.0.0 a v8.0.0)
+    ├── BUGS-FOUND.md              # Audit de bugs (10 resueltos)
+    ├── IMPROVEMENTS-ROADMAP.md    # Roadmap (SPEC-025 a SPEC-066)
+    ├── TESTING.md                 # Suite de tests
+    ├── NOISE-SYSTEM-6.0.md        # Documentacion del sistema de ruido v6.0
+    ├── ZEN-IMPLEMENTATION-STATUS.md # Estado implementacion Zen
+    ├── PRD-JARDVOXEL-ZEN-UNIFIED.md # PRD: Zen Unified v8.0.0
+    ├── PRD-JARDVOXEL-5.0.md       # PRD: Living World v5.0
+    ├── PRD-JARDVOXEL-5.0-INTEGRATION.md # PRD: Integracion v5.0
+    ├── PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md # PRD: Gaps de integracion
+    ├── PRD-JARDVOXEL-7.0-HIERARCHICAL.md # PRD: World Hierarchy v7.0
+    ├── PRD-JARDVOXEL-ORGANIC-TERRAIN.md # PRD: Terreno organico
+    ├── PRD-NOISE-GENERATION-6.0.md # PRD: Noise Generation v6.0
+    ├── PRD-CHILLTUNE-MUSIC.md     # PRD: Musica 8-bit dinamica
+    ├── PRD-TOUCH-JOYSTICK.md      # PRD: Joysticks touch
+    ├── PRD-MOBILE-MENU.md         # PRD: Menu + opciones
+    ├── PRD-PROCEDURAL-BODY.md     # PRD: Cuerpo procedural + 3ra persona
+    ├── PRD-LLM-HARNESS.md         # PRD: LLM Testing Harness
+    ├── PRD-CHUNK-OPTIMIZATION.md  # PRD: Optimizacion de chunks
+    ├── PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md # PRD: Optimizacion survival
+    ├── SPEC-099-WELLNESS-SYSTEM.md # SPEC: Sistema Bienestar v7.0
+    ├── SPEC-BIOME-OVERHAUL.md     # SPEC: Biome Overhaul
+    ├── WELLNESS-IMPLEMENTATION-PLAN.md # Plan wellness 24h
+    ├── WELLNESS-EXECUTIVE-SUMMARY.md # Resumen ejecutivo wellness
+    └── specs/
+        ├── completed/             # 22 specs completadas
+        └── pending/               # (vacio)
 ```
 
 ## Documentos
 
+### Core Documentation
 | Documento | Descripcion |
 |-----------|-------------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Arquitectura del motor, clases, pipeline de renderizado |
-| [WORLD-GENERATION.md](./WORLD-GENERATION.md) | Noise, biomas, cuevas, rios, estructuras, arboles |
+| [WORLD-GENERATION.md](./WORLD-GENERATION.md) | Generacion procedural v6.0: Simplex, biomas, cuevas, rios |
+| [WORLD-IDENTITY-REALISM.md](./WORLD-IDENTITY-REALISM.md) | World identity basado en Tierra real (geologia, clima) |
 | [BLOCKS.md](./BLOCKS.md) | Catalogo completo de bloques (157 tipos), colores y nombres |
-| [CONTROLS.md](./CONTROLS.md) | Controles de teclado/mouse y mecanicas de gameplay |
-| [CHANGELOG.md](./CHANGELOG.md) | Historial de versiones (v1.0.0 a v4.2.0) |
+| [CONTROLS.md](./CONTROLS.md) | Controles de teclado/mouse/touch y mecanicas |
+| [CHANGELOG.md](./CHANGELOG.md) | Historial de versiones (v1.0.0 a v8.0.0) |
+| [TESTING.md](./TESTING.md) | Suite de tests del core con Vitest |
+
+### Wellness & Zen
+| Documento | Descripcion |
+|-----------|-------------|
+| [ZEN-IMPLEMENTATION-STATUS.md](./ZEN-IMPLEMENTATION-STATUS.md) | Estado de implementacion Zen v8.0.0 (13 fixes aplicados) |
+| [PRD-JARDVOXEL-ZEN-UNIFIED.md](./PRD-JARDVOXEL-ZEN-UNIFIED.md) | PRD: Zen Unified v8.0.0 — experiencia wellness pura |
+| [SPEC-099-WELLNESS-SYSTEM.md](./SPEC-099-WELLNESS-SYSTEM.md) | SPEC: Sistema de Bienestar y Relajacion v7.0 |
+| [WELLNESS-IMPLEMENTATION-PLAN.md](./WELLNESS-IMPLEMENTATION-PLAN.md) | Plan ejecutable wellness 24h (3 dias) |
+| [WELLNESS-EXECUTIVE-SUMMARY.md](./WELLNESS-EXECUTIVE-SUMMARY.md) | Resumen ejecutivo wellness |
+| [NOISE-SYSTEM-6.0.md](./NOISE-SYSTEM-6.0.md) | Documentacion tecnica del sistema de ruido v6.0 |
+
+### PRDs
+| Documento | Descripcion |
+|-----------|-------------|
+| [PRD-JARDVOXEL-5.0.md](./PRD-JARDVOXEL-5.0.md) | PRD: Living World v5.0 (21 specs) |
+| [PRD-JARDVOXEL-5.0-INTEGRATION.md](./PRD-JARDVOXEL-5.0-INTEGRATION.md) | PRD: Integracion v5.0 (8 specs) |
+| [PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md](./PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md) | PRD: Gaps de integracion v5.0 |
+| [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](./PRD-JARDVOXEL-7.0-HIERARCHICAL.md) | PRD: World Hierarchy v7.0 (continent/region/zone) |
+| [PRD-JARDVOXEL-ORGANIC-TERRAIN.md](./PRD-JARDVOXEL-ORGANIC-TERRAIN.md) | PRD: Terreno organico (Voronoi, Poisson, hydrology) |
+| [PRD-NOISE-GENERATION-6.0.md](./PRD-NOISE-GENERATION-6.0.md) | PRD: Noise Generation v6.0 (8 specs) |
+| [PRD-CHILLTUNE-MUSIC.md](./PRD-CHILLTUNE-MUSIC.md) | PRD: Musica procedural 8-bit dinamica |
+| [PRD-TOUCH-JOYSTICK.md](./PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles |
+| [PRD-MOBILE-MENU.md](./PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones |
+| [PRD-PROCEDURAL-BODY.md](./PRD-PROCEDURAL-BODY.md) | PRD: Cuerpo procedural + 3ra persona |
+| [PRD-LLM-HARNESS.md](./PRD-LLM-HARNESS.md) | PRD: LLM Testing Harness (5 specs) |
+| [PRD-CHUNK-OPTIMIZATION.md](./PRD-CHUNK-OPTIMIZATION.md) | PRD: Optimizacion de chunks |
+| [PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md](./PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md) | PRD: Optimizacion survival |
+
+### Bug Audit & Roadmap
+| Documento | Descripcion |
+|-----------|-------------|
 | [BUGS-FOUND.md](./BUGS-FOUND.md) | Audit de bugs: 10 bugs encontrados y resueltos |
 | [IMPROVEMENTS-ROADMAP.md](./IMPROVEMENTS-ROADMAP.md) | Roadmap de mejoras (SPEC-025 a SPEC-066) |
-| [PRD-CHILLTUNE-MUSIC.md](./PRD-CHILLTUNE-MUSIC.md) | PRD: Sistema de musica 8-bit dinamica relajante |
-| [PRD-TOUCH-JOYSTICK.md](./PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles (pendiente) |
-| [PRD-MOBILE-MENU.md](./PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones (pendiente) |
-| [SPEC-099-WELLNESS-SYSTEM.md](./SPEC-099-WELLNESS-SYSTEM.md) | 🆕 SPEC: Sistema de Bienestar y Relajacion v7.0 |
-| [WELLNESS-IMPLEMENTATION-PLAN.md](./WELLNESS-IMPLEMENTATION-PLAN.md) | 🆕 Plan ejecutable 24h (3 dias @ 8h/dia) |
-| [WELLNESS-EXECUTIVE-SUMMARY.md](./WELLNESS-EXECUTIVE-SUMMARY.md) | 🆕 Resumen ejecutivo visual |
-| [TESTING.md](./TESTING.md) | Suite de tests del core: 163 tests con Vitest |
+| [SPEC-BIOME-OVERHAUL.md](./SPEC-BIOME-OVERHAUL.md) | SPEC: Biome Overhaul |
 
 ## Stack Tecnologico
 
@@ -95,57 +189,83 @@ jardvoxel/
 
 ## Como Jugar
 
-Abrir `jardvoxel.html` en un navegador moderno (Chrome/Firefox/Edge). Click en la pantalla para activar el cursor lock. ESC para pausar.
+Abrir `index.html` en un navegador moderno (Chrome/Firefox/Edge). Seleccionar modo Zen Garden. Click en la pantalla para activar el cursor lock. ESC para pausar. Touch controls auto-detectados en moviles.
+
+## Modos de Juego
+
+### Zen Garden (v8.0.0) — Recomendado
+- **Archivo:** `jardvoxel-zen.html` + `core/jardvoxel-zen-game.js`
+- **Filosofia:** Exploracion contemplativa, sin combate, sin muerte
+- Sistemas wellness: ChillTune ambient, komorebi, meditacion, diario, mundo vivo, resonancia
+- Perfil geografico: Patagonia (43°S-56°S, Andes → Steppe → Atlantic)
+- World identity realista basado en Tierra (edades geologicas, eventos del Cuaternario)
+- Touch controls nativos para mobile
+- UI minimalista con auto-hide
+
+### Survival (v6.0.0)
+- **Archivo:** `jardvoxel-survival.html` (4994 lineas)
+- Gameplay completo: mobs, combate, hambre, encantamientos, Nether, redstone, pociones
+- 55 modulos importados
+
+### Open World (v4.2.0)
+- **Archivo:** `jardvoxel.html`
+- Modo creativo simple, sin sistemas survival
 
 ## Features
 
-### Sistema de Generación v6.0 (SPEC-091 a SPEC-098)
+### Sistema de Generacion v6.0 (SPEC-091 a SPEC-098)
 - **Simplex Noise** — Reemplaza Perlin con mejor performance (O(n²) vs O(n³))
-- **Domain Warping** — Coastlines irregulares, montañas orgánicas, biomas naturales
+- **Domain Warping** — Coastlines irregulares, montañas organicas, biomas naturales
 - **Terrain Splines** — Modelado complejo inspirado en Minecraft 1.18+
 - **Biome Blending** — Transiciones suaves de 8-16 bloques entre biomas
-- **Biome Terrain Modulation** — Cada bioma con características únicas (dunas, crestas, colinas)
-- **Coherent Feature Placement** — Árboles y features en clusters naturales
-- **Hydraulic Erosion** — Erosión post-generación para terreno natural (opcional)
+- **Biome Terrain Modulation** — Cada bioma con caracteristicas unicas (dunas, crestas, colinas)
+- **Coherent Feature Placement** — Arboles y features en clusters naturales
+- **Hydraulic Erosion** — Erosion post-generacion para terreno natural (opcional)
 
-### Core Features
+### World Identity v7.0 Realista
+- Edades geologicas: Paleogene, Neogene, Quaternary
+- 8 eventos historicos reales del Cuaternario (Pleistocene Glaciation, Last Glacial Maximum, etc.)
+- Parametros terrestres: 71% oceano, 7 continentes, 23.5° inclinacion axial
+- Gradiente latitudinal realista (Ecuador → Polos)
+
+### Perfil Patagonia
+- Geografia real: 43°S a 56°S, Andes → Steppe → Atlantico
+- Biomas con nombres locales: Estepa Patagonica, Bosque Subantartico, Selva Valdiviana
+- Cordillera de los Andes con picos hasta 130 bloques
+- Seed fijo: 142857
+
+### Sistemas Wellness (SPEC-099, v7.0-v8.0)
+- **ChillTuneEngine** — Musica ambient deep space (LFO modula frecuencia, BPM 24-40, silencio 75-98%)
+- **AmbientSoundManager** — Sonidos de bioma 3D posicional, ciclo fauna dawn/day/dusk/night
+- **KomorebiSystem** — Luz filtrada por canopy, particulas de luz
+- **ResonanceSystem** — Tracking de comportamiento del jugador, adapta generacion
+- **MeditationSpaceGenerator** — 6 tipos: Vista, Zen Garden, Cascada, Lago Espejo, Templo, Bamboo Grove
+- **LivingWorldSystem** — Arboles → Aves, Restauracion → Biodiversidad, Lagos → Peces
+- **ExplorationJournal** — Registro automatico de momentos, UI con tabs, persistencia
+
+### Core Features (Survival + Open World)
 - **157 bloques** con colores, hardness, transparencia y emisivos
 - **19 biomas** con temperatura, humedad, altura y transiciones suaves
 - **6 tipos de arboles** por bioma (Oak, Jungle, Spruce, Mangrove, Dead, Savanna)
-- **14 estructuras** (village, temple, mineshaft, monument, jungle temple, shipwreck, igloo, etc.)
+- **14 estructuras** (village, temple, mineshaft, monument, etc.)
 - **Cuevas**: spaghetti, cheese, noodle, carver tunnels, ravines
-- **Aquifer system** con agua/lava subterranea
-- **Ciclo dia/noche** con sol, luna, estrellas, sky dome gradiente y atardecer
+- **Ciclo dia/noche** con 8 fases circadianas, sol, luna, estrellas, sky dome gradiente
 - **Nubes procedurales** con viento y color dinamico
-- **Inventario completo** (tecla E) con 100+ bloques colocables y items
-- **Minado con hardness** (tecla C para Creative/Survival)
-- **Fisica**: nado, sprint con stamina, crouch, fall damage
-- **Audio**: Web Audio API (jump, land, break, place, splash) con control de volumen
-- **UI**: minimapa, clock, death screen, mode indicator, settings panel, weather indicator
-- **Mobs pasivos**: Cow, Pig, Chicken, Sheep con drops y spawning por bioma
-- **Mobs hostiles**: Zombie, Skeleton, Creeper, Spider con IA de combate y spawning nocturno
-- **Combate**: cuerpo a cuerpo con cooldown, arcos y flechas con draw mechanic, knockback
-- **Salud/Hambre**: 10 hearts, 10 hunger drums, starvation, regeneracion
-- **Clima**: lluvia, nieve, tormenta con rayos, fog dinamico
-- **Agricultura**: trigo, semillas, azada, farmland, crecimiento con agua
-- **Camas**: dormir, saltar noche, establecer spawn point
-- **Fog submarino**: overlay azul y fog denso bajo el agua
-- **Settings panel**: distancia de render, FOV, sensibilidad, volumen (persistente)
-- **Performance**: real greedy meshing, frustum culling, adaptive LOD (3 levels), AO cache, web worker chunk generation, tone mapping, point light pool, chunk throttling
-- **Herramientas y armaduras**: 16 herramientas (4 tipos × 4 materiales) + 4 piezas de armadura de hierro con durabilidad
-- **Encantamientos**: XP orbs, niveles, mesa de encantamiento, 5 encantamientos
-- **Aldeanos**: 4 profesiones (Farmer, Butcher, Blacksmith, Librarian) con trading UI
-- **Pesca**: caña de pescar, bobber animado, tabla de capturas ponderada
-- **Nether**: dimension alternativa con 10 bloques nuevos, portal, netherrack terrain
-- **Redstone**: 6 bloques redstone, propagacion de potencia BFS, lever, piston, lamp
-- **Musica procedural**: ChillTune engine 8-bit con 7 estados dinamicos y escalas modales
-- **Pociones**: brewing 3-stage, 7 efectos de pocion, splash potions
-- **Escudos**: ShieldItem con durabilidad, blocking cone, shield bash, banner customization
-- **Logros**: 30 logros en 8 categorias con toast notifications y persistencia
-- **Yunque**: reparacion de herramientas, combinacion de encantamientos, renombrado
-- **Mapas y cartografia**: MapManager con 4 tiers, compass, cartography table
-- **Particulas**: efectos de minado, colocacion, clima
-- **Bug audit**: 10 bugs encontrados y resueltos (3 critical, 3 moderate, 4 minor)
+- **Inventario completo** (tecla E) con 100+ bloques colocables
+- **Fisica**: nado, sprint con stamina, crouch, vuelo creativo
+- **Audio**: Web Audio API con control de volumen
+- **Clima**: lluvia, nieve (sin tormentas en Zen)
+- **Performance**: greedy meshing, frustum culling, adaptive LOD, web worker chunk generation, tone mapping
+- **Touch controls**: joysticks duales + 5 botones, auto-deteccion mobile
+- **Personaje procedural**: CharacterGenerator con 37M combinaciones unicas
+- **3ra persona**: camara con colision, toggle con V
+
+### Survival Features (no en Zen)
+- Mobs pasivos + hostiles con IA, combate, drops
+- Salud/hambre, herramientas, armaduras, encantamientos
+- Aldeanos con trading, pesca, Nether, redstone
+- Pociones brewing, escudos, logros, yunque, mapas
+- Musica procedural chiptune (7 estados)
 
 ## Testing del Core
 
@@ -172,7 +292,30 @@ npx vitest              # watch mode
 | `achievements.test.js` | 13 | ACHIEVEMENTS, AchievementManager (unlock, stats, serialize) |
 | `gameplay.test.js` | 11 | Inventory (hotbar, addBlock, removeSelected, creative/survival) |
 | `save.test.js` | 10 | SaveManager (init, saveWorld, saveChunk, loadChunk, clearAll, autosave) |
-| **Total** | **163** | **9 modulos core** |
+| `noise-system.test.js` | — | SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender |
+| `biome-identity.test.js` | — | BiomeIdentityManager (identidad visual, sonido, fauna por bioma) |
+| `ambient-sound.test.js` | — | AmbientSoundManager (perfiles, ciclo fauna, reverberacion) |
+| `ambient-particles.test.js` | — | AmbientParticleSystem (particulas por bioma) |
+| `chilltune2.test.js` | — | ChillTuneEngine 2.0 (estados, escalas, crossfade, stingers) |
+| `conversation.test.js` | — | ConversationSystem (dialogo natural, contexto, JSON) |
+| `quests.test.js` | — | QuestManager (misiones dinamicas, progreso, completado) |
+| `npc-memory.test.js` | — | NPCMemorySystem (memoria persistente, relaciones) |
+| `civilizations.test.js` | — | CivilizationSystem (civilizaciones antiguas, descubrimiento) |
+| `lore.test.js` | — | LoreGenerator (lore procedural, libros) |
+| `narrative-structures.test.js` | — | NarrativeStructures (estructuras con historia, loot) |
+| `events.test.js` | — | EventManager (eventos emergentes) |
+| `fog.test.js` | — | VolumetricFog (niebla atmosferica) |
+| `forest-canopy.test.js` | — | ForestCanopyManager (canopy visual, fog) |
+| `interior-lighting.test.js` | — | InteriorLightingManager (luz interior) |
+| `postprocessing.test.js` | — | PostprocessingManager (bloom, tonemapping) |
+| `shadow.test.js` | — | ShadowManager (sombras suaves) |
+| `water.test.js` | — | WaterMaterialManager (agua transparente) |
+| `tree-personality.test.js` | — | TreePersonalitySystem (personalidad de arboles) |
+| `ground-vegetation.test.js` | — | GroundVegetation (vegetacion de suelo) |
+| `ui-overhaul.test.js` | — | UIManager 5.0 (dialogue, quest tracker, journal, toasts) |
+| `ai-server.test.js` | — | AI Server (Ollama integration, LLM interface) |
+| `achievements.test.js` | 13 | AchievementManager (unlock, stats, serialize) |
+| **Total** | **163+** | **33 archivos de test** |
 
 ### Configuracion
 
@@ -183,16 +326,20 @@ npx vitest              # watch mode
 
 ## Estado
 
-- **Version:** 6.0.0 — Advanced Noise Generation & Coherent Biomes
-- **Fecha:** 28 Junio 2026
-- **Estado:** Jugable con gameplay completo + sistema de generación v6.0 + core test suite (163 tests)
-- **Dependencias:** Three.js (CDN), Vitest (dev)
-- **Tamaño:** ~550KB total (29 archivos JS + 2 HTML + docs + tests)
-- **Specs completadas:** SPEC-025 a SPEC-098 (74 specs)
+- **Version:** 8.0.0 — Zen Unified
+- **Fecha:** 29 Junio 2026
+- **Estado:** Jugable — Zen Garden con sistemas wellness completos + survival completo + open world
+- **Dependencias:** Three.js (CDN), Vitest (dev), Express + ws (ai-server)
+- **Tamaño:** ~1.2MB total (74 archivos JS core + 3 HTML + 33 tests + docs + ai-server)
+- **Specs completadas:** 96+ specs total
+  - **v8.0 Zen Unified:** SPEC-099 Wellness + Zen implementation (7 sesiones de fixes)
+  - **v7.0 World Hierarchy:** SPEC-100 a SPEC-110 (11 specs) + World Identity Realista
   - **v6.0 Noise System:** SPEC-091 a SPEC-098 (8 specs)
-  - **v5.0 Living World:** SPEC-070 a SPEC-090 (21 specs)
+  - **v5.0 Living World:** SPEC-070 a SPEC-090 (21 specs) + SPEC-INT-001 a INT-008 (8 specs)
+  - **v5.0 LLM Harness:** SPEC-H001 a H005 (5 specs)
   - **v4.x Core Features:** SPEC-025 a SPEC-067 (43 specs)
-- **Bugs resueltos:** 10/10 (BUG-001 a BUG-010)
-- **Tests core:** 163 tests en 9 archivos (Vitest + jsdom)
-- **PRDs completados:** Noise Generation 6.0, JardVoxel 5.0, ChillTune Music
-- **PRDs pendientes:** Touch Joystick (mobile), Game Menu (mobile)
+- **Bugs resueltos:** 10/10 core + 13/13 Zen (BUG-001 a BUG-010 + Zen fixes 1-13)
+- **Tests core:** 163+ tests en 33 archivos (Vitest + jsdom)
+- **PRDs completados:** 13 PRDs (Zen Unified, Living World, Integration, Hierarchical, Organic Terrain, Noise 6.0, ChillTune, Touch, Mobile Menu, Procedural Body, LLM Harness, Chunk Optimization, Survival Optimization)
+- **Deploy:** Vercel (vercel.json con COOP/COEP headers para SharedArrayBuffer)
+- **Modo activo:** Zen Garden (index.html → jardvoxel-zen.html)

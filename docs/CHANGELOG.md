@@ -1,5 +1,173 @@
 # JardVoxel — Changelog
 
+## v8.0.0 — Zen Unified (29 Junio 2026)
+
+### SPEC-099: Sistema de Bienestar y Relajacion v7.0 ✅
+- **ChillTuneEngine** — Musica ambient deep space (Interstellar/Blade Runner style)
+  - LFO modula FRECUENCIA (no volumen) — shimmer sutil, no pulsaciones
+  - BPM ultra-lentos: 24-40 (contemplation 24, idle 26, caves 28, night 30, exploring 36)
+  - Silencio extremo: 75-98% rest probability
+  - Solo escala Lydian (F Lydian) para todos los biomas
+  - Notas ultra-espaciadas: 16-32 barras intervalo, 24-48 beats duracion
+  - Reverb profundo: delay 0.6s, feedback 0.4, filtro 2400 Hz
+  - Crossfade 6s entre biomas
+  - Master volume 0.18, melodia 0.025-0.03
+- **AmbientSoundManager** — Sonidos de bioma 3D posicional
+  - 10+ perfiles de bioma con soundscape layers (near/mid/far)
+  - Ciclo de fauna: dawn/day/dusk/night
+  - Reverberacion natural por bioma
+- **BiomeIdentityManager** — Identidad visual, sonido y fauna por bioma
+- **KomorebiSystem** — Luz filtrada por canopy, particulas de luz
+  - Raycast densidad canopy
+  - Efectos de audio/musica komorebi
+- **ResonanceSystem** — Tracking de comportamiento del jugador
+  - PlayerProfile, analisis de comportamiento
+  - Modificadores de generacion, eventos especiales
+- **MeditationSpaceGenerator** — 6 tipos de espacios de meditacion
+  - Vista, Zen Garden, Cascada, Lago Espejo, Templo, Bamboo Grove
+  - Deteccion de descubrimiento, efectos especiales
+- **LivingWorldSystem** — Mundo vivo reactivo
+  - Arboles → Aves, Restauracion → Biodiversidad
+  - Caminos → Aldeanos, Lagos → Peces
+- **ExplorationJournal** — Registro automatico de momentos
+  - UI con tabs (Biomas, Wellness, Hitos, Stats)
+  - Persistencia localStorage
+
+### Zen Implementation — 7 sesiones de fixes (29 Junio 2026)
+
+#### Sesion 1 (12:15) — Fix musica ambient
+- LFO: volumen → frecuencia en `jardvoxel-survival-chilltune.js`
+- Drone: triangle → sine, volumen constante 0.03
+- BPM: 24-40, silencio 75-98%, crossfade 6s
+- Solo escala Lydian, reverb profundo
+
+#### Sesion 2 (13:00) — Quick wins batch
+- `_addJournalEntry`: ahora llama `journal.addEntry()`
+- `_animateWater`: eliminado (dead code)
+- `showControlsHint`: toggle añadido + wired en settings
+- Indicador de clima: labels en español, se oculta cuando despejado
+- WebGL check: test antes de init con mensaje claro
+
+#### Sesion 3 (13:54) — Gaps restantes
+- `_applySettings`: aplica toggles visuales (FPS, coords, minimap, reloj, controles)
+- `_applySettings()`: se llama al final de `initUI()` para estado inicial
+- Pixel ratio: 1.0 → 1.5 para mayor nitidez en Retina/HiDPI
+- Loading screen: contador de progreso animado
+- Module errors: detecta errores de import y muestra mensaje especifico
+
+#### Sesion 4 (15:49) — WorldIdentity Realista
+- Edades geologicas: Paleogene, Neogene, Quaternary (basado en Cenozoico real)
+- 8 eventos historicos reales del Cuaternario
+- Parametros terrestres: 68-74% oceano, 5-9 continentes, 20.5-26.5° axial
+- Gradiente latitudinal: Ecuador cálido → Polos fríos
+- Sistema anti-duplicados: eventos historicos unicos por mundo
+- Documentacion: `docs/WORLD-IDENTITY-REALISM.md`
+
+#### Sesion 5 (19:22) — Bug fixes: clouds, canopy fog, fog getter
+- Clouds frozen: removida linea que sobreescribia `cloudPlanes = []`
+- Canopy fog broken: cambiado `this.fog` → `this.fogManager`
+- VolumetricFog: añadido `get fog()` getter para exponer `_normalFog`
+
+### Perfil Patagonia
+- `core/jardvoxel-patagonia.js` — Perfil geografico real (43°S-56°S)
+- Biomas con nombres locales: Estepa Patagonica, Bosque Subantartico, Selva Valdiviana
+- Cordillera de los Andes con picos hasta 130 bloques
+- Seed fijo: 142857
+- `PatagoniaProfile` class con `applyPatagoniaToGenerator()`
+
+### Zen Garden HTML
+- `jardvoxel-zen.html` (390 lineas) — UI wellness minimalista + imports
+- `core/jardvoxel-zen-game.js` (1336 lineas) — ZenGame class
+  - ~25 imports de core/ (vs 55 del survival)
+  - Sin mobs, sin combate, sin muerte, sin hambre
+  - Modo creativo: bloques infinitos, break instantaneo
+  - Touch controls nativos
+  - Settings con tabs: Video, Audio, Controles, Wellness
+  - Journal panel (tecla J)
+  - Auto-hide UI tras inactividad
+- `core/jardvoxel-zen-touch.js` (197 lineas) — TouchJoystick + TouchControls
+- `index.html` — Menu principal con selector de modo
+
+### Deploy
+- `vercel.json` — COOP/COEP headers para SharedArrayBuffer
+- Deploy a Vercel
+
+### Documentacion
+- `docs/PRD-JARDVOXEL-ZEN-UNIFIED.md` — PRD Zen v8.0.0 (372 lineas)
+- `docs/ZEN-IMPLEMENTATION-STATUS.md` — Estado implementacion (294 lineas)
+- `docs/WORLD-IDENTITY-REALISM.md` — World identity realista (212 lineas)
+- `REFACTOR-SUMMARY.md` — Refactorizacion visual premium
+- `REFACTOR-CORE.md` — Refactorizacion del core
+- `BUGFIX-WATER-MANAGER.md` — Bugfix water manager
+- `BUGFIXES-COMPLETE.md` — Bugfixes completos
+
+---
+
+## v7.0.0 — World Hierarchy & Organic Terrain (28-29 Junio 2026)
+
+### SPEC-100: World Identity ✅
+- `WorldIdentity` class con parametros terrestres realistas
+- Edades geologicas, eventos historicos, gradiente latitudinal
+- Archivo: `core/jardvoxel-survival-world-hierarchy.js`
+
+### SPEC-101: Continent Generator ✅
+- Generacion jerarquica: Continente → Region → Zona → Chunk
+- `ContinentGenerator` con Voronoi cells
+
+### SPEC-102: Region Generator ✅
+- `RegionGenerator` con bioma blending por region
+
+### SPEC-103: Zone Generator ✅
+- `ZoneGenerator` con features locales
+
+### SPEC-104: Hierarchical Chunk ✅
+- Chunk generation integrada con jerarquia
+
+### SPEC-105: Microsectors ✅
+- `MicrosectorSystem` para detalle fino
+
+### SPEC-106: Layer System ✅
+- `LayerSystem` con capas geologicas
+
+### SPEC-107: Streaming ✅
+- `StreamingSystem` para carga/descarga dinamica
+
+### SPEC-108: Landmarks ✅
+- `LandmarkGenerator` con hitos naturales
+
+### SPEC-109: Ecosystems ✅
+- `EcosystemSystem` con flora/fauna interconectada
+
+### SPEC-110: Contextual Generation ✅
+- `ContextualGenerator` con generacion adaptativa
+
+### Sistemas Organic Terrain
+- `VoronoiBiomes` — Biomas con fronteras Voronoi naturales
+- `PoissonVegetation` — Distribucion Poisson de vegetacion
+- `HydrologySystem` — Rios, lagos, erosion hidrica
+- `InstancedRenderer` — Renderizado instanciado para vegetacion
+- `WorkerPool` — Multi-worker para generacion de chunks
+- `CellularNoise` — Ruido celular para patrones organicos
+- `TreePersonalitySystem` — Personalidad de arboles (21K lineas)
+- `MicrosectorSystem` — Sectores micro para detalle
+
+### Nuevos modulos core (v7.0)
+- `jardvoxel-survival-world-hierarchy.js` (39K)
+- `jardvoxel-survival-hydrology.js` (19K)
+- `jardvoxel-survival-tree-personality.js` (21K)
+- `jardvoxel-survival-voronoi.js` (7K)
+- `jardvoxel-survival-poisson.js` (3K)
+- `jardvoxel-survival-instanced.js` (9K)
+- `jardvoxel-survival-microsectors.js` (6K)
+- `jardvoxel-survival-streaming.js` (4K)
+- `jardvoxel-survival-worker-pool.js` (4K)
+- `jardvoxel-survival-landmarks.js` (11K)
+- `jardvoxel-survival-ecosystems.js` (9K)
+- `jardvoxel-survival-contextual.js` (12K)
+- `jardvoxel-survival-layers.js` (28K)
+
+---
+
 ## v6.0.0 — Advanced Noise Generation & Coherent Biomes (28 Junio 2026)
 
 ### SPEC-091: Simplex Noise Core ✅

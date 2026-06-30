@@ -6,6 +6,8 @@
 // of "Wabi-sabi" — beauty in impermanence and natural cycles.
 // ═══════════════════════════════════════════════════════════
 
+import { CHUNK_SIZE } from './jardvoxel-survival-engine.js';
+
 // Block IDs
 const SAPLING_BLOCK = 9; // OAK_LOG used as sapling proxy
 const FLOWER_BLOCKS = [28, 29, 157, 158, 159, 160, 161, 162, 163, 164];
@@ -61,9 +63,9 @@ export class LivingWorldSystem {
 
   // Track player movement for idle area detection
   trackPlayerMovement(playerPos) {
-    const cx = Math.floor(playerPos.x / 16) * 16;
-    const cz = Math.floor(playerPos.z / 16) * 16;
-    const key = `${cx},${cz}`;
+    const cx = Math.floor(playerPos.x / CHUNK_SIZE) * CHUNK_SIZE;
+    const cz = Math.floor(playerPos.z / CHUNK_SIZE) * CHUNK_SIZE;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     this._idleAreas.set(key, { lastVisit: Date.now(), x: cx, z: cz });
 
     // Prune old entries
@@ -137,8 +139,8 @@ export class LivingWorldSystem {
     for (const [key, area] of this._idleAreas) {
       if (now - area.lastVisit > idleThreshold) {
         // Try to grow a wildflower in this area
-        const fx = area.x + Math.floor(Math.random() * 16);
-        const fz = area.z + Math.floor(Math.random() * 16);
+        const fx = area.x + Math.floor(Math.random() * CHUNK_SIZE);
+        const fz = area.z + Math.floor(Math.random() * CHUNK_SIZE);
 
         // Find surface
         for (let y = 100; y > 0; y--) {

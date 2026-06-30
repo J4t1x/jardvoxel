@@ -22,9 +22,9 @@ const waterVertexShader = `
     vUv = uv;
     vec3 pos = position;
 
-    float wave1 = sin(pos.x * 0.8 + uTime * 1.5) * 0.06;
-    float wave2 = cos(pos.z * 0.6 + uTime * 1.2) * 0.05;
-    float wave3 = sin((pos.x + pos.z) * 0.4 + uTime * 0.8) * 0.03;
+    float wave1 = sin(pos.x * 0.8 + uTime * 1.5) * 0.08;
+    float wave2 = cos(pos.z * 0.6 + uTime * 1.2) * 0.06;
+    float wave3 = sin((pos.x + pos.z) * 0.4 + uTime * 0.8) * 0.04;
     vWaveHeight = wave1 + wave2 + wave3;
     pos.y += vWaveHeight;
 
@@ -59,7 +59,7 @@ const waterFragmentShader = `
     float caustic = (c1 + c2 + c3) / 3.0;
     caustic = pow(max(caustic, 0.0), 3.0);
     float intensity = clamp(1.0 - depth * 0.04, 0.0, 1.0);
-    return vec3(0.6, 0.8, 0.9) * caustic * intensity * 0.4;
+    return vec3(0.65, 0.82, 0.88) * caustic * intensity * 0.5;
   }
 
   void main() {
@@ -87,7 +87,7 @@ const waterFragmentShader = `
 
     float depth = length(vWorldPos - uCameraPos) * 0.5;
     vec3 caustics = getCaustics(vUv * 3.0, depth);
-    finalColor += caustics * (1.0 - fresnel) * 0.3;
+    finalColor += caustics * (1.0 - fresnel) * 0.35;
 
     float refractionStrength = (1.0 - fresnel) * 0.15;
     vec2 refractionOffset = normal.xz * refractionStrength;
@@ -96,9 +96,9 @@ const waterFragmentShader = `
 
     float sunSpec = max(dot(reflect(-uSunDirection, normal), viewDir), 0.0);
     sunSpec = pow(sunSpec, 32.0);
-    finalColor += vec3(1.0, 0.95, 0.8) * sunSpec * 0.5;
+    finalColor += vec3(1.0, 0.92, 0.72) * sunSpec * 0.35;
 
-    float alpha = 0.65 + fresnel * 0.3;
+    float alpha = 0.72 + fresnel * 0.25;
     gl_FragColor = vec4(finalColor, alpha);
   }
 `;
@@ -112,11 +112,11 @@ export class WaterMaterialManager {
     this.reflectionRT = null;
     this.reflectionCamera = null;
     this._frameCount = 0;
-    this._skyColor = new THREE.Color(0x87ceeb);
+    this._skyColor = new THREE.Color(0xA8C8E0);
     this._sunDirection = new THREE.Vector3(0.5, 1.0, 0.3).normalize();
-    this._shallowColor = new THREE.Color(0x5ac8e8);
-    this._deepColor = new THREE.Color(0x1a4a7a);
-    this._reflectionStrength = 0.6;
+    this._shallowColor = new THREE.Color(0x5AC8D8);
+    this._deepColor = new THREE.Color(0x1A4878);
+    this._reflectionStrength = 0.5;
 
     this._init();
   }
@@ -239,11 +239,11 @@ export class WaterMaterialManager {
 }
 
 export const WATER_COLORS = {
-  shallow: 0x5ac8e8,
-  deep: 0x1a4a7a,
-  river: 0x4ab8d8,
-  ocean_shallow: 0x7ad8f0,
-  ocean_deep: 0x0a2a5a,
+  shallow: 0x5AC8D8,
+  deep: 0x1A4878,
+  river: 0x48B8D0,
+  ocean_shallow: 0x78D5E8,
+  ocean_deep: 0x0A2858,
 };
 
 export { REFLECTION_RT_SIZE, REFLECTION_UPDATE_INTERVAL };

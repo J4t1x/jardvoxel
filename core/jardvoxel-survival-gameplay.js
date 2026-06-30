@@ -52,15 +52,13 @@ export class SurvivalWorld {
     this.renderDistance = renderDistance;
     this._adaptiveEnabled = true;
     this._targetRenderDist = renderDistance;
-    this._minRenderDist = 16;
+    this._minRenderDist = 6;
     this._initialLoadBurst = 0;
     this._usePatagonia = usePatagonia;
     this.chunks = new Map();
     this.meshes = new Map();
     this.waterMeshes = new Map();
     this.pendingChunks = new Set();
-    this.chunkPool = [];
-    this.maxPoolSize = 1200; // Increased pool for larger render distances
     this.worker = null;
     this.workerSupported = typeof Worker !== 'undefined';
     this.dimension = 'overworld';
@@ -80,6 +78,8 @@ export class SurvivalWorld {
     // PRD P-04: Multi-worker pool (replaces single worker)
     this._workerPool = null;
     this._useWorkerPool = false;
+    // Distant terrain ring — fake horizon to hide unloaded chunks
+    this._distantTerrain = new DistantTerrainRing(scene, this);
     this._initWorker();
   }
 
@@ -144,7 +144,12 @@ export class SurvivalWorld {
   // Called when a worker finishes generating a chunk
   _onWorkerChunkDone(cx, cz, blocks, minContentY, maxContentY) {
     const chunk = this._getOrCreateChunk(cx, cz);
-    chunk.blocks = new Uint8Array(blocks);
+    const incoming = new Uint8Array(blocks);
+    if (incoming.length <= chunk.blocks.length) {
+      chunk.blocks.set(incoming);
+    } else {
+      chunk.blocks = incoming;
+    }
     chunk.generated = true;
     if (minContentY !== undefined) {
       chunk.minContentY = minContentY;
@@ -154,26 +159,30 @@ export class SurvivalWorld {
     if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
     this.pendingChunks.delete(this._chunkKey(cx, cz));
     this._rebuildChunkMesh(cx, cz);
-    if (this._initialLoadBurst > 0) {
-      if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
-      this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
-      this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
-      this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
-      this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
-    } else {
-      this._rebuildChunkMesh(cx - 1, cz);
-      this._rebuildChunkMesh(cx + 1, cz);
-      this._rebuildChunkMesh(cx, cz - 1);
-      this._rebuildChunkMesh(cx, cz + 1);
+    this._queueNeighborRebuilds(cx, cz);
+  }
+
+  _queueNeighborRebuilds(cx, cz) {
+    if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Map();
+    const neighbors = [
+      { cx: cx - 1, cz }, { cx: cx + 1, cz },
+      { cx, cz: cz - 1 }, { cx, cz: cz + 1 },
+    ];
+    for (const n of neighbors) {
+      const nkey = this._chunkKey(n.cx, n.cz);
+      if (this.chunks.has(nkey) && this.chunks.get(nkey).generated && !this._pendingNeighborRebuilds.has(nkey)) {
+        this._pendingNeighborRebuilds.set(nkey, n);
+      }
     }
   }
 
-  _chunkKey(cx, cz) { return `${cx},${cz}`; }
+  // SPEC-PERF-001: Numeric chunk key — eliminates string allocation garbage
+  _chunkKey(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
 
   _getOrCreateChunk(cx, cz) {
     const key = this._chunkKey(cx, cz);
     if (this.chunks.has(key)) return this.chunks.get(key);
-    const chunk = new VoxelChunk(cx, cz, this.generator);
+    const chunk = VoxelChunk.acquire(cx, cz, this.generator);
     this.chunks.set(key, chunk);
     return chunk;
   }
@@ -194,7 +203,8 @@ export class SurvivalWorld {
       this._workerPool.generateChunk(cx, cz, priority).then(data => {
         this._onWorkerChunkDone(data.cx, data.cz, data.blocks, data.minContentY, data.maxContentY);
       }).catch(err => {
-        console.warn('WorkerPool chunk generation failed, falling back to sync:', err);
+        console.warn(`WorkerPool chunk generation failed for (${cx},${cz}), falling back to sync:`, err);
+        chunk.generate();
         generateChunkWithFeatures(chunk, this);
         if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
         this.pendingChunks.delete(key);
@@ -211,19 +221,7 @@ export class SurvivalWorld {
       if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
       this.pendingChunks.delete(key);
       this._rebuildChunkMesh(cx, cz);
-      // Rebuild neighbors to fix border faces (skip during burst)
-      if (this._initialLoadBurst > 0) {
-        if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
-        this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
-        this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
-        this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
-        this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
-      } else {
-        this._rebuildChunkMesh(cx - 1, cz);
-        this._rebuildChunkMesh(cx + 1, cz);
-        this._rebuildChunkMesh(cx, cz - 1);
-        this._rebuildChunkMesh(cx, cz + 1);
-      }
+      this._queueNeighborRebuilds(cx, cz);
     }
   }
 
@@ -252,10 +250,10 @@ export class SurvivalWorld {
       const dx = cx - this._playerChunkX;
       const dz = cz - this._playerChunkZ;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= 4) lod = 0;
-      else if (dist <= 8) lod = 1;
-      else if (dist <= 16) lod = 2;
-      else if (dist <= 28) lod = 3;
+      if (dist <= 6) lod = 0;
+      else if (dist <= 12) lod = 1;
+      else if (dist <= 20) lod = 2;
+      else if (dist <= 32) lod = 3;
       else lod = 4;
     }
 
@@ -285,6 +283,8 @@ export class SurvivalWorld {
     mesh.frustumCulled = true;
     mesh.userData.chunkKey = key;
     mesh.userData.lod = lod;
+    mesh.userData.cx = cx;
+    mesh.userData.cz = cz;
     this.scene.add(mesh);
     this.meshes.set(key, mesh);
 
@@ -311,6 +311,8 @@ export class SurvivalWorld {
       const wMesh = new THREE.Mesh(wGeo, wMat);
       wMesh.frustumCulled = true;
       wMesh.userData.chunkKey = key;
+      wMesh.userData.cx = cx;
+      wMesh.userData.cz = cz;
       this.scene.add(wMesh);
       this.waterMeshes.set(key, wMesh);
     }
@@ -322,9 +324,10 @@ export class SurvivalWorld {
     }
   }
 
-  // SPEC-CHUNK-OPT: Build heightmap for a chunk (occlusion culling)
+  // SPEC-CHUNK-OPT: Build heightmap for a chunk (occlusion culling + minimap)
   _buildHeightmap(cx, cz, chunk) {
     const heights = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+    const topBlocks = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
     let sum = 0;
     // Use stored maxContentY to limit scan range (avoids scanning 384 levels)
     const maxY = chunk.maxContentY !== undefined
@@ -333,19 +336,23 @@ export class SurvivalWorld {
     for (let x = 0; x < CHUNK_SIZE; x++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
         let topY = 0;
+        let topBlock = 0;
         for (let y = maxY; y >= 0; y--) {
           const b = chunk.getBlock(x, y, z);
           if (b !== BLOCK.AIR && b !== BLOCK.WATER) {
             topY = y;
+            topBlock = b;
             break;
           }
         }
         heights[x + z * CHUNK_SIZE] = topY;
+        topBlocks[x + z * CHUNK_SIZE] = topBlock;
         sum += topY;
       }
     }
     this._heightmaps.set(this._chunkKey(cx, cz), {
       heights,
+      topBlocks,
       avgHeight: sum / (CHUNK_SIZE * CHUNK_SIZE),
     });
   }
@@ -403,6 +410,18 @@ export class SurvivalWorld {
     return this.generator.getBiome(worldX, worldZ);
   }
 
+  // SPEC-PERF-003: Fast top-block lookup via heightmap cache (for minimap)
+  getTopBlockAt(worldX, worldZ) {
+    const cx = Math.floor(worldX / CHUNK_SIZE);
+    const cz = Math.floor(worldZ / CHUNK_SIZE);
+    const key = this._chunkKey(cx, cz);
+    const hm = this._heightmaps.get(key);
+    if (!hm) return null;
+    const lx = ((worldX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const lz = ((worldZ % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return hm.topBlocks[lx + lz * CHUNK_SIZE];
+  }
+
   update(playerX, playerZ, fps = 60, camera = null, dt = 0.016) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
@@ -420,11 +439,11 @@ export class SurvivalWorld {
     }
     
     // Altitude-based render distance boost: when flying high, load more chunks
-    // This reduces the visible gap between loaded terrain and the skydome
+    // Capped at +6 to prevent memory explosion (was +24, caused browser crashes)
     let altitudeBoost = 0;
     if (this._camera && this._camera.position.y > 80) {
       const altitudeFactor = Math.min(1, (this._camera.position.y - 80) / 120);
-      altitudeBoost = Math.floor(altitudeFactor * 24); // Up to +24 chunks at high altitude
+      altitudeBoost = Math.floor(altitudeFactor * 6);
     }
     
     const rd = this.renderDistance + altitudeBoost;
@@ -463,7 +482,7 @@ export class SurvivalWorld {
     // Surface-first: fewer chunks per frame = smoother FPS, terrain appears faster
     // because each chunk generates surface band only (not full 384 depth)
     const burstActive = this._initialLoadBurst > 0;
-    const maxPerFrame = burstActive ? 4 : (fps < 45 ? 3 : (camera ? 2 : 2));
+    const maxPerFrame = burstActive ? 2 : (fps < 45 ? 1 : 2);
     if (burstActive) this._initialLoadBurst--;
     for (let i = 0; i < Math.min(maxPerFrame, toGen.length); i++) {
       this.generateChunk(toGen[i].cx, toGen[i].cz);
@@ -472,10 +491,9 @@ export class SurvivalWorld {
     // Process pending neighbor rebuilds after burst loading
     if (!burstActive && this._pendingNeighborRebuilds && this._pendingNeighborRebuilds.size > 0) {
       let processed = 0;
-      for (const nkey of this._pendingNeighborRebuilds) {
-        if (processed >= 4) break;
-        const [ncx, ncz] = nkey.split(',').map(Number);
-        this._rebuildChunkMesh(ncx, ncz);
+      for (const [nkey, info] of this._pendingNeighborRebuilds) {
+        if (processed >= 6) break;
+        this._rebuildChunkMesh(info.cx, info.cz);
         this._pendingNeighborRebuilds.delete(nkey);
         processed++;
       }
@@ -483,24 +501,23 @@ export class SurvivalWorld {
     }
 
     // LOD re-meshing: rebuild chunks whose LOD no longer matches their distance
-    // Throttled to every 0.5s to avoid iterating all meshes every frame
+    // Throttled to every 0.3s to avoid iterating all meshes every frame
     this._lodCheckTimer = (this._lodCheckTimer || 0) + dt;
-    if (this._lodCheckTimer >= 0.5) {
+    if (this._lodCheckTimer >= 0.3) {
       this._lodCheckTimer = 0;
     let lodUpgrades = 0, lodDowngrades = 0;
-    const maxUpgrades = 3, maxDowngrades = 2;
+    const maxUpgrades = 6, maxDowngrades = 4;
     for (const [key, mesh] of this.meshes) {
       if (lodUpgrades >= maxUpgrades && lodDowngrades >= maxDowngrades) break;
-      const parts = key.split(',');
-      const cx = parseInt(parts[0]);
-      const cz = parseInt(parts[1]);
+      const cx = mesh.userData.cx;
+      const cz = mesh.userData.cz;
       const dx = cx - pcx, dz = cz - pcz;
       const dist = Math.sqrt(dx * dx + dz * dz);
       let targetLod;
-      if (dist <= 4) targetLod = 0;
-      else if (dist <= 8) targetLod = 1;
-      else if (dist <= 16) targetLod = 2;
-      else if (dist <= 28) targetLod = 3;
+      if (dist <= 6) targetLod = 0;
+      else if (dist <= 12) targetLod = 1;
+      else if (dist <= 20) targetLod = 2;
+      else if (dist <= 32) targetLod = 3;
       else targetLod = 4;
       const currentLod = mesh.userData.lod ?? 0;
       if (targetLod < currentLod && lodUpgrades < maxUpgrades) {
@@ -513,11 +530,12 @@ export class SurvivalWorld {
     }
     } // end throttled LOD check
 
-    // Unload distant chunks
+    // Unload distant chunks (single pass, rd + 3)
     for (const [key, chunk] of this.chunks) {
       const dx = chunk.cx - pcx;
       const dz = chunk.cz - pcz;
       if (Math.sqrt(dx * dx + dz * dz) > rd + 3) {
+        if (this.onChunkUnload) this.onChunkUnload(key, chunk);
         if (this.meshes.has(key)) {
           const m = this.meshes.get(key);
           this.scene.remove(m);
@@ -531,12 +549,14 @@ export class SurvivalWorld {
           this.waterMeshes.delete(key);
         }
         this._instancedRenderer.disposeChunk(key);
+        const chunk = this.chunks.get(key);
+        if (chunk) VoxelChunk.release(chunk);
         this.chunks.delete(key);
         this._heightmaps.delete(key);
       }
     }
 
-    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion + aggressive unloading
+    // SPEC-CHUNK-OPT: Frustum culling for visibility (no distance-based unloading here)
     // Throttled to every 0.15s to avoid iterating all meshes every frame
     this._frustumTimer = (this._frustumTimer || 0) + dt;
     if (camera && this._frustumTimer >= 0.15) {
@@ -546,22 +566,14 @@ export class SurvivalWorld {
       if (!this._tmpVec) this._tmpVec = new THREE.Vector3();
       const tmpVec = this._tmpVec;
       
-      const unloadDist = rd * 2.5; // Unload chunks 2.5x beyond render distance
-      const keysToRemove = [];
-      
       for (const [key, mesh] of this.meshes) {
-        const [cx, cz] = key.split(',').map(Number);
+        const cx = mesh.userData.cx;
+        const cz = mesh.userData.cz;
         const chunkCenterX = cx * CHUNK_SIZE + CHUNK_SIZE / 2;
         const chunkCenterZ = cz * CHUNK_SIZE + CHUNK_SIZE / 2;
         const dx = chunkCenterX - playerX;
         const dz = chunkCenterZ - playerZ;
         const chunkDist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Aggressive unloading for memory management
-        if (chunkDist > unloadDist) {
-          keysToRemove.push(key);
-          continue;
-        }
         
         if (chunkDist < CHUNK_SIZE * 2) {
           mesh.visible = true;
@@ -576,11 +588,6 @@ export class SurvivalWorld {
         }
       }
       
-      // Remove distant chunks to free memory
-      for (const key of keysToRemove) {
-        this._removeChunk(key);
-      }
-      
       for (const [key, wmesh] of this.waterMeshes) {
         wmesh.visible = this.meshes.get(key) ? this.meshes.get(key).visible : true;
       }
@@ -589,6 +596,11 @@ export class SurvivalWorld {
       for (const [key, mesh] of this.meshes) {
         this._instancedRenderer.setChunkVisible(key, mesh.visible);
       }
+    }
+
+    // Distant terrain ring — update fake horizon terrain
+    if (this._distantTerrain) {
+      this._distantTerrain.update(playerX, playerZ, rd);
     }
   }
 
@@ -631,6 +643,8 @@ export class SurvivalWorld {
       this.waterMeshes.delete(key);
     }
     this._instancedRenderer.disposeChunk(key);
+    const chunk = this.chunks.get(key);
+    if (chunk) VoxelChunk.release(chunk);
     this.chunks.delete(key);
     this._heightmaps.delete(key);
   }
@@ -658,6 +672,10 @@ export class SurvivalWorld {
     if (this._instancedRenderer) {
       this._instancedRenderer.dispose();
     }
+    if (this._distantTerrain) {
+      this._distantTerrain.dispose();
+      this._distantTerrain = null;
+    }
   }
 }
 
@@ -680,6 +698,7 @@ export class PlayerController {
     this.justSplashed = false;
     this.fallStartY = 0;
     this.fallDistance = 0;
+    this.fallDamageEnabled = false;
     this.moveSpeed = 4.3;
     this.runSpeed = 7.0;
     this.flySpeed = 10.0;
@@ -850,8 +869,8 @@ export class PlayerController {
     if (collision) {
       if (axis === 'y') {
         if (amount < 0) {
-          // Track fall damage
-          if (this.fallDistance > 3 && !this.flying) {
+          // Track fall damage (disabled in Zen mode, kept for survival mode)
+          if (this.fallDamageEnabled && this.fallDistance > 3 && !this.flying) {
             this.lastFallDistance = this.fallDistance;
           }
           this.onGround = true;
@@ -936,6 +955,7 @@ export class Inventory {
     this.selectedSlot = Math.max(0, Math.min(8, slot));
   }
 
+  // Used in survival mode, not in Zen creative mode
   addBlock(blockId) {
     if (this.creativeMode) return;
     for (let i = 0; i < this.hotbar.length; i++) {
@@ -983,145 +1003,148 @@ export class Inventory {
 // SPEC-BIOME-OVERHAUL: Biome sky color configurations
 const BIOME_SKY_COLORS = {
   ocean: {
-    dayTop: 0x6680F0, dayBottom: 0xB0D8F8,
-    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
-    nightTop: 0x050510, nightBottom: 0x0A1A30,
+    dayTop: 0x5AA8D8, dayBottom: 0xA8D0E8,
+    sunsetTop: 0xD89878, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   deep_ocean: {
-    dayTop: 0x4A60D0, dayBottom: 0x90C0E8,
-    sunsetTop: 0x3A4070, sunsetBottom: 0xFF8A5D,
-    nightTop: 0x050510, nightBottom: 0x081528,
+    dayTop: 0x4A98C8, dayBottom: 0x98C8E0,
+    sunsetTop: 0xC88868, sunsetBottom: 0xFFB898,
+    nightTop: 0x08152A, nightBottom: 0x152540,
   },
   beach: {
-    dayTop: 0x72C0E8, dayBottom: 0xC0E0F8,
-    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
-    nightTop: 0x050510, nightBottom: 0x0A1520,
+    dayTop: 0x78C0E8, dayBottom: 0xD0E8F5,
+    sunsetTop: 0xE8A078, sunsetBottom: 0xFFD0A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   plains: {
-    dayTop: 0x72C0E8, dayBottom: 0xC0E0F8,
-    sunsetTop: 0x4A5080, sunsetBottom: 0xFF9A6D,
-    nightTop: 0x050510, nightBottom: 0x0A1520,
+    dayTop: 0x78C0E8, dayBottom: 0xD0E8F5,
+    sunsetTop: 0xE8A078, sunsetBottom: 0xFFD0A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   forest: {
-    dayTop: 0x5AC0E0, dayBottom: 0xC0E0F0,
-    sunsetTop: 0x4A6080, sunsetBottom: 0xFF8A5D,
-    nightTop: 0x050510, nightBottom: 0x0A1520,
+    dayTop: 0x7AB8D8, dayBottom: 0xB8D8C8,
+    sunsetTop: 0xE8A078, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   jungle: {
-    dayTop: 0x66B2A8, dayBottom: 0xA8D8C0,
-    sunsetTop: 0x4A7070, sunsetBottom: 0xFF9A7D,
-    nightTop: 0x050A08, nightBottom: 0x0F1A15,
+    dayTop: 0x70B8A0, dayBottom: 0xB8E0C8,
+    sunsetTop: 0xD89870, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A15, nightBottom: 0x1A2825,
   },
   desert: {
-    dayTop: 0xD9B380, dayBottom: 0xFAD999,
-    sunsetTop: 0xD98050, sunsetBottom: 0xFFB070,
-    nightTop: 0x1A0A05, nightBottom: 0x3A2010,
+    dayTop: 0xE8C898, dayBottom: 0xF8E8C8,
+    sunsetTop: 0xE89868, sunsetBottom: 0xFFD8A8,
+    nightTop: 0x2A1A15, nightBottom: 0x3A2820,
   },
   savanna: {
-    dayTop: 0xCBA070, dayBottom: 0xF0D0A0,
-    sunsetTop: 0xC07040, sunsetBottom: 0xFFA060,
-    nightTop: 0x150A05, nightBottom: 0x2A1810,
+    dayTop: 0xD8B078, dayBottom: 0xF0D8B0,
+    sunsetTop: 0xE09060, sunsetBottom: 0xFFD0A0,
+    nightTop: 0x251A10, nightBottom: 0x352820,
   },
   taiga: {
-    dayTop: 0x80B0D0, dayBottom: 0xC0D8E8,
-    sunsetTop: 0x506080, sunsetBottom: 0xFF9A80,
-    nightTop: 0x080A12, nightBottom: 0x101828,
+    dayTop: 0x88B8D0, dayBottom: 0xC8E0E8,
+    sunsetTop: 0xE0A078, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   snowy_plains: {
-    dayTop: 0xD8E8FA, dayBottom: 0xF0F8FF,
-    sunsetTop: 0xA0B0C0, sunsetBottom: 0xFFB8A0,
-    nightTop: 0x0A0F15, nightBottom: 0x1A2530,
+    dayTop: 0xD8E8F5, dayBottom: 0xF0F5F8,
+    sunsetTop: 0xE8B898, sunsetBottom: 0xFFD8B8,
+    nightTop: 0x15203A, nightBottom: 0x253048,
   },
   mountains: {
-    dayTop: 0x80A0C0, dayBottom: 0xB0C8D8,
-    sunsetTop: 0x506070, sunsetBottom: 0xFF9080,
-    nightTop: 0x080A12, nightBottom: 0x101825,
+    dayTop: 0x88A8C0, dayBottom: 0xB8D0D8,
+    sunsetTop: 0xE0A078, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   snowy_peaks: {
-    dayTop: 0xD0E0F5, dayBottom: 0xE8F0FA,
-    sunsetTop: 0xA0B0C5, sunsetBottom: 0xFFB0A0,
-    nightTop: 0x0A0F18, nightBottom: 0x182030,
+    dayTop: 0xD0E0F0, dayBottom: 0xE8F0F5,
+    sunsetTop: 0xE8B898, sunsetBottom: 0xFFD8B8,
+    nightTop: 0x15203A, nightBottom: 0x253048,
   },
   stony_peaks: {
-    dayTop: 0x90A0B0, dayBottom: 0xB8C0C8,
-    sunsetTop: 0x606870, sunsetBottom: 0xFF9870,
-    nightTop: 0x0A0A10, nightBottom: 0x151820,
+    dayTop: 0x98A8B0, dayBottom: 0xC0C8D0,
+    sunsetTop: 0xE0A078, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   meadow: {
-    dayTop: 0x70B8E0, dayBottom: 0xB8E0F0,
-    sunsetTop: 0x4A5878, sunsetBottom: 0xFF9A6D,
-    nightTop: 0x050810, nightBottom: 0x0A1218,
+    dayTop: 0x78C0E8, dayBottom: 0xC8E8F0,
+    sunsetTop: 0xE8A078, sunsetBottom: 0xFFD0A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   cherry_grove: {
-    dayTop: 0xE8A0C0, dayBottom: 0xF8D0E0,
-    sunsetTop: 0xC060A0, sunsetBottom: 0xFFA0B0,
-    nightTop: 0x100510, nightBottom: 0x200A20,
+    dayTop: 0xE8A8C8, dayBottom: 0xF8D8E0,
+    sunsetTop: 0xE898B8, sunsetBottom: 0xFFD0C0,
+    nightTop: 0x1A0A2A, nightBottom: 0x2A1538,
   },
   swamp: {
-    dayTop: 0x708880, dayBottom: 0xA0B8A8,
-    sunsetTop: 0x405040, sunsetBottom: 0xFF8060,
-    nightTop: 0x050805, nightBottom: 0x0A120A,
+    dayTop: 0x78A098, dayBottom: 0xB0C8B8,
+    sunsetTop: 0xD89878, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A15, nightBottom: 0x1A2820,
   },
   river: {
-    dayTop: 0x80B0D0, dayBottom: 0xB0D8E8,
-    sunsetTop: 0x4A5070, sunsetBottom: 0xFF9A6D,
-    nightTop: 0x050810, nightBottom: 0x0A1520,
+    dayTop: 0x88B8D0, dayBottom: 0xB8E0E8,
+    sunsetTop: 0xE0A078, sunsetBottom: 0xFFC8A0,
+    nightTop: 0x0A1A2A, nightBottom: 0x1A2840,
   },
   mystic_grove: {
-    dayTop: 0x8060C0, dayBottom: 0xB8A0E0,
-    sunsetTop: 0x503080, sunsetBottom: 0xFF70A0,
-    nightTop: 0x0A0515, nightBottom: 0x150A25,
+    dayTop: 0x8868C0, dayBottom: 0xC0A8E0,
+    sunsetTop: 0xD898C0, sunsetBottom: 0xFFC0B0,
+    nightTop: 0x150A2A, nightBottom: 0x251538,
   },
   autumn_forest: {
-    dayTop: 0xD0A060, dayBottom: 0xF0C898,
-    sunsetTop: 0xA06030, sunsetBottom: 0xFF8050,
-    nightTop: 0x100805, nightBottom: 0x201008,
+    dayTop: 0xD8A868, dayBottom: 0xF0D0A0,
+    sunsetTop: 0xE89860, sunsetBottom: 0xFFC890,
+    nightTop: 0x1A100A, nightBottom: 0x2A1815,
   },
   default: {
-    dayTop: 0x5AB8FF, dayBottom: 0xA8D8FF,      // Azul cielo brillante
-    sunsetTop: 0x8B5CF6, sunsetBottom: 0xFFB366, // Púrpura-naranja vibrante
-    nightTop: 0x0A0E1A, nightBottom: 0x1A1428,   // Azul noche profundo
+    dayTop: 0x6FB5E8, dayBottom: 0xC8E4F5,      // Soft Ghibli blue
+    sunsetTop: 0xE8A87C, sunsetBottom: 0xFFD4A8, // Warm peach-gold
+    nightTop: 0x1A1A3A, nightBottom: 0x2A2848,   // Deep indigo
   },
-  // SPEC-099: Wellness biomes - Cielos zen premium
+  // SPEC-099: Wellness biomes - Ghibli zen skies
   zen_garden: {
-    dayTop: 0xB8D4E8, dayBottom: 0xE8F0F8,      // Azul sereno suave
-    sunsetTop: 0xD4A8C8, sunsetBottom: 0xFFD8B8, // Rosa-dorado zen
-    nightTop: 0x1A1828, nightBottom: 0x2A2438,   // Púrpura noche zen
+    dayTop: 0xC8D8E8, dayBottom: 0xF0F5F8,      // Serene zen sky
+    sunsetTop: 0xE8B8C8, sunsetBottom: 0xFFE8D8, // Pink zen sunset
+    nightTop: 0x1A1A3A, nightBottom: 0x2A2A48,   // Soft zen night
   },
   bamboo_grove: {
-    dayTop: 0x88D8A8, dayBottom: 0xC8F0D8,      // Verde bambú fresco
-    sunsetTop: 0x78A898, sunsetBottom: 0xFFB888, // Verde-naranja cálido
-    nightTop: 0x0A1410, nightBottom: 0x1A2420,   // Verde noche oscuro
+    dayTop: 0x90D8A8, dayBottom: 0xD0F0D8,      // Bamboo green sky
+    sunsetTop: 0xE8B898, sunsetBottom: 0xFFD8B0, // Warm bamboo sunset
+    nightTop: 0x0A1A20, nightBottom: 0x1A2830,   // Soft bamboo night
   },
   aurora_tundra: {
-    dayTop: 0xA8C8FF, dayBottom: 0xD8E8FF,      // Azul aurora claro
-    sunsetTop: 0xC8A8FF, sunsetBottom: 0xFFB8D8, // Púrpura-rosa aurora
-    nightTop: 0x1A1A2A, nightBottom: 0x2A2A3A,   // Azul noche aurora
+    dayTop: 0xB8D0F0, dayBottom: 0xD8E8F0,      // Aurora sky
+    sunsetTop: 0xD8B8E8, sunsetBottom: 0xFFD0D8, // Aurora sunset
+    nightTop: 0x1A2A3A, nightBottom: 0x2A3A4A,   // Soft aurora night
   },
 };
 
 // SPEC-BIOME-OVERHAUL: Biome light tints
 const BIOME_LIGHT_TINTS = {
-  ocean: { r: 0.9, g: 0.95, b: 1.1 },
-  deep_ocean: { r: 0.85, g: 0.92, b: 1.15 },
-  beach: { r: 1.0, g: 1.0, b: 1.0 },
-  plains: { r: 1.0, g: 1.0, b: 1.0 },
-  forest: { r: 0.95, g: 1.08, b: 0.95 },
-  jungle: { r: 0.95, g: 1.1, b: 1.05 },
-  desert: { r: 1.15, g: 1.1, b: 0.9 },
-  savanna: { r: 1.1, g: 1.05, b: 0.92 },
-  taiga: { r: 0.95, g: 0.98, b: 1.1 },
-  snowy_plains: { r: 0.9, g: 0.95, b: 1.15 },
-  mountains: { r: 0.98, g: 0.98, b: 1.02 },
-  snowy_peaks: { r: 0.88, g: 0.93, b: 1.18 },
-  stony_peaks: { r: 0.95, g: 0.95, b: 1.0 },
-  meadow: { r: 1.0, g: 1.05, b: 0.98 },
-  cherry_grove: { r: 1.05, g: 0.95, b: 1.0 },
-  swamp: { r: 0.95, g: 1.05, b: 0.95 },
-  river: { r: 0.95, g: 0.98, b: 1.05 },
-  mystic_grove: { r: 0.9, g: 0.85, b: 1.15 },
-  autumn_forest: { r: 1.1, g: 1.0, b: 0.9 },
-  default: { r: 1.0, g: 1.0, b: 1.0 },
+  ocean: { r: 0.92, g: 0.98, b: 1.08 },
+  deep_ocean: { r: 0.88, g: 0.95, b: 1.12 },
+  beach: { r: 1.03, g: 1.01, b: 0.97 },
+  plains: { r: 1.05, g: 1.02, b: 0.95 },
+  forest: { r: 0.98, g: 1.06, b: 0.92 },
+  jungle: { r: 0.98, g: 1.08, b: 1.02 },
+  desert: { r: 1.18, g: 1.08, b: 0.85 },
+  savanna: { r: 1.12, g: 1.05, b: 0.88 },
+  taiga: { r: 0.98, g: 1.0, b: 1.08 },
+  snowy_plains: { r: 0.92, g: 0.97, b: 1.12 },
+  mountains: { r: 0.95, g: 0.96, b: 1.05 },
+  snowy_peaks: { r: 0.90, g: 0.95, b: 1.15 },
+  stony_peaks: { r: 0.98, g: 0.96, b: 0.98 },
+  meadow: { r: 1.04, g: 1.06, b: 0.95 },
+  cherry_grove: { r: 1.06, g: 0.98, b: 0.97 },
+  swamp: { r: 0.98, g: 1.04, b: 0.92 },
+  river: { r: 0.98, g: 1.0, b: 1.02 },
+  mystic_grove: { r: 0.92, g: 0.88, b: 1.12 },
+  autumn_forest: { r: 1.12, g: 1.02, b: 0.85 },
+  zen_garden: { r: 1.02, g: 1.0, b: 0.98 },
+  bamboo_grove: { r: 1.0, g: 1.03, b: 0.96 },
+  aurora_tundra: { r: 0.95, g: 0.98, b: 1.08 },
+  default: { r: 1.03, g: 1.01, b: 0.97 },
 };
 
 export class DayNightCycle {
@@ -1160,22 +1183,22 @@ export class DayNightCycle {
   }
 
   _initLights() {
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
     this.scene.add(this.ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.75);
     this.sunLight.position.set(50, 100, 50);
     this.scene.add(this.sunLight);
 
     // Sun mesh
-    const sunGeo = new THREE.SphereGeometry(5, 16, 16);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const sunGeo = new THREE.SphereGeometry(4, 16, 16);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFE8B8 });
     this.sun = new THREE.Mesh(sunGeo, sunMat);
     this.scene.add(this.sun);
 
     // Moon mesh
     const moonGeo = new THREE.SphereGeometry(3, 16, 16);
-    const moonMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    const moonMat = new THREE.MeshBasicMaterial({ color: 0xB8C8E8 });
     this.moon = new THREE.Mesh(moonGeo, moonMat);
     this.scene.add(this.moon);
   }
@@ -1192,9 +1215,16 @@ export class DayNightCycle {
       positions[i * 3 + 1] = r * Math.cos(phi);
       positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
       const brightness = 0.5 + Math.random() * 0.5;
-      colors[i * 3] = brightness;
-      colors[i * 3 + 1] = brightness;
-      colors[i * 3 + 2] = brightness * (0.9 + Math.random() * 0.1);
+      const isWarm = Math.random() > 0.5;
+      if (isWarm) {
+        colors[i * 3] = brightness * (0.95 + Math.random() * 0.05);
+        colors[i * 3 + 1] = brightness * (0.90 + Math.random() * 0.05);
+        colors[i * 3 + 2] = brightness * (0.85 + Math.random() * 0.07);
+      } else {
+        colors[i * 3] = brightness * (0.88 + Math.random() * 0.07);
+        colors[i * 3 + 1] = brightness * (0.92 + Math.random() * 0.06);
+        colors[i * 3 + 2] = brightness;
+      }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -1214,8 +1244,8 @@ export class DayNightCycle {
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: {
-        topColor: { value: new THREE.Color(0x2a6df4) },
-        bottomColor: { value: new THREE.Color(0xb8d4f0) },
+        topColor: { value: new THREE.Color(0x6FB5E8) },
+        bottomColor: { value: new THREE.Color(0xC8E4F5) },
         offset: { value: 0.0 },
         exponent: { value: 0.6 },
       },
@@ -1248,9 +1278,9 @@ export class DayNightCycle {
   // SPEC-BIOME-OVERHAUL: Improved volumetric clouds with 3 independent layers
   _initClouds() {
     const cloudLayers = [
-      { height: 55, density: 0.55, speed: 0.0003, opacity: 0.6 },
-      { height: 58, density: 0.50, speed: 0.0005, opacity: 0.4 },
-      { height: 61, density: 0.45, speed: 0.0008, opacity: 0.3 },
+      { height: 60, density: 0.55, speed: 0.0003, opacity: 0.55 },
+      { height: 65, density: 0.50, speed: 0.0005, opacity: 0.38 },
+      { height: 70, density: 0.45, speed: 0.0008, opacity: 0.28 },
     ];
 
     for (const layer of cloudLayers) {
@@ -1288,9 +1318,9 @@ export class DayNightCycle {
         n = (n + 1) / 2;
         const alpha = n > threshold ? Math.min(255, (n - threshold) * 500) : 0;
         const idx = (y * size + x) * 4;
-        imgData.data[idx] = 255;
-        imgData.data[idx + 1] = 255;
-        imgData.data[idx + 2] = 255;
+        imgData.data[idx] = 0xFF;
+        imgData.data[idx + 1] = 0xF8;
+        imgData.data[idx + 2] = 0xF0;
         imgData.data[idx + 3] = alpha;
       }
     }
@@ -1397,6 +1427,20 @@ export class DayNightCycle {
     const hours = Math.floor(this.time * 24);
     const minutes = Math.floor((this.time * 24 - hours) * 60);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  dispose() {
+    if (this.stars) { this.stars.geometry.dispose(); this.stars.material.dispose(); this.scene.remove(this.stars); }
+    if (this.skyDome) { this.skyDome.geometry.dispose(); this.skyDome.material.dispose(); this.scene.remove(this.skyDome); }
+    if (this.sun) { this.sun.geometry.dispose(); this.sun.material.dispose(); this.scene.remove(this.sun); }
+    if (this.moon) { this.moon.geometry.dispose(); this.moon.material.dispose(); this.scene.remove(this.moon); }
+    for (const cp of this.cloudPlanes) {
+      if (cp.texture) cp.texture.dispose();
+      if (cp.mesh) { cp.mesh.geometry.dispose(); cp.mesh.material.dispose(); this.scene.remove(cp.mesh); }
+    }
+    this.cloudPlanes = [];
+    if (this.ambientLight) this.scene.remove(this.ambientLight);
+    if (this.sunLight) this.scene.remove(this.sunLight);
   }
 }
 
@@ -1538,5 +1582,178 @@ export class GameAudio {
     osc.connect(filter).connect(gain).connect(this.masterGain || this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 2);
+  }
+
+  dispose() {
+    if (this.ctx) {
+      try { this.ctx.close(); } catch(e) {}
+      this.ctx = null;
+      this.enabled = false;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DistantTerrainRing — Fake horizon terrain to hide unloaded chunks
+// Uses getBaseHeight() to render mountain silhouettes beyond render distance
+// ═══════════════════════════════════════════════════════════
+export class DistantTerrainRing {
+  constructor(scene, world) {
+    this.scene = scene;
+    this.world = world;
+    this.mesh = null;
+    this._lastPlayerX = Infinity;
+    this._lastPlayerZ = Infinity;
+    this._updateInterval = 128;
+    this._ringSegments = 24;
+    this._ringSteps = 3;
+    this._innerRadius = 0;
+    this._outerRadius = 0;
+    this._pendingRebuild = false;
+    this._material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      fog: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+  }
+
+  update(playerX, playerZ, renderDistance) {
+    const innerRadius = (renderDistance + 1) * CHUNK_SIZE;
+    const outerRadius = (renderDistance + 3) * CHUNK_SIZE;
+
+    const dx = playerX - this._lastPlayerX;
+    const dz = playerZ - this._lastPlayerZ;
+    const moved = Math.sqrt(dx * dx + dz * dz);
+
+    if (this.mesh && moved < this._updateInterval && this._innerRadius === innerRadius) return;
+    if (this._pendingRebuild) return;
+
+    this._innerRadius = innerRadius;
+    this._outerRadius = outerRadius;
+    this._lastPlayerX = playerX;
+    this._lastPlayerZ = playerZ;
+    this._pendingRebuild = true;
+
+    setTimeout(() => {
+      this._rebuild(playerX, playerZ);
+      this._pendingRebuild = false;
+    }, 0);
+  }
+
+  _rebuild(playerX, playerZ) {
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+      this.mesh.geometry.dispose();
+      this.mesh = null;
+    }
+
+    const positions = [];
+    const colors = [];
+    const indices = [];
+    let vertexCount = 0;
+
+    const segments = this._ringSegments;
+    const steps = this._ringSteps;
+    const innerR = this._innerRadius;
+    const outerR = this._outerRadius;
+
+    for (let s = 0; s < segments; s++) {
+      const angle1 = (s / segments) * Math.PI * 2;
+      const angle2 = ((s + 1) / segments) * Math.PI * 2;
+
+      for (let st = 0; st < steps; st++) {
+        const r1 = innerR + (st / steps) * (outerR - innerR);
+        const r2 = innerR + ((st + 1) / steps) * (outerR - innerR);
+
+        const x1a = playerX + Math.cos(angle1) * r1;
+        const z1a = playerZ + Math.sin(angle1) * r1;
+        const x2a = playerX + Math.cos(angle2) * r1;
+        const z2a = playerZ + Math.sin(angle2) * r1;
+        const x1b = playerX + Math.cos(angle1) * r2;
+        const z1b = playerZ + Math.sin(angle1) * r2;
+        const x2b = playerX + Math.cos(angle2) * r2;
+        const z2b = playerZ + Math.sin(angle2) * r2;
+
+        const h1a = this._getHeight(x1a, z1a);
+        const h2a = this._getHeight(x2a, z2a);
+        const h1b = this._getHeight(x1b, z1b);
+        const h2b = this._getHeight(x2b, z2b);
+
+        const distFactor = r2 / outerR;
+        const c1a = this._getColor(h1a, distFactor);
+        const c2a = this._getColor(h2a, distFactor);
+        const c1b = this._getColor(h1b, distFactor);
+        const c2b = this._getColor(h2b, distFactor);
+
+        const baseY = WORLD_MIN_Y;
+
+        positions.push(x1a, baseY, z1a, x1a, h1a, z1a, x2a, h2a, z2a, x2a, baseY, z2a);
+        colors.push(...c1a, ...c1a, ...c2a, ...c2a);
+        indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+        vertexCount += 4;
+
+        positions.push(x1a, h1a, z1a, x1b, h1b, z1b, x2b, h2b, z2b, x2a, h2a, z2a);
+        colors.push(...c1a, ...c1b, ...c2b, ...c2a);
+        indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+        vertexCount += 4;
+      }
+    }
+
+    if (positions.length === 0) return;
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    this.mesh = new THREE.Mesh(geo, this._material);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = -1;
+    this.scene.add(this.mesh);
+  }
+
+  _getHeight(x, z) {
+    try {
+      const h = this.world.generator.getBaseHeight(Math.floor(x), Math.floor(z));
+      return Math.max(WORLD_MIN_Y + 1, h);
+    } catch {
+      return SEA_LEVEL;
+    }
+  }
+
+  _getColor(height, distFactor) {
+    let r, g, b;
+    if (height < SEA_LEVEL) {
+      r = 0.18; g = 0.32; b = 0.48;
+    } else if (height < SEA_LEVEL + 8) {
+      r = 0.78; g = 0.72; b = 0.48;
+    } else if (height < SEA_LEVEL + 30) {
+      r = 0.48; g = 0.68; b = 0.32;
+    } else if (height < SEA_LEVEL + 60) {
+      r = 0.32; g = 0.48; b = 0.28;
+    } else if (height < SEA_LEVEL + 90) {
+      r = 0.48; g = 0.50; b = 0.54;
+    } else {
+      r = 0.78; g = 0.82; b = 0.88;
+    }
+
+    const fogBlend = distFactor * 0.6;
+    const fogR = 0xA8 / 255, fogG = 0xC8 / 255, fogB = 0xE0 / 255;
+    return [
+      r * (1 - fogBlend) + fogR * fogBlend,
+      g * (1 - fogBlend) + fogG * fogBlend,
+      b * (1 - fogBlend) + fogB * fogBlend,
+    ];
+  }
+
+  dispose() {
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+      this.mesh.geometry.dispose();
+      this.mesh = null;
+    }
+    this._material.dispose();
   }
 }

@@ -150,6 +150,14 @@ export class PatagoniaProfile {
     this._biomeCache = new Map();
     this._tempCache = new Map();
     this._humidCache = new Map();
+    this._cacheMaxSize = 50000;
+  }
+
+  _evictCache(cache) {
+    if (cache.size > this._cacheMaxSize) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
   }
 
   // ── Temperature: based on latitude (Z) + elevation ───────
@@ -169,6 +177,7 @@ export class PatagoniaProfile {
     const elevDrop = Math.max(0, (height - SEA_LEVEL - 30) / 100) * this.geo.ANDES_TEMP_DROP;
 
     const temp = latTemp + localVar + elevDrop;
+    this._evictCache(this._tempCache);
     this._tempCache.set(key, temp);
     return temp;
   }
@@ -200,6 +209,7 @@ export class PatagoniaProfile {
     const latNorm = (z - this.geo.NORTH_Z) / (this.geo.SOUTH_Z - this.geo.NORTH_Z);
     humid += latNorm * 0.15;
 
+    this._evictCache(this._humidCache);
     this._humidCache.set(key, humid);
     return humid;
   }
@@ -344,6 +354,7 @@ export class PatagoniaProfile {
     // ── Clamp ───────────────────────────────────────────────
     height = Math.max(1, Math.min(height, SEA_LEVEL + 200));
 
+    this._evictCache(this._heightCache);
     this._heightCache.set(key, height);
     return height;
   }
@@ -469,6 +480,7 @@ export class PatagoniaProfile {
       biome = BIOMES.SWAMP;
     }
 
+    this._evictCache(this._biomeCache);
     this._biomeCache.set(key, biome);
     return biome;
   }
@@ -535,9 +547,8 @@ export class PatagoniaProfile {
 // Used by both main thread and Web Worker
 // ═══════════════════════════════════════════════════════════
 export function applyPatagoniaToGenerator(gen, pat) {
-  gen.cacheSize = 1200000;
+  gen.cacheSize = 50000;
   gen._heightCache = new Map();
-  gen._heightCache.maxSize = 800000;
   gen.getBaseHeight = (x, z) => pat.getHeight(x, z);
   gen.getBiome = (x, z) => pat.getBiome(x, z);
   gen.getTemperature = (x, z) => pat.getTemperature(x, z);

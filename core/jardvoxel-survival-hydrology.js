@@ -6,7 +6,7 @@
 
 import { SimplexNoise } from './jardvoxel-survival-noise.js';
 
-const CHUNK_SIZE = 16;
+const CHUNK_SIZE = 32;
 const SEA_LEVEL = 63;
 
 // River block IDs (must match engine block types)
@@ -71,7 +71,7 @@ export class HydrologySystem {
     if (!this.enabled) return { heightMap, rivers: [], lakes: [], hydroData: null };
     const ox = cx * CHUNK_SIZE;
     const oz = cz * CHUNK_SIZE;
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
 
     // Get river segments passing through this chunk
     const rivers = this._getRiverSegments(cx, cz, context);
@@ -139,7 +139,7 @@ export class HydrologySystem {
    * accumulation and gradient descent from high terrain.
    */
   _getRiverSegments(cx, cz, context) {
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     if (this._flowCache.has(key)) return this._flowCache.get(key);
 
     const segments = [];
@@ -298,7 +298,7 @@ export class HydrologySystem {
   // ── Lake Computation ──
 
   _getLakeInfo(cx, cz, context) {
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     if (this._lakeCache.has(key)) return this._lakeCache.get(key);
 
     const lakes = [];

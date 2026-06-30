@@ -120,7 +120,7 @@ export class MeditationSpaceGenerator {
       const cx = px + Math.floor(Math.cos(angle) * dist);
       const cz = pz + Math.floor(Math.sin(angle) * dist);
 
-      const key = `${cx},${cz}`;
+      const key = (cx + 32768) * 65536 + (cz + 32768);
       if (this._discoveredSpaces.has(key)) continue;
 
       // Check flatness
@@ -158,7 +158,7 @@ export class MeditationSpaceGenerator {
   _generateSpace(cx, cz, worldGen, world, spaceType) {
     const cy = Math.floor(worldGen.getBaseHeight(cx, cz));
     const radius = spaceType.radius;
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
 
     const space = {
       cx, cy, cz,

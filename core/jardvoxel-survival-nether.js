@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { MC_BLOCKS, BLOCK } from './blocks-registry.js';
+import { CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 
 // New block IDs for nether
 export const NETHER_BLOCKS = {
@@ -76,7 +77,7 @@ export class NetherGenerator {
 
   generateChunk(chunkX, chunkZ) {
     const blocks = [];
-    const size = 16;
+    const size = CHUNK_SIZE;
     const height = 64;
 
     for (let x = 0; x < size; x++) {

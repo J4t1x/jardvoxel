@@ -1,6 +1,62 @@
 # Specs Completadas — JardVoxel
 
-Trazabilidad de todas las specs completadas. Total: **79 specs** completadas + **5 specs** LLM harness.
+Trazabilidad de todas las specs completadas. Total: **96+ specs** completadas + **5 specs** LLM harness.
+
+## Zen Unified v8.0 (SPEC-099 + Zen Implementation) — 1 spec + 13 fixes
+
+PRD base: `docs/PRD-JARDVOXEL-ZEN-UNIFIED.md`
+
+| Spec | Título | Versión |
+|------|--------|---------|
+| SPEC-099 | Sistema de Bienestar y Relajacion v7.0 | v8.0.0 |
+| ZEN-FIX-01 | LFO modula frecuencia (no volumen) — fix musica ambient | v8.0.0 |
+| ZEN-FIX-02 | _addJournalEntry ahora llama journal.addEntry() | v8.0.0 |
+| ZEN-FIX-03 | _animateWater eliminado (dead code) | v8.0.0 |
+| ZEN-FIX-04 | showControlsHint toggle wired en settings | v8.0.0 |
+| ZEN-FIX-05 | Indicador de clima: labels español, se oculta despejado | v8.0.0 |
+| ZEN-FIX-06 | WebGL check antes de init con mensaje claro | v8.0.0 |
+| ZEN-FIX-07 | _applySettings aplica toggles visuales al cargar | v8.0.0 |
+| ZEN-FIX-08 | Pixel ratio 1.0 → 1.5 para Retina/HiDPI | v8.0.0 |
+| ZEN-FIX-09 | Loading screen con contador de progreso animado | v8.0.0 |
+| ZEN-FIX-10 | Module error handling con mensaje especifico | v8.0.0 |
+| ZEN-FIX-11 | Cloud planes frozen — removida linea que sobreescribia | v8.0.0 |
+| ZEN-FIX-12 | Canopy fog: this.fog → this.fogManager | v8.0.0 |
+| ZEN-FIX-13 | VolumetricFog: añadido get fog() getter | v8.0.0 |
+
+## World Hierarchy v7.0 (SPEC-100 to SPEC-110) — 11 specs
+
+PRD base: `docs/PRD-JARDVOXEL-7.0-HIERARCHICAL.md`
+
+| Spec | Título | Estado |
+|------|--------|--------|
+| SPEC-100 | World Identity Realista | ✅ Completado |
+| SPEC-101 | Continent Generator | ✅ Completado |
+| SPEC-102 | Region Generator | ✅ Completado |
+| SPEC-103 | Zone Generator | ✅ Completado |
+| SPEC-104 | Hierarchical Chunk | ✅ Completado |
+| SPEC-105 | Microsectors | ✅ Completado |
+| SPEC-106 | Layer System | ✅ Completado |
+| SPEC-107 | Streaming System | ✅ Completado |
+| SPEC-108 | Landmarks Generator | ✅ Completado |
+| SPEC-109 | Ecosystems | ✅ Completado |
+| SPEC-110 | Contextual Generation | ✅ Completado |
+
+## Noise Generation v6.0 (SPEC-091 to SPEC-098) — 8 specs
+
+PRD base: `docs/PRD-NOISE-GENERATION-6.0.md`
+
+| Spec | Título | Estado |
+|------|--------|--------|
+| SPEC-091 | Simplex Noise Core | ✅ Completado |
+| SPEC-092 | Domain Warping | ✅ Completado |
+| SPEC-093 | Calibrated Noise Parameters | ✅ Completado |
+| SPEC-094 | Multi-Spline Terrain Shaping | ✅ Completado |
+| SPEC-095 | Smooth Biome Transitions | ✅ Completado |
+| SPEC-096 | Biome-Specific Terrain Modulation | ✅ Completado |
+| SPEC-097 | Coherent Feature Distribution | ✅ Completado |
+| SPEC-098 | Hydraulic Erosion Simulation | ✅ Completado |
+
+---
 
 ## Roadmap v2-v4 (SPEC-025 a SPEC-066) — 42 specs
 
@@ -30,7 +86,7 @@ PRD base: `docs/PRD-JARDVOXEL-5.0.md`
 | SPEC-073 | Stylized Water Reflections | ✅ Completado |
 | SPEC-074 | Interior Lighting | ✅ Completado |
 
-## Fase 2 — Biomas y Vegetación
+## Fase 2 — Biomas y Vegetacion
 
 | Spec | Título | Estado |
 |------|--------|--------|
@@ -68,20 +124,20 @@ PRD base: `docs/PRD-JARDVOXEL-5.0.md`
 
 ---
 
-## Integración 5.0 (SPEC-INT-001 a INT-008) — 8 specs
+## Integracion 5.0 (SPEC-INT-001 a INT-008) — 8 specs
 
 PRD base: `docs/PRD-JARDVOXEL-5.0-INTEGRATION.md`
 
 | Spec | Título | Versión |
 |------|--------|---------|
-| SPEC-INT-001 | Integración de Atmósfera y Sonido | v5.0.0-RC2 |
-| SPEC-INT-002 | Activación de ChillTune 2.0 | v5.0.0-RC2 |
-| SPEC-INT-003 | Integración de Estructuras Narrativas | v5.0.0-RC2 |
-| SPEC-INT-004 | Integración de AI Server y NPCs | v5.0.0-RC2 |
-| SPEC-INT-005 | Integración de Quests y Eventos Emergentes | v5.0.0-RC2 |
-| SPEC-INT-006 | Integración de Civilizaciones Antiguas y Lore | v5.0.0-RC2 |
+| SPEC-INT-001 | Integracion de Atmósfera y Sonido | v5.0.0-RC2 |
+| SPEC-INT-002 | Activacion de ChillTune 2.0 | v5.0.0-RC2 |
+| SPEC-INT-003 | Integracion de Estructuras Narrativas | v5.0.0-RC2 |
+| SPEC-INT-004 | Integracion de AI Server y NPCs | v5.0.0-RC2 |
+| SPEC-INT-005 | Integracion de Quests y Eventos Emergentes | v5.0.0-RC2 |
+| SPEC-INT-006 | Integracion de Civilizaciones Antiguas y Lore | v5.0.0-RC2 |
 | SPEC-INT-007 | UI Overhaul 5.0 | v5.0.0-RC2 |
-| SPEC-INT-008 | Documentación y Registro de Specs | v5.0.0-RC1 |
+| SPEC-INT-008 | Documentacion y Registro de Specs | v5.0.0-RC1 |
 
 ## LLM Testing Harness (SPEC-H001 a H005) — 5 specs
 
@@ -97,4 +153,4 @@ PRD base: `docs/PRD-LLM-HARNESS.md`
 
 ---
 
-**Nota:** Los detalles de implementación se encuentran en `docs/CHANGELOG.md` y en los archivos fuente bajo `core/`.
+**Nota:** Los detalles de implementacion se encuentran en `docs/CHANGELOG.md` y en los archivos fuente bajo `core/`.

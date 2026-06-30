@@ -189,7 +189,7 @@ export class Spline {
 export const WORLD_HEIGHT = 384; // -64 to 320
 export const WORLD_MIN_Y = -64;
 export const SEA_LEVEL = 63;
-export const CHUNK_SIZE = 16;
+export const CHUNK_SIZE = 32;
 export const CHUNK_HEIGHT = 384;
 
 export const BIOMES = {
@@ -219,29 +219,29 @@ export const BIOMES = {
 };
 
 export const BIOME_COLORS = {
-  [BIOMES.OCEAN]: [0.12, 0.45, 0.75],           // Azul océano más vibrante
-  [BIOMES.DEEP_OCEAN]: [0.08, 0.28, 0.62],      // Azul profundo intenso
-  [BIOMES.BEACH]: [0.96, 0.92, 0.75],           // Arena dorada suave
-  [BIOMES.PLAINS]: [0.45, 0.85, 0.38],          // Verde pradera brillante
-  [BIOMES.FOREST]: [0.28, 0.72, 0.32],          // Verde bosque rico
-  [BIOMES.JUNGLE]: [0.32, 0.88, 0.42],          // Verde selva exuberante
-  [BIOMES.DESERT]: [0.98, 0.85, 0.52],          // Dorado desierto cálido
-  [BIOMES.SAVANNA]: [0.78, 0.82, 0.45],         // Amarillo savana seco
-  [BIOMES.TAIGA]: [0.38, 0.75, 0.48],           // Verde taiga fresco
-  [BIOMES.SNOWY_PLAINS]: [0.96, 0.97, 0.99],    // Blanco nieve puro
-  [BIOMES.MOUNTAINS]: [0.58, 0.60, 0.64],       // Gris montaña natural
-  [BIOMES.SNOWY_PEAKS]: [0.98, 0.99, 1.0],      // Blanco picos brillante
-  [BIOMES.STONY_PEAKS]: [0.65, 0.66, 0.70],     // Gris piedra sólido
-  [BIOMES.MEADOW]: [0.52, 0.85, 0.42],          // Verde prado vibrante
-  [BIOMES.CHERRY_GROVE]: [0.92, 0.65, 0.82],    // Rosa cerezo suave
-  [BIOMES.SWAMP]: [0.28, 0.62, 0.35],           // Verde pantano oscuro
-  [BIOMES.RIVER]: [0.25, 0.55, 0.68],           // Azul río cristalino
-  [BIOMES.MYSTIC_GROVE]: [0.48, 0.38, 0.72],    // Púrpura místico
-  [BIOMES.AUTUMN_FOREST]: [0.85, 0.52, 0.28],   // Naranja otoño cálido
-  // SPEC-099: Wellness biomes - Colores zen premium
-  [BIOMES.ZEN_GARDEN]: [0.88, 0.82, 0.68],      // Beige zen sereno
-  [BIOMES.BAMBOO_GROVE]: [0.55, 0.82, 0.45],    // Verde bambú fresco
-  [BIOMES.AURORA_TUNDRA]: [0.68, 0.78, 0.95],   // Azul aurora etéreo
+  [BIOMES.OCEAN]: [0.15, 0.48, 0.72],           // Cerulean Ghibli ocean
+  [BIOMES.DEEP_OCEAN]: [0.10, 0.30, 0.58],      // Deep warm blue
+  [BIOMES.BEACH]: [0.94, 0.88, 0.65],           // Golden warm beach
+  [BIOMES.PLAINS]: [0.50, 0.82, 0.35],          // Warm meadow green
+  [BIOMES.FOREST]: [0.30, 0.70, 0.30],          // Rich forest green
+  [BIOMES.JUNGLE]: [0.35, 0.85, 0.38],          // Vibrant jungle
+  [BIOMES.DESERT]: [0.96, 0.82, 0.48],          // Warm golden desert
+  [BIOMES.SAVANNA]: [0.80, 0.78, 0.42],         // Dry warm savanna
+  [BIOMES.TAIGA]: [0.35, 0.72, 0.45],           // Cool taiga green
+  [BIOMES.SNOWY_PLAINS]: [0.94, 0.96, 0.99],    // Soft snow
+  [BIOMES.MOUNTAINS]: [0.55, 0.58, 0.62],       // Cool mountain grey
+  [BIOMES.SNOWY_PEAKS]: [0.95, 0.97, 1.0],      // Soft blue-white peaks
+  [BIOMES.STONY_PEAKS]: [0.62, 0.64, 0.68],     // Warm stone peaks
+  [BIOMES.MEADOW]: [0.55, 0.82, 0.38],          // Vibrant meadow
+  [BIOMES.CHERRY_GROVE]: [0.94, 0.60, 0.78],    // Soft cherry blossom
+  [BIOMES.SWAMP]: [0.30, 0.58, 0.32],           // Muted swamp green
+  [BIOMES.RIVER]: [0.22, 0.52, 0.65],           // Clear river blue
+  [BIOMES.MYSTIC_GROVE]: [0.45, 0.35, 0.68],    // Soft mystic purple
+  [BIOMES.AUTUMN_FOREST]: [0.88, 0.50, 0.25],   // Warm autumn orange
+  // SPEC-099: Wellness biomes - Ghibli zen tones
+  [BIOMES.ZEN_GARDEN]: [0.90, 0.84, 0.65],      // Warm beige zen
+  [BIOMES.BAMBOO_GROVE]: [0.52, 0.80, 0.42],    // Fresh bamboo green
+  [BIOMES.AURORA_TUNDRA]: [0.65, 0.75, 0.92],   // Soft aurora blue
 };
 
 export class WorldGenPipeline {
@@ -714,7 +714,7 @@ export class WorldGenPipeline {
       const biome = this._voronoiBiomes.getBiomeWithBlend(
         x, z,
         (bx, bz) => this.getBaseHeight(bx, bz),
-        (bx, bz) => this.getContinentValue(bx, bz)
+        (bx, bz) => this.getContinentalness(bx, bz)
       );
       this._biomeCache.set(key, biome);
       return biome;
@@ -804,7 +804,7 @@ export class WorldGenPipeline {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Voxel Chunk — 16x384x16 blocks
+// Voxel Chunk — 32x384x32 blocks
 // ═══════════════════════════════════════════════════════════
 const BLOCK_TYPE_TO_ID = {
   air: 0, stone: 1, grass: 2, dirt: 3, sand: 4, water: 5, lava: 6, snow: 7, mud: 8,
@@ -815,6 +815,32 @@ const BLOCK_TYPE_TO_ID = {
 };
 
 export class VoxelChunk {
+  // SPEC-PERF-004: Object pool — reuse chunks to avoid 64KB Uint8Array allocations
+  static _pool = [];
+  static _poolMax = 64;
+
+  static acquire(cx, cz, worldGen) {
+    const chunk = VoxelChunk._pool.pop();
+    if (chunk) {
+      chunk.cx = cx;
+      chunk.cz = cz;
+      chunk.worldGen = worldGen;
+      chunk.generated = false;
+      chunk.blocks.fill(0);
+      chunk.minContentY = undefined;
+      chunk.maxContentY = undefined;
+      return chunk;
+    }
+    return new VoxelChunk(cx, cz, worldGen);
+  }
+
+  static release(chunk) {
+    if (VoxelChunk._pool.length < VoxelChunk._poolMax) {
+      chunk.worldGen = null;
+      VoxelChunk._pool.push(chunk);
+    }
+  }
+
   constructor(cx, cz, worldGen) {
     this.cx = cx;
     this.cz = cz;

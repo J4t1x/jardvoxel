@@ -3,7 +3,7 @@
 // SPEC-106: Each layer loads independently as player explores
 // ═══════════════════════════════════════════════════════════
 
-import { BIOMES, ZONE_TYPES } from './jardvoxel-survival-world-hierarchy.js';
+import { BIOMES, ZONE_TYPES, CHUNK_SIZE } from './jardvoxel-survival-world-hierarchy.js';
 import { PoissonDiskSampler } from './jardvoxel-survival-poisson.js';
 import { FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
 
@@ -43,7 +43,7 @@ class TerrainLayer extends BaseLayer {
   generate(chunk, context, helpers) {
     const { heightMap, waterLevel, continent } = context;
     const { setBlock, getBlock } = helpers;
-    const size = 16;
+    const size = CHUNK_SIZE;
 
     for (let x = 0; x < size; x++) {
       for (let z = 0; z < size; z++) {
@@ -125,7 +125,7 @@ class MicroReliefLayer extends BaseLayer {
   generate(chunk, context, helpers) {
     const { heightMap } = context;
     const { setBlock, getBlock } = helpers;
-    const size = 16;
+    const size = CHUNK_SIZE;
 
     // Small ±1 block surface variation
     for (let x = 0; x < size; x++) {
@@ -186,12 +186,12 @@ class SurfaceRocksLayer extends BaseLayer {
     const { setBlock, getBlock } = helpers;
     const density = (zone.type === ZONE_TYPES.CLIFFS || zone.type === ZONE_TYPES.GORGE) ? 0.15 : 0.04;
 
-    for (let x = 0; x < 16; x++) {
-      for (let z = 0; z < 16; z++) {
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+      for (let z = 0; z < CHUNK_SIZE; z++) {
         // G-03: Use cellular F1*F2 instead of _hash() for organic rock distribution
         const cellValue = this._cellular.cellular2D((ox + x) * 0.08, (oz + z) * 0.08);
         if (cellValue < density) {
-          const y = Math.floor(heightMap[x + z * 16]);
+          const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
           if (getBlock(x, y + 1, z) === 0) { // air above
             setBlock(x, y + 1, z, 'cobblestone');
             if (cellValue < density * 0.4) {
@@ -238,7 +238,7 @@ class MajorVegetationLayer extends BaseLayer {
     const cacheKey = `${ox},${oz}`;
     let points = this._poissonCache.get(cacheKey);
     if (!points) {
-      points = this._poisson.sampleChunkWithDensity(16, targetCount, minRadius, ox, oz);
+      points = this._poisson.sampleChunkWithDensity(CHUNK_SIZE, targetCount, minRadius, ox, oz);
       if (this._poissonCache.size > 200) this._poissonCache.clear();
       this._poissonCache.set(cacheKey, points);
     }
@@ -246,9 +246,9 @@ class MajorVegetationLayer extends BaseLayer {
     for (const pt of points) {
       const x = Math.floor(pt.x);
       const z = Math.floor(pt.z);
-      if (x < 2 || x > 13 || z < 2 || z > 13) continue;
+      if (x < 2 || x > CHUNK_SIZE - 3 || z < 2 || z > CHUNK_SIZE - 3) continue;
 
-      const y = Math.floor(heightMap[x + z * 16]);
+      const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
       if (getBlock(x, y, z) !== 0 && getBlock(x, y + 1, z) === 0) {
         const hash = this._hash(ox + x, oz + z);
         const treeType = this._getTreeType(primaryBiome, hash);
@@ -402,7 +402,7 @@ class MinorVegetationLayer extends BaseLayer {
     const cacheKey = `${ox},${oz}`;
     let points = this._poissonCache.get(cacheKey);
     if (!points) {
-      points = this._poisson.sampleChunkWithDensity(16, targetCount, minRadius, ox, oz);
+      points = this._poisson.sampleChunkWithDensity(CHUNK_SIZE, targetCount, minRadius, ox, oz);
       if (this._poissonCache.size > 200) this._poissonCache.clear();
       this._poissonCache.set(cacheKey, points);
     }
@@ -410,9 +410,9 @@ class MinorVegetationLayer extends BaseLayer {
     for (const pt of points) {
       const x = Math.floor(pt.x);
       const z = Math.floor(pt.z);
-      if (x < 0 || x > 15 || z < 0 || z > 15) continue;
+      if (x < 0 || x > CHUNK_SIZE - 1 || z < 0 || z > CHUNK_SIZE - 1) continue;
 
-      const y = Math.floor(heightMap[x + z * 16]);
+      const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
       if (getBlock(x, y + 1, z) === 0 && getBlock(x, y, z) !== 9) {
         const hash = this._hash(ox + x, oz + z);
         const block = this._getVegBlock(primaryBiome, hash);
@@ -493,11 +493,11 @@ class NaturalDecorationLayer extends BaseLayer {
     const isForest = [BIOMES.FOREST, BIOMES.AUTUMN_FOREST, BIOMES.JUNGLE, BIOMES.TAIGA].includes(primaryBiome);
     const density = isForest ? 0.03 : 0.005;
 
-    for (let x = 1; x < 15; x++) {
-      for (let z = 1; z < 15; z++) {
+    for (let x = 1; x < CHUNK_SIZE - 1; x++) {
+      for (let z = 1; z < CHUNK_SIZE - 1; z++) {
         const hash = this._hash(ox + x, oz + z);
         if (hash < density) {
-          const y = Math.floor(heightMap[x + z * 16]);
+          const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
           if (getBlock(x, y + 1, z) === 0) {
             // Fallen log (horizontal, 2-3 blocks)
             const logLen = 2 + Math.floor(hash * 2);
@@ -505,7 +505,7 @@ class NaturalDecorationLayer extends BaseLayer {
             for (let i = 0; i < logLen; i++) {
               const lx = direction === 'x' ? x + i : x;
               const lz = direction === 'z' ? z + i : z;
-              if (lx < 16 && lz < 16 && getBlock(lx, y + 1, lz) === 0) {
+              if (lx < CHUNK_SIZE && lz < CHUNK_SIZE && getBlock(lx, y + 1, lz) === 0) {
                 setBlock(lx, y + 1, lz, 'wood');
               }
             }
@@ -516,11 +516,11 @@ class NaturalDecorationLayer extends BaseLayer {
 
     // Mushrooms in dark/forest areas
     if (isForest || zone.type === ZONE_TYPES.WETLANDS) {
-      for (let x = 0; x < 16; x++) {
-        for (let z = 0; z < 16; z++) {
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
           const hash = this._hash(ox + x + 999, oz + z + 999);
           if (hash < 0.02) {
-            const y = Math.floor(heightMap[x + z * 16]);
+            const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
             if (getBlock(x, y + 1, z) === 0 && getBlock(x, y, z) !== 0) {
               setBlock(x, y + 1, z, hash < 0.01 ? 'mushroom_brown' : 'mushroom_red');
             }
@@ -561,11 +561,11 @@ class FaunaLayer extends BaseLayer {
     if (!chunk.metadata.spawnPoints) chunk.metadata.spawnPoints = [];
 
     const spawnDensity = this._getSpawnDensity(primaryBiome, zone.type);
-    for (let x = 0; x < 16; x += 4) {
-      for (let z = 0; z < 16; z += 4) {
+    for (let x = 0; x < CHUNK_SIZE; x += 4) {
+      for (let z = 0; z < CHUNK_SIZE; z += 4) {
         const hash = this._hash(ox + x, oz + z);
         if (hash < spawnDensity) {
-          const y = Math.floor(heightMap[x + z * 16]);
+          const y = Math.floor(heightMap[x + z * CHUNK_SIZE]);
           chunk.metadata.spawnPoints.push({
             x: ox + x + 0.5,
             y: y + 1,

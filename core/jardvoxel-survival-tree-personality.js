@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { MC_BLOCKS, BLOCK, TREE_DETAIL_BLOCKS, VEGETATION_BLOCKS } from './blocks-registry.js';
-import { BIOMES } from './jardvoxel-survival-engine.js';
+import { BIOMES, CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 import { TREE_SHAPES } from './jardvoxel-survival-biome-identity.js';
 
 export const TREE_TYPES = {
@@ -93,9 +93,9 @@ function getHealthLeafChance(health) {
 }
 
 function setBlockSafe(chunk, x, y, z, block) {
-  if (x < 0 || x >= 16 || z < 0 || z >= 16) return;
+  if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return;
   if (y < 0 || y >= 384) return;
-  const idx = x + z * 16 + y * 16 * 16;
+  const idx = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
   const existing = chunk.blocks[idx];
   if (existing === BLOCK.AIR || existing === BLOCK.WATER) {
     chunk.blocks[idx] = block;

@@ -203,6 +203,7 @@ export class ChillTuneEngine {
     this._stopScheduler();
     this._stopDrone();
     this._stopAllOscs();
+    this.setKomorebi(false);
     if (this.musicGain) {
       try { this.musicGain.disconnect(); } catch (e) {}
     }

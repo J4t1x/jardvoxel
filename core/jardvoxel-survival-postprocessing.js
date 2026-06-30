@@ -53,9 +53,9 @@ export class PostprocessingManager {
 
     this.bloomPass = new UnrealBloomPass(
       this._size,
-      0.15,
-      0.4,
-      0.85
+      0.22,
+      0.6,
+      0.75
     );
     this.composer.addPass(this.bloomPass);
 
@@ -71,20 +71,23 @@ export class PostprocessingManager {
       case QUALITY.HIGH:
         this.ssaoPass.enabled = true;
         this.bloomPass.enabled = true;
-        this.bloomPass.strength = 0.15;
-        this.bloomPass.radius = 0.4;
-        this.bloomPass.threshold = 0.85;
+        this.bloomPass.strength = 0.22;
+        this.bloomPass.radius = 0.6;
+        this.bloomPass.threshold = 0.75;
         break;
       case QUALITY.MEDIUM:
         this.ssaoPass.enabled = false;
         this.bloomPass.enabled = true;
-        this.bloomPass.strength = 0.12;
-        this.bloomPass.radius = 0.4;
-        this.bloomPass.threshold = 0.85;
+        this.bloomPass.strength = 0.18;
+        this.bloomPass.radius = 0.5;
+        this.bloomPass.threshold = 0.75;
         break;
       case QUALITY.LOW:
         this.ssaoPass.enabled = false;
         this.bloomPass.enabled = false;
+        this.bloomPass.strength = 0.0;
+        this.bloomPass.radius = 0.4;
+        this.bloomPass.threshold = 0.85;
         break;
     }
   }

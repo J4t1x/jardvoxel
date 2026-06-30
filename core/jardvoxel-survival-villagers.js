@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { MC_BLOCKS } from './blocks-registry.js';
+import { CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 
 // New block IDs for villager-related items
 export const VILLAGER_BLOCKS = {
@@ -198,9 +199,9 @@ export class VillagerManager {
 
   // Try natural spawning near village-like structures (planks/cobblestone buildings)
   tryNaturalSpawn(playerX, playerZ) {
-    const cx = Math.floor(playerX / 16);
-    const cz = Math.floor(playerZ / 16);
-    const key = `${cx},${cz}`;
+    const cx = Math.floor(playerX / CHUNK_SIZE);
+    const cz = Math.floor(playerZ / CHUNK_SIZE);
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     if (this._spawnedChunks.has(key)) return;
     this._spawnedChunks.add(key);
 
@@ -222,8 +223,8 @@ export class VillagerManager {
 
     if (hasVillage && this.villagers.length < 10) {
       // Find surface near player
-      const sx = Math.floor(playerX + (Math.random() - 0.5) * 16);
-      const sz = Math.floor(playerZ + (Math.random() - 0.5) * 16);
+      const sx = Math.floor(playerX + (Math.random() - 0.5) * CHUNK_SIZE);
+      const sz = Math.floor(playerZ + (Math.random() - 0.5) * CHUNK_SIZE);
       for (let y = 100; y > 60; y--) {
         const block = this.world.getBlock(sx, y, sz);
         if (block !== 0 && block !== 5) {

@@ -10,7 +10,7 @@ import { HydrologySystem } from './jardvoxel-survival-hydrology.js';
 // v7.0: Define constants locally to avoid circular dependency with jardvoxel-survival-engine.js
 // These are exported for other v7.0 modules to import from here instead of the engine
 export const SEA_LEVEL = 63;
-export const CHUNK_SIZE = 16;
+export const CHUNK_SIZE = 32;
 export const BIOMES = {
   OCEAN: 'ocean',
   DEEP_OCEAN: 'deep_ocean',
@@ -601,8 +601,8 @@ export class ZoneGenerator {
   }
 
   getZone(x, z) {
-    const ix = Math.floor(x / 16) & 0xFFFF;
-    const iz = Math.floor(z / 16) & 0xFFFF;
+    const ix = Math.floor(x / CHUNK_SIZE) & 0xFFFF;
+    const iz = Math.floor(z / CHUNK_SIZE) & 0xFFFF;
     const key = ix * 65536 + iz;
     if (this._cache.has(key)) return this._cache.get(key);
 
@@ -647,7 +647,7 @@ export class ZoneGenerator {
     if (selected === ZONE_TYPES.WATERFALL) {
       // Only place waterfalls if there's height variation nearby
       const h1 = this._estimateHeight(x, z);
-      const h2 = this._estimateHeight(x + 16, z);
+      const h2 = this._estimateHeight(x + CHUNK_SIZE, z);
       if (Math.abs(h1 - h2) < 10) return ZONE_TYPES.HILLS;
     }
     if (selected === ZONE_TYPES.LAKE && region.type === REGION_TYPES.DESERT) {
@@ -717,21 +717,21 @@ export class HierarchicalChunkGenerator {
 
   // Get or compute ChunkContext for a chunk coordinate
   getChunkContext(cx, cz) {
-    const key = `${cx},${cz}`;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
     if (this._contextCache.has(key)) return this._contextCache.get(key);
 
     const ox = cx * CHUNK_SIZE;
     const oz = cz * CHUNK_SIZE;
 
     // Sample hierarchy at chunk center
-    const centerProps = this.continentGen.getContinentProperties(ox + 8, oz + 8);
-    const region = this.regionGen.getRegion(ox + 8, oz + 8);
-    const zone = this.zoneGen.getZone(ox + 8, oz + 8);
+    const centerProps = this.continentGen.getContinentProperties(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
+    const region = this.regionGen.getRegion(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
+    const zone = this.zoneGen.getZone(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
 
     // Sample biome weights at center + corners
-    const biomeWeights = this._computeBiomeWeights(ox + 8, oz + 8, region, zone, centerProps);
+    const biomeWeights = this._computeBiomeWeights(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2, region, zone, centerProps);
 
-    // Compute 16x16 height map
+    // Compute height map for chunk
     const heightMap = this._computeHeightMap(cx, cz, region, zone, centerProps);
 
     // PRD P-02: Apply hydrology modifications to heightmap (rivers, valleys, lakes)
@@ -822,7 +822,7 @@ export class HierarchicalChunkGenerator {
     return height;
   }
 
-  // Compute 16x16 height map for a chunk
+  // Compute height map for a chunk
   _computeHeightMap(cx, cz, region, zone, continentProps) {
     const heights = new Float32Array(CHUNK_SIZE * CHUNK_SIZE);
     const ox = cx * CHUNK_SIZE;

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { LOAD_PRIORITY } from './jardvoxel-survival-layers.js';
+import { CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 
 // Streaming tiers
 export const STREAMING_TIERS = {
@@ -54,49 +55,51 @@ export class StreamingManager {
 
   // Check if a chunk needs tier upgrade (more layers)
   needsUpgrade(cx, cz, playerCX, playerCZ) {
-    const key = `${cx},${cz}`;
-    const currentTier = this._tierCache.get(key);
-    if (currentTier === undefined) return true;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
+    const entry = this._tierCache.get(key);
+    if (!entry) return true;
     const targetTier = this.getTierForChunk(cx, cz, playerCX, playerCZ);
-    return targetTier < currentTier; // Lower tier number = more detail
+    return targetTier < entry.tier; // Lower tier number = more detail
   }
 
   // Check if a chunk needs tier downgrade (fewer layers)
   needsDowngrade(cx, cz, playerCX, playerCZ) {
-    const key = `${cx},${cz}`;
-    const currentTier = this._tierCache.get(key);
-    if (currentTier === undefined) return false;
+    const key = (cx + 32768) * 65536 + (cz + 32768);
+    const entry = this._tierCache.get(key);
+    if (!entry) return false;
     const targetTier = this.getTierForChunk(cx, cz, playerCX, playerCZ);
-    return targetTier > currentTier; // Higher tier number = less detail
+    return targetTier > entry.tier; // Higher tier number = less detail
   }
 
   // Update tier tracking for a chunk
   setChunkTier(cx, cz, tier) {
-    this._tierCache.set(`${cx},${cz}`, tier);
+    this._tierCache.set((cx + 32768) * 65536 + (cz + 32768), { tier, cx, cz });
   }
 
   // Get current tier for a chunk
   getChunkTier(cx, cz) {
-    return this._tierCache.get(`${cx},${cz}`) ?? STREAMING_TIERS.NEAR;
+    const entry = this._tierCache.get((cx + 32768) * 65536 + (cz + 32768));
+    return entry ? entry.tier : STREAMING_TIERS.NEAR;
   }
 
   // Remove chunk from tracking
   removeChunk(cx, cz) {
-    this._tierCache.delete(`${cx},${cz}`);
+    this._tierCache.delete((cx + 32768) * 65536 + (cz + 32768));
   }
 
   // Update streaming for all loaded chunks
   update(playerX, playerZ, camera) {
-    const pcx = Math.floor(playerX / 16);
-    const pcz = Math.floor(playerZ / 16);
+    const pcx = Math.floor(playerX / CHUNK_SIZE);
+    const pcz = Math.floor(playerZ / CHUNK_SIZE);
 
     const upgrades = [];
     const downgrades = [];
 
-    for (const key of this._tierCache.keys()) {
-      const [cx, cz] = key.split(',').map(Number);
+    for (const [key, entry] of this._tierCache) {
+      const cx = entry.cx;
+      const cz = entry.cz;
+      const currentTier = entry.tier;
       const targetTier = this.getTierForChunk(cx, cz, pcx, pcz);
-      const currentTier = this._tierCache.get(key);
 
       if (targetTier < currentTier) {
         upgrades.push({ cx, cz, from: currentTier, to: targetTier });

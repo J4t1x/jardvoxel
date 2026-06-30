@@ -4,10 +4,10 @@
 // ═══════════════════════════════════════════════════════════
 
 import { SimplexNoise, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
-import { BIOMES, ZONE_TYPES } from './jardvoxel-survival-world-hierarchy.js';
+import { BIOMES, ZONE_TYPES, CHUNK_SIZE } from './jardvoxel-survival-world-hierarchy.js';
 
 const SECTOR_SIZE = 4; // 4x4 blocks per sector
-const SECTORS_PER_CHUNK = 16; // 16 sectors in a 16x16 chunk
+const SECTORS_PER_SIDE = CHUNK_SIZE / SECTOR_SIZE; // sectors per chunk side
 
 // Decoration types mapped to block IDs
 const DECORATION_BLOCKS = {
@@ -96,19 +96,9 @@ export class MicrosectorGenerator {
     const zoneMult = ZONE_DECORATION_MULT[zone.type] || 1.0;
     const baseDensity = biomeDeco.density * zoneMult * (context.vegetationBoost || 1.0);
 
-    for (let sx = 0; sx < SECTORS_PER_CHUNK / 2; sx++) {
-      for (let sz = 0; sz < SECTORS_PER_CHUNK / 2; sz++) {
-        // Each sector is 4x4 blocks (we use 4x4 grid = 16 sectors)
-        // Actually SECTORS_PER_CHUNK=16 means 4x4 grid of sectors, each 4x4 blocks
-        // Wait: 16x16 chunk / 4x4 sector = 4x4 grid = 16 sectors
-        // So sx goes 0-3, sz goes 0-3
-        // But we defined SECTORS_PER_CHUNK=16 and loop to /2=8... fix below
-      }
-    }
-
-    // Correct loop: 4x4 grid of sectors
-    for (let sx = 0; sx < 4; sx++) {
-      for (let sz = 0; sz < 4; sz++) {
+    // Dead code above kept for reference — correct loop below
+    for (let sx = 0; sx < SECTORS_PER_SIDE; sx++) {
+      for (let sz = 0; sz < SECTORS_PER_SIDE; sz++) {
         // G-03: Use cellular F1 for organic clearing boundaries
         const sectorHash = this._clearingNoise.cellular2D(
           (ox + sx * SECTOR_SIZE) * 0.03,
@@ -145,8 +135,8 @@ export class MicrosectorGenerator {
 
   // Generate micro elevation offsets (±1 block)
   getMicroElevation(cx, cz, lx, lz) {
-    const wx = cx * 16 + lx;
-    const wz = cz * 16 + lz;
+    const wx = cx * CHUNK_SIZE + lx;
+    const wz = cz * CHUNK_SIZE + lz;
     return Math.round(this.detailNoise.noise2D(wx * 0.05, wz * 0.05) * 1.5);
   }
 

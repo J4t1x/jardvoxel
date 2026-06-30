@@ -100,6 +100,13 @@ export class ForestCanopyManager {
   getFogDensity() {
     return CANOPY_FOG_DENSITY;
   }
+
+  dispose() {
+    this._canopyFactor = 0;
+    this._targetFactor = 0;
+    this._isUnderCanopy = false;
+    this._particleTimer = 0;
+  }
 }
 
 export const FOREST_DENSITY_MULTIPLIER = 1.5;

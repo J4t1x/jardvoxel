@@ -2,10 +2,11 @@
 
 ## Vision General
 
-JardVoxel es un motor voxel 3D construido sobre Three.js. El proyecto se divide en dos motores:
+JardVoxel es un motor voxel 3D construido sobre Three.js. El proyecto se divide en tres modulos principales:
 
 1. **jardvoxel-engine.js** — Motor principal en uso (terreno + gameplay completo)
-2. **jardvoxel-survival-engine.js** — Motor alternativo con pipeline de generacion estilo voxel (experimental)
+2. **jardvoxel-survival-engine.js** — Motor survival con pipeline de generacion v6.0 (Simplex Noise, Domain Warping, Splines)
+3. **jardvoxel-zen-game.js** — Motor Zen Garden (wellness, sin combate, ~25 imports de core/)
 
 ## Arquitectura: jardvoxel-engine.js
 
@@ -661,4 +662,137 @@ jardvoxel-survival.html
   ├── jardvoxel-survival-chilltune.js
   ├── jardvoxel-survival-achievements.js
   └── jardvoxel-survival-worker.js
+```
+
+## Arquitectura: jardvoxel-zen-game.js (v8.0.0)
+
+### Vision General
+
+Zen Garden es una experiencia wellness pura: exploracion contemplativa sin combate, sin mobs, sin muerte, sin hambre. Reutiliza ~25 modulos del core survival pero excluye todos los sistemas de combate/survival.
+
+### Sistemas Excluidos
+
+- MobManager (sin mobs)
+- HealthHungerSystem (sin salud/hambre)
+- NetherGenerator (sin Nether)
+- BrewingManager (sin pociones)
+- ShieldManager (sin escudos)
+- AchievementManager (sin logros combativos)
+- AnvilManager (sin yunque)
+- RedstoneManager (sin redstone)
+
+### Sistemas Retenidos
+
+```
+jardvoxel-zen.html
+  └── jardvoxel-zen-game.js (ZenGame class)
+        ├── Core Engine
+        │     ├── SurvivalWorld (chunk management, mesher, water)
+        │     ├── PlayerController (movimiento, camara, vuelo creativo)
+        │     ├── Inventory (hotbar, creativo, bloques infinitos)
+        │     ├── DayNightCycle (8 fases circadianas)
+        │     ├── GameAudio (Web Audio API)
+        │     ├── SaveManager (IndexedDB)
+        │     └── ParticleSystem
+        ├── Visual Systems
+        │     ├── PostprocessingManager (bloom, tonemapping)
+        │     ├── ShadowManager
+        │     ├── VolumetricFog
+        │     ├── WaterMaterialManager
+        │     ├── InteriorLightingManager
+        │     ├── AmbientParticleSystem
+        │     ├── ForestCanopyManager
+        │     ├── CharacterGenerator + CharacterAnimator
+        │     └── UIManager
+        ├── Wellness Systems (SPEC-099)
+        │     ├── ChillTuneEngine (ambient deep space, LFO → frecuencia)
+        │     ├── AmbientSoundManager (sonidos 3D por bioma)
+        │     ├── BiomeIdentityManager
+        │     ├── KomorebiSystem (luz filtrada por canopy)
+        │     ├── ResonanceSystem (tracking comportamiento)
+        │     ├── MeditationSpaceGenerator (6 tipos)
+        │     ├── LivingWorldSystem (mundo vivo reactivo)
+        │     └── ExplorationJournal (registro de momentos)
+        ├── World Generation
+        │     ├── WorldGenPipeline v6.0 (Simplex + Warping + Splines)
+        │     ├── WorldIdentity (realista, basado en Tierra)
+        │     └── PatagoniaProfile (43°S-56°S)
+        └── Touch Controls
+              └── TouchControls (joysticks duales + 5 botones)
+```
+
+### ChillTuneEngine — Musica Ambient Deep Space (v8.0.0)
+
+```
+ChillTuneEngine
+  ├── Drone: sine wave, frecuencia constante, volumen 0.03
+  ├── LFO: modula FRECUENCIA (no volumen) — shimmer ±2Hz, 0.03Hz
+  ├── Escala: Solo Lydian (F Lydian) para todos los biomas
+  ├── BPM: 24-40 (contemplation 24, idle 26, caves 28, night 30, exploring 36)
+  ├── Rest probability: 75-98% (silencio dominante)
+  ├── Notas: 16-32 barras intervalo, 24-48 beats duracion
+  ├── Reverb: delay 0.6s, feedback 0.4, filtro 2400 Hz
+  ├── Crossfade: 6s entre biomas
+  ├── Master volume: 0.18, melodia 0.025-0.03
+  └── Referencia: Hans Zimmer (Interstellar), Vangelis (Blade Runner 2049)
+```
+
+### Perfil Patagonia (v8.0.0)
+
+```
+jardvoxel-patagonia.js (PATAGONIA object)
+  ├── Geographic bounds: 43°S to 56°S
+  ├── West: Andes mountains (elevation up to 130 blocks)
+  ├── East: Steppe → Atlantic coast
+  ├── Seed: 142857
+  ├── Biomas con nombres locales:
+  │     ├── Estepa Patagonica
+  │     ├── Bosque Subantartico
+  │     ├── Selva Valdiviana
+  │     ├── Tundra Magellanica
+  │     └── Costa Atlantica
+  ├── Climate: temperatura, aridity, humidity realistas
+  └── applyPatagoniaToGenerator() — aplica perfil al WorldGenPipeline
+```
+
+### World Identity Realista (v7.0)
+
+```
+WorldIdentity
+  ├── Geological ages: Paleogene, Neogene, Quaternary
+  ├── 8 historical events (Quaternary):
+  │     ├── Pleistocene Glaciation
+  │     ├── Last Glacial Maximum
+  │     ├── Holocene Climate Optimum
+  │     ├── Younger Dryas
+  │     ├── Eemian Interglacial
+  │     ├── Toba Supereruption
+  │     ├── Alpine Orogeny
+  │     └── Anthropocene
+  ├── Earth parameters:
+  │     ├── Ocean coverage: 68-74% (real: 71%)
+  │     ├── Continents: 5-9 (real: 7)
+  │     ├── Axial tilt: 20.5-26.5° (real: 23.5°)
+  │     └── Orbital eccentricity: 0.01-0.03 (real: 0.0167)
+  └── Latitudinal temperature gradient (Ecuador → Polos)
+```
+
+### Zen Game Loop
+
+```
+ZenGame.animate()
+  ├── updatePhysics(dt) — movimiento, vuelo creativo, nado
+  ├── updateChunks() — generacion/carga de chunks (Web Worker)
+  ├── DayNightCycle.update(dt) — ciclo sol/luna, sky dome, estrellas
+  ├── WeatherManager.update(dt) — lluvia/nieve (sin tormentas)
+  ├── AmbientSoundManager.update() — sonidos 3D por bioma
+  ├── ChillTuneEngine.update() — musica ambient (crossfade, scheduling)
+  ├── KomorebiSystem.update() — luz filtrada por canopy
+  ├── ResonanceSystem.update() — tracking comportamiento
+  ├── LivingWorldSystem.update() — mundo vivo reactivo
+  ├── ForestCanopyManager.update() — canopy visual + fog
+  ├── VolumetricFog.update() — niebla atmosferica
+  ├── ParticleSystem.update() — particulas
+  ├── UIManager.update() — HUD auto-hide
+  └── render() — Three.js render
 ```

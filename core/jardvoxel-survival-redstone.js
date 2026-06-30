@@ -99,7 +99,7 @@ export class RedstoneManager {
 
     while (queue.length > 0) {
       const { x: cx, y: cy, z: cz, power: cp } = queue.shift();
-      const key = `${cx},${cy},${cz}`;
+      const key = (cx + 512) * 1048576 + (cy + 128) * 1024 + (cz + 512);
       if (visited.has(key)) continue;
       visited.add(key);
 
@@ -119,7 +119,7 @@ export class RedstoneManager {
         const nz = cz + n.dz;
         const block = this.world.getBlock(nx, ny, nz);
         if (block === REDSTONE_BLOCKS.REDSTONE_DUST) {
-          const nkey = `${nx},${ny},${nz}`;
+          const nkey = (nx + 512) * 1048576 + (ny + 128) * 1024 + (nz + 512);
           if (!visited.has(nkey)) {
             queue.push({ x: nx, y: ny, z: nz, power: cp - 1 });
           }
@@ -133,7 +133,9 @@ export class RedstoneManager {
     // Clear all powered blocks then re-apply torch powers
     this.poweredBlocks.clear();
     for (const [tkey, power] of this._torchPowers) {
-      const [tx, ty, tz] = tkey.split(',').map(Number);
+      const tx = Math.floor(tkey / 1048576) - 512;
+      const ty = Math.floor(tkey / 1024) % 1024 - 128;
+      const tz = tkey % 1024 - 512;
       this.poweredBlocks.set(tkey, power);
       this._propagatePower(tx, ty, tz, power);
     }
@@ -141,7 +143,7 @@ export class RedstoneManager {
 
   // Register a redstone torch as constant power source
   addTorch(x, y, z) {
-    const key = `${x},${y},${z}`;
+    const key = (x + 512) * 1048576 + (y + 128) * 1024 + (z + 512);
     this._torchPowers.set(key, 15);
     this.poweredBlocks.set(key, 15);
     this._propagatePower(x, y, z, 15);
@@ -150,7 +152,7 @@ export class RedstoneManager {
 
   // Remove a redstone torch
   removeTorch(x, y, z) {
-    const key = `${x},${y},${z}`;
+    const key = (x + 512) * 1048576 + (y + 128) * 1024 + (z + 512);
     this._torchPowers.delete(key);
     this.poweredBlocks.delete(key);
     this._removePower(x, y, z);
@@ -159,7 +161,7 @@ export class RedstoneManager {
   // Check if a block is powered
   isPowered(x, y, z) {
     // Check the block itself and all 6 neighbors
-    const key = `${x},${y},${z}`;
+    const key = (x + 512) * 1048576 + (y + 128) * 1024 + (z + 512);
     if (this.poweredBlocks.has(key)) return true;
 
     const neighbors = [
@@ -168,7 +170,7 @@ export class RedstoneManager {
       { dx: 0, dy: 1, dz: 0 }, { dx: 0, dy: -1, dz: 0 },
     ];
     for (const n of neighbors) {
-      const nkey = `${x + n.dx},${y + n.dy},${z + n.dz}`;
+      const nkey = (x + n.dx + 512) * 1048576 + (y + n.dy + 128) * 1024 + (z + n.dz + 512);
       if (this.poweredBlocks.has(nkey)) return true;
     }
     return false;
@@ -176,7 +178,7 @@ export class RedstoneManager {
 
   // Get power level at position
   getPower(x, y, z) {
-    return this.poweredBlocks.get(`${x},${y},${z}`) || 0;
+    return this.poweredBlocks.get((x + 512) * 1048576 + (y + 128) * 1024 + (z + 512)) || 0;
   }
 
   // Update redstone components each frame
@@ -185,7 +187,9 @@ export class RedstoneManager {
     for (const [key, delay] of this._repeaterDelays) {
       const newDelay = delay - dt;
       if (newDelay <= 0) {
-        const [x, y, z] = key.split(',').map(Number);
+        const x = Math.floor(key / 1048576) - 512;
+        const y = Math.floor(key / 1024) % 1024 - 128;
+        const z = key % 1024 - 512;
         this._repeaterDelays.delete(key);
         this.poweredBlocks.set(key, 15);
         this._propagatePower(x, y, z, 15);
@@ -196,7 +200,9 @@ export class RedstoneManager {
 
     // Update lamps — toggle lit state based on power
     for (const [key, power] of this.poweredBlocks) {
-      const [x, y, z] = key.split(',').map(Number);
+      const x = Math.floor(key / 1048576) - 512;
+      const y = Math.floor(key / 1024) % 1024 - 128;
+      const z = key % 1024 - 512;
       const block = world.getBlock(x, y, z);
       if (block === REDSTONE_BLOCKS.REDSTONE_LAMP && power > 0) {
         this._litLamps.add(key);
@@ -211,7 +217,9 @@ export class RedstoneManager {
     // Update pistons — push blocks when powered
     for (const [key, power] of this.poweredBlocks) {
       if (power <= 0) continue;
-      const [x, y, z] = key.split(',').map(Number);
+      const x = Math.floor(key / 1048576) - 512;
+      const y = Math.floor(key / 1024) % 1024 - 128;
+      const z = key % 1024 - 512;
       const block = world.getBlock(x, y, z);
       if (block === REDSTONE_BLOCKS.PISTON && !this._extendedPistons.has(key)) {
         this._extendedPistons.add(key);
@@ -235,22 +243,22 @@ export class RedstoneManager {
   }
 
   isLampLit(x, y, z) {
-    return this._litLamps.has(`${x},${y},${z}`);
+    return this._litLamps.has((x + 512) * 1048576 + (y + 128) * 1024 + (z + 512));
   }
 
   isPistonExtended(x, y, z) {
-    return this._extendedPistons.has(`${x},${y},${z}`);
+    return this._extendedPistons.has((x + 512) * 1048576 + (y + 128) * 1024 + (z + 512));
   }
 
   // Get dust power level for visual brightness (0-1)
   getDustBrightness(x, y, z) {
-    const power = this.poweredBlocks.get(`${x},${y},${z}`) || 0;
+    const power = this.poweredBlocks.get((x + 512) * 1048576 + (y + 128) * 1024 + (z + 512)) || 0;
     return power / 15;
   }
 
   // Trigger a repeater at position (adds delay)
   triggerRepeater(x, y, z) {
-    const key = `${x},${y},${z}`;
+    const key = (x + 512) * 1048576 + (y + 128) * 1024 + (z + 512);
     this._repeaterDelays.set(key, 0.1); // 1 tick = 0.1s
   }
 

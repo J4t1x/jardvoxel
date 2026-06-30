@@ -48,11 +48,11 @@ const RS_DUST = 120;
 
 const FACES = [
   { dir: [0, 1, 0], corners: [[0,1,0],[0,1,1],[1,1,1],[1,1,0]], shade: 1.0 },
-  { dir: [0,-1, 0], corners: [[0,0,1],[0,0,0],[1,0,0],[1,0,1]], shade: 0.6 },
-  { dir: [1, 0, 0], corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.8 },
-  { dir: [-1,0, 0], corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.8 },
-  { dir: [0, 0, 1], corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.7 },
-  { dir: [0, 0,-1], corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.7 },
+  { dir: [0,-1, 0], corners: [[0,0,1],[0,0,0],[1,0,0],[1,0,1]], shade: 0.68 },
+  { dir: [1, 0, 0], corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.82 },
+  { dir: [-1,0, 0], corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.82 },
+  { dir: [0, 0, 1], corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.75 },
+  { dir: [0, 0,-1], corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.75 },
 ];
 
 const FACE_AXES = [
@@ -71,19 +71,20 @@ function hash3(x, y, z) {
 }
 
 function colorVariation(x, y, z, baseColor) {
-  const v = (hash3(x, y, z) - 0.5) * 0.08;
+  const v = (hash3(x, y, z) - 0.5) * 0.12;
+  const hueShift = (hash3(x + 1, y, z) - 0.5) * 0.04;
   return [
-    Math.max(0, Math.min(1, baseColor[0] + v)),
+    Math.max(0, Math.min(1, baseColor[0] + v + hueShift)),
     Math.max(0, Math.min(1, baseColor[1] + v)),
-    Math.max(0, Math.min(1, baseColor[2] + v)),
+    Math.max(0, Math.min(1, baseColor[2] + v - hueShift)),
   ];
 }
 
 function getGrassFaceColor(face, baseColor, cornerY) {
-  if (face.dir[1] > 0) return [0.35, 0.72, 0.25];
-  if (face.dir[1] < 0) return [0.55, 0.40, 0.25];
-  if (cornerY >= 1) return [0.38, 0.66, 0.22];
-  return [0.52, 0.38, 0.24];
+  if (face.dir[1] > 0) return [0.40, 0.75, 0.28];
+  if (face.dir[1] < 0) return [0.58, 0.42, 0.22];
+  if (cornerY >= 1) return [0.42, 0.70, 0.25];
+  return [0.55, 0.40, 0.20];
 }
 
 function getVertexAO(chunk, world, x, y, z, dir, corner, ox, oz) {
@@ -95,7 +96,7 @@ function getVertexAO(chunk, world, x, y, z, dir, corner, ox, oz) {
       const wx = ox + lx, wy = ly + WORLD_MIN_Y, wz = oz + lz;
       const ncx = Math.floor(wx / CHUNK_SIZE);
       const ncz = Math.floor(wz / CHUNK_SIZE);
-      const nkey = ncx + ',' + ncz;
+      const nkey = world._chunkKey(ncx, ncz);
       const nchunk = world.chunks.get(nkey);
       if (!nchunk || !nchunk.generated) return false;
       return world.getBlock(wx, wy, wz) !== BLOCK.AIR;
@@ -121,8 +122,9 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
   let vertexCount = 0;
 
   const mergeSize = lodLevel >= 4 ? 8 : lodLevel >= 3 ? 4 : 2;
-  // Use stored maxContentY to avoid scanning from CHUNK_HEIGHT-1 every time
   const scanTopY = chunk.maxContentY ?? (CHUNK_HEIGHT - 1);
+  const baseY = Math.max(0, (chunk.minContentY ?? 0));
+  const baseWorldY = baseY + WORLD_MIN_Y;
 
   for (let bx = 0; bx < CHUNK_SIZE; bx += mergeSize) {
     for (let bz = 0; bz < CHUNK_SIZE; bz += mergeSize) {
@@ -156,7 +158,7 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
 
       // LOD 4 — blend with fog color
       if (lodLevel >= 4) {
-        const fogR = 0x87 / 255, fogG = 0xCE / 255, fogB = 0xEB / 255;
+        const fogR = 0xA8 / 255, fogG = 0xC8 / 255, fogB = 0xE0 / 255;
         r = r * 0.4 + fogR * 0.6;
         g = g * 0.4 + fogG * 0.6;
         b = b * 0.4 + fogB * 0.6;
@@ -164,14 +166,43 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
 
       const x0 = ox + bx, z0 = oz + bz;
       const x1 = ox + bx + mergeSize, z1 = oz + bz + mergeSize;
-      const y = topY + 1 + WORLD_MIN_Y;
+      const topWorldY = topY + 1 + WORLD_MIN_Y;
+      const bottomWorldY = baseWorldY;
 
-      positions.push(x0, y, z0, x0, y, z1, x1, y, z1, x1, y, z0);
+      // Top face
+      positions.push(x0, topWorldY, z0, x0, topWorldY, z1, x1, topWorldY, z1, x1, topWorldY, z0);
       colors.push(r, g, b, r, g, b, r, g, b, r, g, b);
       indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
       vertexCount += 4;
 
-      // LOD 2: side faces for height differences
+      // Side faces — render solid walls down to base for volumetric look
+      const sideR = r * 0.7, sideG = g * 0.7, sideB = b * 0.7;
+
+      // North side (z-)
+      positions.push(x0, bottomWorldY, z0, x1, bottomWorldY, z0, x1, topWorldY, z0, x0, topWorldY, z0);
+      colors.push(sideR, sideG, sideB, sideR, sideG, sideB, sideR, sideG, sideB, sideR, sideG, sideB);
+      indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+      vertexCount += 4;
+
+      // South side (z+)
+      positions.push(x0, bottomWorldY, z1, x0, topWorldY, z1, x1, topWorldY, z1, x1, bottomWorldY, z1);
+      colors.push(sideR, sideG, sideB, sideR, sideG, sideB, sideR, sideG, sideB, sideR, sideG, sideB);
+      indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+      vertexCount += 4;
+
+      // West side (x-)
+      positions.push(x0, bottomWorldY, z0, x0, topWorldY, z0, x0, topWorldY, z1, x0, bottomWorldY, z1);
+      colors.push(sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9);
+      indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+      vertexCount += 4;
+
+      // East side (x+)
+      positions.push(x1, bottomWorldY, z0, x1, bottomWorldY, z1, x1, topWorldY, z1, x1, topWorldY, z0);
+      colors.push(sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9, sideR * 0.9, sideG * 0.9, sideB * 0.9);
+      indices.push(vertexCount, vertexCount + 1, vertexCount + 2, vertexCount, vertexCount + 2, vertexCount + 3);
+      vertexCount += 4;
+
+      // LOD 2: extra side faces for height differences with neighbors
       if (lodLevel === 2) {
         const neighbors = [
           { dir: [-1, 0] }, { dir: [1, 0] }, { dir: [0, -1] }, { dir: [0, 1] },
@@ -189,7 +220,7 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
           if (neighborTopY < topY - 1) {
             const sideY0 = neighborTopY < 0 ? 0 : neighborTopY + 1 + WORLD_MIN_Y;
             const sideY1 = topY + 1 + WORLD_MIN_Y;
-            const sr = r * 0.8, sg = g * 0.8, sb = b * 0.8;
+            const sr = r * 0.6, sg = g * 0.6, sb = b * 0.6;
             if (n.dir[0] === -1) {
               positions.push(x0, sideY0, z0, x0, sideY0, z1, x0, sideY1, z1, x0, sideY1, z0);
             } else if (n.dir[0] === 1) {
@@ -252,7 +283,7 @@ export function buildChunkMesh(chunk, world, lodLevel = 0) {
       const wx = ox + nx, wy = ny + WORLD_MIN_Y, wz = oz + nz;
       const ncx = Math.floor(wx / CHUNK_SIZE);
       const ncz = Math.floor(wz / CHUNK_SIZE);
-      const nkey = ncx + ',' + ncz;
+      const nkey = world._chunkKey(ncx, ncz);
       const nchunk = world.chunks.get(nkey);
       if (!nchunk || !nchunk.generated) return BLOCK.AIR;
       return world.getBlock(wx, wy, wz);

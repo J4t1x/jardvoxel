@@ -3,7 +3,7 @@
 // SPEC-108: Unique points of interest per region
 // ═══════════════════════════════════════════════════════════
 
-import { REGION_TYPES } from './jardvoxel-survival-world-hierarchy.js';
+import { REGION_TYPES, CHUNK_SIZE } from './jardvoxel-survival-world-hierarchy.js';
 
 // Landmark types and their valid regions
 const LANDMARK_TYPES = {
@@ -119,22 +119,21 @@ export class LandmarkSystem {
     };
 
     this._regionLandmarks.set(regionKey, landmark);
-    this.landmarks.set(`${cx},${cz}`, landmark);
+    this.landmarks.set((cx + 32768) * 65536 + (cz + 32768), landmark);
     return landmark;
   }
 
   // Get landmark at or near a position
   getLandmark(cx, cz) {
-    return this.landmarks.get(`${cx},${cz}`) || null;
+    return this.landmarks.get((cx + 32768) * 65536 + (cz + 32768)) || null;
   }
 
   // Get all landmarks within radius
   getLandmarksInRadius(cx, cz, radius) {
     const result = [];
-    for (const [key, landmark] of this.landmarks) {
-      const [lcx, lcz] = key.split(',').map(Number);
-      const dx = lcx - cx;
-      const dz = lcz - cz;
+    for (const landmark of this.landmarks.values()) {
+      const dx = landmark.cx - cx;
+      const dz = landmark.cz - cz;
       if (Math.sqrt(dx * dx + dz * dz) <= radius) {
         result.push(landmark);
       }
@@ -182,8 +181,8 @@ export class LandmarkSystem {
   }
 
   _placeAncientTree(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Massive trunk 5x5
     for (let dx = -2; dx <= 2; dx++) {
       for (let dz = -2; dz <= 2; dz++) {
@@ -204,8 +203,8 @@ export class LandmarkSystem {
   }
 
   _placeWaterfall(chunk, heightMap, waterLevel, setBlock) {
-    const cx = 8, cz = 8;
-    const topY = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const topY = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     const bottomY = Math.max(waterLevel, topY - 20);
     // Water column
     for (let dy = bottomY; dy <= topY; dy++) {
@@ -223,8 +222,8 @@ export class LandmarkSystem {
   }
 
   _placeVolcano(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const baseY = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const baseY = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Cone shape
     for (let dy = 0; dy < 30; dy++) {
       const radius = 8 - Math.floor(dy * 0.25);
@@ -245,8 +244,8 @@ export class LandmarkSystem {
   }
 
   _placeCrystalLake(chunk, heightMap, waterLevel, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Shallow lake with crystal (glowstone) floor
     for (let dx = -5; dx <= 5; dx++) {
       for (let dz = -5; dz <= 5; dz++) {
@@ -260,8 +259,8 @@ export class LandmarkSystem {
   }
 
   _placeStoneArch(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Arch: two pillars + top
     for (let dy = 0; dy < 12; dy++) {
       setBlock(cx - 3, y + dy, cz, 'stone');
@@ -274,8 +273,8 @@ export class LandmarkSystem {
   }
 
   _placeRuins(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Partial stone brick walls
     for (let dx = -3; dx <= 3; dx++) {
       setBlock(cx + dx, y, cz - 3, 'stone_bricks');
@@ -295,8 +294,8 @@ export class LandmarkSystem {
   }
 
   _placeShrine(chunk, heightMap, setBlock) {
-    const cx = 8, cz = 8;
-    const y = Math.floor(heightMap[cx + cz * 16]);
+    const cx = CHUNK_SIZE / 2, cz = CHUNK_SIZE / 2;
+    const y = Math.floor(heightMap[cx + cz * CHUNK_SIZE]);
     // Serene meditation spot: stone platform + lantern
     for (let dx = -2; dx <= 2; dx++) {
       for (let dz = -2; dz <= 2; dz++) {
@@ -313,9 +312,10 @@ export class LandmarkSystem {
 
   _placeRedForest(chunk, heightMap, setBlock) {
     // Grove of red-leaved trees
-    const positions = [[4, 4], [12, 4], [4, 12], [12, 12], [8, 8]];
+    const h = CHUNK_SIZE / 2;
+    const positions = [[h - 4, h - 4], [h + 4, h - 4], [h - 4, h + 4], [h + 4, h + 4], [h, h]];
     for (const [tx, tz] of positions) {
-      const y = Math.floor(heightMap[tx + tz * 16]);
+      const y = Math.floor(heightMap[tx + tz * CHUNK_SIZE]);
       for (let dy = 0; dy < 6; dy++) setBlock(tx, y + dy, tz, 'wood');
       for (let dx = -2; dx <= 2; dx++) {
         for (let dz = -2; dz <= 2; dz++) {
@@ -332,8 +332,8 @@ export class LandmarkSystem {
   _placeCanyon(chunk, heightMap, setBlock) {
     // Deep gorge through the chunk
     const cx = 8;
-    for (let z = 0; z < 16; z++) {
-      const y = Math.floor(heightMap[cx + z * 16]);
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      const y = Math.floor(heightMap[cx + z * CHUNK_SIZE]);
       for (let dy = 0; dy < 20; dy++) {
         setBlock(cx, y - dy, z, 'air');
         setBlock(cx + 1, y - dy, z, 'air');

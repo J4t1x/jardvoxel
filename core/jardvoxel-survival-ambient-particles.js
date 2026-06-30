@@ -9,21 +9,21 @@ import * as THREE from 'three';
 import { BIOME_FINGERPRINTS, BIOME_PARTICLES } from './jardvoxel-survival-biome-identity.js';
 
 const PARTICLE_RADIUS = 32;
-const MAX_PARTICLES = 100;
+const MAX_PARTICLES = 130;
 
 const PARTICLE_CONFIGS = {
   pollen: {
-    color: 0xffe44d,
-    size: 0.15,
+    color: 0xF2D048,
+    size: 0.18,
     gravity: -0.02,
-    windFactor: 0.3,
-    count: 50,
+    windFactor: 0.4,
+    count: 60,
     nightOnly: false,
     dayOnly: false,
   },
   snowflakes: {
-    color: 0xffffff,
-    size: 0.2,
+    color: 0xF0F5FF,
+    size: 0.22,
     gravity: -0.5,
     windFactor: 0.5,
     count: 100,
@@ -31,7 +31,7 @@ const PARTICLE_CONFIGS = {
     dayOnly: false,
   },
   leaves: {
-    color: 0x4a8a2a,
+    color: 0x5A9832,
     size: 0.3,
     gravity: -0.1,
     windFactor: 0.8,
@@ -40,8 +40,8 @@ const PARTICLE_CONFIGS = {
     dayOnly: false,
   },
   falling_leaves: {
-    color: 0xd4551a,
-    size: 0.3,
+    color: 0xE06028,
+    size: 0.32,
     gravity: -0.1,
     windFactor: 0.8,
     count: 90,
@@ -49,17 +49,17 @@ const PARTICLE_CONFIGS = {
     dayOnly: false,
   },
   mist: {
-    color: 0xaaaaaa,
+    color: 0xC8D0D8,
     size: 0.8,
     gravity: 0.01,
     windFactor: 0.2,
-    count: 40,
+    count: 45,
     nightOnly: false,
     dayOnly: false,
   },
   dust: {
-    color: 0xc4a86a,
-    size: 0.12,
+    color: 0xD8B878,
+    size: 0.14,
     gravity: -0.01,
     windFactor: 0.6,
     count: 60,
@@ -67,16 +67,16 @@ const PARTICLE_CONFIGS = {
     dayOnly: false,
   },
   fireflies: {
-    color: 0xaaff44,
-    size: 0.25,
+    color: 0xF2D848,
+    size: 0.28,
     gravity: 0,
     windFactor: 0.1,
-    count: 40,
+    count: 50,
     nightOnly: true,
     dayOnly: false,
   },
   spores: {
-    color: 0xaa44ff,
+    color: 0x9848D8,
     size: 0.2,
     gravity: -0.03,
     windFactor: 0.3,
@@ -85,16 +85,16 @@ const PARTICLE_CONFIGS = {
     dayOnly: false,
   },
   petals: {
-    color: 0xffaaaa,
-    size: 0.25,
+    color: 0xF0A8B8,
+    size: 0.28,
     gravity: -0.08,
-    windFactor: 0.7,
+    windFactor: 0.8,
     count: 80,
     nightOnly: false,
     dayOnly: false,
   },
   bioluminescence: {
-    color: 0x44aaff,
+    color: 0x48B0E0,
     size: 0.3,
     gravity: 0,
     windFactor: 0.05,
@@ -115,8 +115,8 @@ const PARTICLE_CONFIGS = {
 
 const CAVE_PARTICLE_TYPE = 'dust_motes';
 const CAVE_CONFIG = {
-  color: 0x888888,
-  size: 0.1,
+  color: 0x989088,
+  size: 0.12,
   gravity: 0,
   windFactor: 0.05,
   count: 30,
@@ -151,9 +151,9 @@ export class AmbientParticleSystem {
 
     this._material = new THREE.PointsMaterial({
       color: 0xffffff,
-      size: 0.2,
+      size: 0.22,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
       depthWrite: false,
       sizeAttenuation: true,
     });
@@ -245,7 +245,7 @@ export class AmbientParticleSystem {
     const config = this._getConfig(this._currentType);
     if (!config || config.count === 0) return;
 
-    if (config.nightOnly && dayFactor > 0.2) {
+    if (config.nightOnly && dayFactor > 0.15) {
       this._points.visible = false;
       return;
     }

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 // MC_BLOCKS/BLOCK values inlined to avoid circular dependency with mesher.js
+import { CHUNK_SIZE } from './jardvoxel-survival-engine.js';
 
 // New block IDs
 export const MAP_BLOCKS = {
