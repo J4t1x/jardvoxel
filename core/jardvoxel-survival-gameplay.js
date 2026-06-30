@@ -109,10 +109,16 @@ export class SurvivalWorld {
         seed: this.seed,
         useHierarchy: this.generator._useHierarchy,
         patagonia: this._usePatagonia,
+        terrainSettings: this._pendingTerrainSettings || {},
       });
       if (count > 0) {
         this._useWorkerPool = true;
         this.worker = null; // Clear legacy single worker
+        // If settings were applied before workers were ready, broadcast now
+        if (this._pendingTerrainSettings) {
+          this._workerPool.broadcastSettings(this._pendingTerrainSettings);
+          this._pendingTerrainSettings = null;
+        }
       } else {
         this._workerPool = null;
         this.workerSupported = false;
@@ -122,6 +128,16 @@ export class SurvivalWorld {
       this._workerPool = null;
       this._useWorkerPool = false;
       this.workerSupported = false;
+    }
+  }
+
+  // PRD: Broadcast terrain settings to worker pool (called from _applyTerrainSettings)
+  broadcastTerrainSettings(settings) {
+    if (this._workerPool && this._useWorkerPool) {
+      this._workerPool.broadcastSettings(settings);
+    } else {
+      // Workers not ready yet, store for when they initialize
+      this._pendingTerrainSettings = settings;
     }
   }
 

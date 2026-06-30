@@ -5,7 +5,7 @@
 // v7.0: Hierarchical World Generation (World → Continents → Regions → Zones → Chunks → Microsectors)
 // ═══════════════════════════════════════════════════════════
 
-import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer } from './jardvoxel-survival-noise.js';
+import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
 import { HierarchicalChunkGenerator } from './jardvoxel-survival-world-hierarchy.js';
 import { VoronoiBiomeMap } from './jardvoxel-survival-voronoi.js';
 
@@ -310,6 +310,11 @@ export class WorldGenPipeline {
     this._voronoiBiomes = new VoronoiBiomeMap(seed);
     this._useVoronoiBiomes = true;
     this._useCellularNoise = true;
+    // PRD G-03: Cellular noise for organic terrain patterns
+    this._cellularNoise = new FastNoiseLite(seed + 12345);
+    this._cellularNoise.setNoiseType(FN_NOISE_TYPE.CELLULAR);
+    this._cellularNoise.setCellularReturnType(FN_CELLULAR_RETURN.F1_TIMES_F2);
+    this._cellularNoise.setFrequency(0.008);
 
     // Cache
     this.cache = new Map();
@@ -476,7 +481,13 @@ export class WorldGenPipeline {
     
     // v6.0: Use advanced TerrainSplines
     let baseHeight = this.terrainSplines.getHeight(cont, erosion, pv, weirdness);
-    
+
+    // PRD G-03: Cellular noise adds organic micro-patterns to terrain height
+    if (this._useCellularNoise && this._cellularNoise) {
+      const cellVal = this._cellularNoise.cellular2D(x * 0.01, z * 0.01);
+      baseHeight += (cellVal - 0.5) * 4; // ±2 block organic variation
+    }
+
     // v6.0: Apply biome-specific modulation using lightweight biome estimate
     // (avoid calling getBiome which calls getBaseHeight → circular recursion)
     const temp = this.getTemperature(x, z);

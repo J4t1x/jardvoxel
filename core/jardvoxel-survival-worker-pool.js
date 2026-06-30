@@ -129,6 +129,13 @@ export class WorkerPool {
     }
   }
 
+  // PRD: Broadcast terrain settings to all workers so they stay in sync with UI toggles
+  broadcastSettings(settings) {
+    for (const w of this.workers) {
+      w.postMessage({ type: 'updateSettings', settings });
+    }
+  }
+
   dispose() {
     for (const w of this.workers) {
       w.terminate();

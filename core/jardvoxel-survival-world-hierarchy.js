@@ -704,6 +704,12 @@ export class HierarchicalChunkGenerator {
     // PRD P-02: Hydrology system for rivers, lakes, valleys
     this.hydrology = new HydrologySystem(seed);
     this._useRidgedNoise = true;
+    // PRD G-03: Cellular noise for organic terrain patterns
+    this._cellularNoise = new FastNoiseLite(seed + 12345);
+    this._cellularNoise.setNoiseType(FN_NOISE_TYPE.CELLULAR);
+    this._cellularNoise.setCellularReturnType(FN_CELLULAR_RETURN.F1_TIMES_F2);
+    this._cellularNoise.setFrequency(0.008);
+    this._useCellularNoise = true;
 
     // ChunkContext cache
     this._contextCache = new Map();
@@ -879,6 +885,12 @@ export class HierarchicalChunkGenerator {
           // Micro relief (±2 blocks)
           const microNoise = this.terrainNoise.noise2D(wx * 0.05, wz * 0.05);
           height += microNoise * 2;
+
+          // PRD G-03: Cellular noise for organic terrain patterns
+          if (this._useCellularNoise && this._cellularNoise) {
+            const cellVal = this._cellularNoise.cellular2D(wx * 0.01, wz * 0.01);
+            height += (cellVal - 0.5) * 4; // ±2 block organic variation
+          }
         } else {
           // Ocean
           const oceanDepth = (this.world.continentThreshold - contValue) / (this.world.continentThreshold + 1);

@@ -162,7 +162,12 @@ canvas{display:block}
 .touch-btn.break{bottom:170px;right:20px}
 .touch-btn.place{bottom:170px;right:100px}
 .touch-btn.sprint{bottom:90px;right:100px}
-.touch-btn.inv{bottom:20px;right:20px;width:50px;height:50px;font-size:0.7rem}
+.touch-btn.fly{bottom:170px;right:180px}
+.touch-btn.fly.active{background:rgba(124,58,237,0.4);border-color:rgba(167,139,250,0.6)}
+.touch-btn.next-block{bottom:90px;right:180px;width:60px;height:60px;font-size:0.65rem}
+.touch-btn.prev-block{bottom:90px;right:250px;width:60px;height:60px;font-size:0.65rem}
+.touch-btn.inv{bottom:20px;right:20px;width:54px;height:54px;font-size:0.65rem}
+.touch-btn.journal{bottom:20px;right:84px;width:54px;height:54px;font-size:0.65rem}
 #touch-toast{position:fixed;bottom:140px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:6px 14px;border-radius:6px;font-size:0.75rem;color:#fff;z-index:20;opacity:0;transition:opacity 0.3s;pointer-events:none}
 #touch-toast.show{opacity:1}
 
@@ -320,7 +325,11 @@ canvas{display:block}
   <div class="touch-btn break" id="touch-btn-break">~</div>
   <div class="touch-btn place" id="touch-btn-place">+</div>
   <div class="touch-btn sprint" id="touch-btn-sprint">>></div>
+  <div class="touch-btn fly" id="touch-btn-fly">FLY</div>
+  <div class="touch-btn next-block" id="touch-btn-next-block">BLK></div>
+  <div class="touch-btn prev-block" id="touch-btn-prev-block"><BLK</div>
   <div class="touch-btn inv" id="touch-btn-inv">INV</div>
+  <div class="touch-btn journal" id="touch-btn-journal">DIA</div>
 </div>
 <div id="touch-toast"></div>
 
@@ -486,6 +495,38 @@ class TouchControls {
     btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.keys.shift = true; }, opts);
     btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); this.game.keys.shift = false; }, opts);
     btnInv.addEventListener('touchstart', (e) => { e.preventDefault(); this._toggleInventory(); }, opts);
+
+    const btnFly = document.getElementById('touch-btn-fly');
+    const btnNextBlock = document.getElementById('touch-btn-next-block');
+    const btnPrevBlock = document.getElementById('touch-btn-prev-block');
+    const btnJournal = document.getElementById('touch-btn-journal');
+
+    btnFly.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.game.player.flying = !this.game.player.flying;
+      this.game.player.velocity.set(0, 0, 0);
+      btnFly.classList.toggle('active', this.game.player.flying);
+      this._showToast(this.game.player.flying ? 'Vuelo: ON' : 'Vuelo: OFF');
+    }, opts);
+
+    btnNextBlock.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const cur = this.game.inventory.selectedSlot;
+      this.game.inventory.setSelected((cur + 1) % 9);
+      this.game._updateHotbar();
+    }, opts);
+
+    btnPrevBlock.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const cur = this.game.inventory.selectedSlot;
+      this.game.inventory.setSelected((cur - 1 + 9) % 9);
+      this.game._updateHotbar();
+    }, opts);
+
+    btnJournal.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.game._toggleJournal();
+    }, opts);
   }
   _toggleInventory() {
     this.game.inventoryOpen = !this.game.inventoryOpen;
@@ -496,7 +537,11 @@ class TouchControls {
   toggle() {
     this.enabled = !this.enabled;
     const el = document.getElementById('touch-controls');
-    if (this.enabled) { el.classList.add('active'); if (this.game.pointerLocked) document.exitPointerLock(); }
+    if (this.enabled) {
+      el.classList.add('active'); if (this.game.pointerLocked) document.exitPointerLock();
+      const btnFly = document.getElementById('touch-btn-fly');
+      if (btnFly) btnFly.classList.toggle('active', this.game.player.flying);
+    }
     else { el.classList.remove('active'); this.game.keys.space = false; this.game.keys.shift = false; this.game.mouseLeftDown = false; this.breaking = false; }
     this._showToast(this.enabled ? 'Joysticks: ON' : 'Joysticks: OFF');
     try { localStorage.setItem('jardvoxel_touch_controls', this.enabled ? '1' : '0'); } catch(e) {}
@@ -987,6 +1032,7 @@ class ZenGame {
     gen._useCellularNoise = this.settings.cellularNoise;
     if (gen.hierarchy) {
       gen.hierarchy._useRidgedNoise = this.settings.ridgedNoise;
+      gen.hierarchy._useCellularNoise = this.settings.cellularNoise;
       if (gen.hierarchy.hydrology) gen.hierarchy.hydrology.enabled = this.settings.hydrology;
     }
     this.world._poissonEnabled = this.settings.poissonVeg;
@@ -994,6 +1040,13 @@ class ZenGame {
     if (this.weatherManager) this.weatherManager._useProceduralClimate = this.settings.proceduralClimate;
     if (this.world._workerPool) this.world._useWorkerPool = this.settings.multiWorker;
     else this.world._useWorkerPool = false;
+    // Broadcast terrain settings to worker pool so workers stay in sync
+    this.world.broadcastTerrainSettings({
+      voronoiBiomes: this.settings.voronoiBiomes,
+      cellularNoise: this.settings.cellularNoise,
+      ridgedNoise: this.settings.ridgedNoise,
+      hydrology: this.settings.hydrology,
+    });
   }
 
   _regenerateTerrain() {

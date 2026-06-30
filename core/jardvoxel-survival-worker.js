@@ -7,6 +7,19 @@ let world = null;
 let netherGen = null;
 let dimension = 'overworld';
 
+function applyTerrainSettings(settings) {
+  if (!world) return;
+  world._useVoronoiBiomes = settings.voronoiBiomes !== false;
+  world._useCellularNoise = settings.cellularNoise !== false;
+  if (world.hierarchy) {
+    world.hierarchy._useRidgedNoise = settings.ridgedNoise !== false;
+    world.hierarchy._useCellularNoise = settings.cellularNoise !== false;
+    if (world.hierarchy.hydrology) {
+      world.hierarchy.hydrology.enabled = settings.hydrology !== false;
+    }
+  }
+}
+
 self.onmessage = (e) => {
   if (e.data.type === 'init') {
     world = new WorldGenPipeline(e.data.seed);
@@ -16,6 +29,19 @@ self.onmessage = (e) => {
       applyPatagoniaToGenerator(world, pat);
     }
     netherGen = new NetherGenerator();
+    // Apply terrain settings from init message
+    applyTerrainSettings(e.data.terrainSettings || {});
+    return;
+  }
+  if (e.data.type === 'updateSettings') {
+    applyTerrainSettings(e.data.settings || {});
+    // Clear caches so new settings take effect on next chunk
+    if (world) {
+      world.cache.clear();
+      if (world._biomeCache) world._biomeCache.clear();
+      if (world._heightCache) world._heightCache.clear();
+      if (world.hierarchy) world.hierarchy.clearCache();
+    }
     return;
   }
   if (e.data.type === 'setDimension') {
