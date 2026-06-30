@@ -314,7 +314,6 @@ export class WorldGenPipeline {
     this._cellularNoise = new FastNoiseLite(seed + 12345);
     this._cellularNoise.setNoiseType(FN_NOISE_TYPE.CELLULAR);
     this._cellularNoise.setCellularReturnType(FN_CELLULAR_RETURN.F1_TIMES_F2);
-    this._cellularNoise.setFrequency(0.008);
 
     // Cache
     this.cache = new Map();
