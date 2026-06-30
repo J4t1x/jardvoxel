@@ -5,6 +5,8 @@
 
 import * as THREE from 'three';
 import { BIOMES } from './jardvoxel-survival-engine.js';
+import { SimplexNoise } from './jardvoxel-survival-noise.js';
+import { HydrologySystem } from './jardvoxel-survival-hydrology.js';
 
 const WEATHER = {
   CLEAR: 'clear',
@@ -13,8 +15,235 @@ const WEATHER = {
   THUNDER: 'thunder',
 };
 
+// ═══════════════════════════════════════════════════════════
+// PRD P-03: Procedural Climate System
+// Deterministic weather based on wind, rain shadow, ocean proximity,
+// altitude, and seasons — replaces Math.random() in _pickWeather()
+// ═══════════════════════════════════════════════════════════
+
+const SEASONS = {
+  SPRING: 0,
+  SUMMER: 1,
+  AUTUMN: 2,
+  WINTER: 3,
+};
+
+export class ProceduralClimateSystem {
+  constructor(seed) {
+    this.seed = seed;
+    this._windNoise = new SimplexNoise(seed + 7777);
+    this._moistureNoise = new SimplexNoise(seed + 5555);
+    this._tempNoise = new SimplexNoise(seed + 3333);
+    this._seasonNoise = new SimplexNoise(seed + 9999);
+    this._hydrology = new HydrologySystem(seed);
+
+    // Dominant wind direction per continent (deterministic)
+    this._windDirections = [];
+    const prng = new _ClimateRNG(seed + 8888);
+    for (let i = 0; i < 10; i++) {
+      this._windDirections.push({
+        angle: prng.next() * Math.PI * 2,
+        strength: 0.5 + prng.next() * 0.5,
+      });
+    }
+
+    // Season state (advanced by dayNight cycle)
+    this._seasonProgress = 0; // 0-1 over a full year
+    this._currentSeason = SEASONS.SPRING;
+  }
+
+  // Update season from dayNight time (assumes 1 day = 1/365 year)
+  updateSeasons(dayTime) {
+    // dayTime is 0-1 representing time of day; we use accumulated time externally
+    // This method is called with the fractional year progress
+    this._seasonProgress = (this._seasonProgress + 0.0001) % 1;
+    this._currentSeason = Math.floor(this._seasonProgress * 4) % 4;
+  }
+
+  // Advance season by a delta (called from WeatherManager.update)
+  advanceSeason(dt) {
+    // 20 min day cycle → 1 day. 365 days = ~122 hours. dt in seconds.
+    // One full year = 365 * 1200 seconds. seasonProgress += dt / (365 * 1200)
+    this._seasonProgress = (this._seasonProgress + dt / (365 * 1200)) % 1;
+    this._currentSeason = Math.floor(this._seasonProgress * 4) % 4;
+  }
+
+  getSeason() {
+    return this._currentSeason;
+  }
+
+  getSeasonName() {
+    return ['spring', 'summer', 'autumn', 'winter'][this._currentSeason];
+  }
+
+  // Get wind direction at a position (deterministic + seasonal variation)
+  getWindDirection(x, z) {
+    const continentIdx = Math.floor(this._windNoise.noise2D(x * 0.0001, z * 0.0001) * 5 + 5) % 10;
+    const base = this._windDirections[continentIdx];
+    // Seasonal variation: shift wind angle by up to ±30°
+    const seasonShift = Math.sin(this._seasonProgress * Math.PI * 2) * 0.5;
+    const angle = base.angle + seasonShift;
+    return {
+      x: Math.cos(angle) * base.strength,
+      z: Math.sin(angle) * base.strength,
+      angle,
+      strength: base.strength,
+    };
+  }
+
+  // Get ocean proximity factor (0 = far from ocean, 1 = at coast)
+  getOceanProximity(x, z, world) {
+    if (!world || !world.generator) return 0.5;
+    // Use getContinentalness from WorldGenPipeline (or getContinentValue from hierarchy)
+    let contValue;
+    if (world.generator.hierarchy && world.generator.hierarchy.world) {
+      contValue = world.generator.hierarchy.world.getContinentValue(x, z);
+    } else if (world.generator.getContinentalness) {
+      contValue = world.generator.getContinentalness(x, z);
+    } else {
+      return 0.5;
+    }
+    const threshold = (world.generator.hierarchy?.world?.continentThreshold) || 0.3;
+    if (contValue < 0) return 1.0; // In ocean
+    const distFromCoast = Math.abs(contValue - threshold);
+    return Math.max(0, 1 - distFromCoast * 3);
+  }
+
+  // Get altitude temperature factor (higher = colder)
+  getAltitudeFactor(x, z, world) {
+    if (!world || !world.generator) return 0;
+    const baseHeight = world.generator.getBaseHeight(x, z);
+    const seaLevel = 63;
+    // -0.6°C per 100 blocks → normalize to 0-1 range (1 = very cold)
+    const altitudeAboveSea = Math.max(0, baseHeight - seaLevel);
+    return Math.min(1, altitudeAboveSea / 150);
+  }
+
+  // Get rain shadow effect (windward = wet, leeward = dry)
+  getRainShadow(x, z, world) {
+    const wind = this.getWindDirection(x, z);
+    if (!world || !world.generator) return 0.5;
+
+    // Sample terrain height upwind and downwind
+    const upwindX = x - wind.x * 50;
+    const upwindZ = z - wind.z * 50;
+    const downwindX = x + wind.x * 50;
+    const downwindZ = z + wind.z * 50;
+
+    const localHeight = world.generator.getBaseHeight(x, z);
+    const upwindHeight = world.generator.getBaseHeight(upwindX, upwindZ);
+    const downwindHeight = world.generator.getBaseHeight(downwindX, downwindZ);
+
+    // If terrain rises upwind (mountains blocking wind), we're in rain shadow (dry)
+    // If terrain falls upwind, we're on windward side (wet)
+    const upwindRise = upwindHeight - localHeight;
+    if (upwindRise > 20) {
+      // Mountains upwind → rain shadow (dry)
+      return Math.max(0, 1 - upwindRise / 100);
+    }
+    // No significant barrier upwind → normal moisture
+    return 0.5 + Math.max(0, -upwindRise / 100) * 0.3;
+  }
+
+  // Get season modifier for weather
+  getSeasonModifier() {
+    switch (this._currentSeason) {
+      case SEASONS.SPRING: return { rainBoost: 0.15, snowBoost: -0.1, tempShift: 0 };
+      case SEASONS.SUMMER: return { rainBoost: -0.1, snowBoost: -0.2, tempShift: 0.15 };
+      case SEASONS.AUTUMN: return { rainBoost: 0.05, snowBoost: 0, tempShift: -0.05 };
+      case SEASONS.WINTER: return { rainBoost: -0.05, snowBoost: 0.25, tempShift: -0.2 };
+      default: return { rainBoost: 0, snowBoost: 0, tempShift: 0 };
+    }
+  }
+
+  // Main method: get deterministic weather at a position
+  getWeather(x, z, world, biome) {
+    const wind = this.getWindDirection(x, z);
+    const oceanProx = this.getOceanProximity(x, z, world);
+    const altitude = this.getAltitudeFactor(x, z, world);
+    const rainShadow = this.getRainShadow(x, z, world);
+    const season = this.getSeasonModifier();
+    const moisture = this._hydrology.getMoisture(x, z);
+
+    // Base humidity from ocean proximity + moisture noise + rain shadow
+    let humidity = oceanProx * 0.4 + moisture * 0.3 + rainShadow * 0.3;
+    humidity = Math.max(0, Math.min(1, humidity + season.rainBoost));
+
+    // Temperature from altitude + season + latitude (simplified)
+    let temperature = 1 - altitude * 0.8 + season.tempShift;
+    temperature = Math.max(0, Math.min(1, temperature));
+
+    // Weather intensity
+    const intensity = humidity * (0.5 + Math.abs(wind.strength) * 0.5);
+
+    // Determine weather type
+    let weatherType = WEATHER.CLEAR;
+    let duration = 60 + Math.floor(intensity * 120);
+
+    // Snow at high altitude or cold temperature
+    if (temperature < 0.25 || altitude > 0.7) {
+      weatherType = WEATHER.SNOW;
+      duration = 90 + Math.floor(intensity * 150);
+    }
+    // Rain in humid, temperate areas
+    else if (humidity > 0.55) {
+      weatherType = WEATHER.RAIN;
+      duration = 60 + Math.floor(intensity * 120);
+    }
+    // Thunder in very humid + warm areas
+    else if (humidity > 0.75 && temperature > 0.5) {
+      weatherType = WEATHER.THUNDER;
+      duration = 45 + Math.floor(intensity * 90);
+    }
+    // Dry areas = clear
+    else if (humidity < 0.2) {
+      weatherType = WEATHER.CLEAR;
+      duration = 120 + Math.floor((1 - humidity) * 180);
+    }
+    // Moderate humidity: mostly clear with occasional rain
+    else if (humidity > 0.4 && this._moistureNoise.noise2D(x * 0.001, z * 0.001) > 0.3) {
+      weatherType = WEATHER.RAIN;
+      duration = 45 + Math.floor(intensity * 60);
+    }
+
+    // Winter reduces rain, increases snow even at moderate altitude
+    if (season.snowBoost > 0 && altitude > 0.3 && weatherType === WEATHER.RAIN) {
+      weatherType = WEATHER.SNOW;
+    }
+
+    return {
+      type: weatherType,
+      intensity: Math.max(0.1, Math.min(1, intensity)),
+      duration,
+      humidity,
+      temperature,
+      wind: { x: wind.x, z: wind.z, strength: wind.strength },
+      season: this.getSeasonName(),
+    };
+  }
+}
+
+// Small deterministic PRNG for climate initialization
+class _ClimateRNG {
+  constructor(seed) {
+    this.state = seed | 0 || 1;
+  }
+  next() {
+    let x = this.state;
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    this.state = x | 0;
+    return ((this.state >>> 0) / 0xFFFFFFFF);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// WeatherManager — now with procedural climate integration
+// ═══════════════════════════════════════════════════════════
+
 export class WeatherManager {
-  constructor(scene, dayNight) {
+  constructor(scene, dayNight, seed = 42) {
     this.scene = scene;
     this.dayNight = dayNight;
     this.currentWeather = WEATHER.CLEAR;
@@ -30,6 +259,12 @@ export class WeatherManager {
     this.snowBiomes = new Set([BIOMES.SNOWY_PLAINS, BIOMES.SNOWY_PEAKS, BIOMES.TAIGA]);
     this.fogBackup = null;
     this.bgBackup = null;
+
+    // PRD P-03: Procedural climate system
+    this._climate = new ProceduralClimateSystem(seed);
+    this._useProceduralClimate = true;
+    this._lastWeatherPos = { x: 0, z: 0 };
+    this._weatherIntensity = 1;
   }
 
   _getPlayerBiome(playerPos, world) {
@@ -38,24 +273,47 @@ export class WeatherManager {
   }
 
   _pickWeather(playerPos, world) {
+    const x = Math.floor(playerPos.x);
+    const z = Math.floor(playerPos.z);
     const biome = this._getPlayerBiome(playerPos, world);
-    const r = Math.random();
-    if (this.snowBiomes.has(biome)) {
-      // Snow biomes: mostly snow, occasional thunder
-      if (r < 0.5) return WEATHER.SNOW;
-      if (r < 0.65) return WEATHER.THUNDER;
-      return WEATHER.CLEAR;
+
+    if (!this._useProceduralClimate) {
+      const r = Math.random();
+      if (this.snowBiomes.has(biome)) return r < 0.6 ? WEATHER.SNOW : WEATHER.CLEAR;
+      if (r < 0.7) return WEATHER.CLEAR;
+      if (r < 0.85) return WEATHER.RAIN;
+      return WEATHER.THUNDER;
     }
-    // Normal biomes: rain and thunder
-    if (r < 0.4) return WEATHER.RAIN;
-    if (r < 0.55) return WEATHER.THUNDER;
-    return WEATHER.CLEAR;
+
+    // PRD P-03: Use procedural climate system instead of Math.random()
+    const climateData = this._climate.getWeather(x, z, world, biome);
+    this._weatherIntensity = climateData.intensity;
+    this._lastWeatherPos = { x, z };
+
+    // Biome override: snow biomes always lean toward snow
+    if (this.snowBiomes.has(biome) && climateData.type === WEATHER.RAIN) {
+      return WEATHER.SNOW;
+    }
+
+    return climateData.type;
   }
 
   _setWeather(weather, playerPos, world) {
     this.currentWeather = weather;
-    this.weatherTimer = this.minWeatherDuration +
-      Math.random() * (this.maxWeatherDuration - this.minWeatherDuration);
+
+    // PRD P-03: Use climate-based duration instead of Math.random()
+    let duration = this.minWeatherDuration;
+    if (world && this._climate) {
+      const climateData = this._climate.getWeather(
+        Math.floor(playerPos.x), Math.floor(playerPos.z), world,
+        this._getPlayerBiome(playerPos, world)
+      );
+      duration = climateData.duration;
+    } else {
+      duration = this.minWeatherDuration +
+        Math.random() * (this.maxWeatherDuration - this.minWeatherDuration);
+    }
+    this.weatherTimer = duration;
 
     // Adjust scene visuals
     if (weather === WEATHER.CLEAR) {
@@ -194,6 +452,8 @@ export class WeatherManager {
   }
 
   update(dt, playerPos, world) {
+    // PRD P-03: Advance seasons
+    this._climate.advanceSeason(dt);
     this.weatherTimer -= dt;
     this.nextWeatherCheck -= dt;
 

@@ -13,6 +13,7 @@ import { NetherGenerator } from './jardvoxel-survival-nether.js';
 import { generateTree, getTreeTypeForBiome, TREE_TYPES } from './jardvoxel-survival-tree-personality.js';
 import { biomeIdentityManager } from './jardvoxel-survival-biome-identity.js';
 import { generateNarrativeStructure, getStructureDescription, STRUCTURE_TYPES } from './jardvoxel-survival-narrative-structures.js';
+import { PoissonDiskSampler } from './jardvoxel-survival-poisson.js';
 
 // ═══════════════════════════════════════════════════════════
 // Ore generation — vein-based, depth-dependent
@@ -74,31 +75,45 @@ function findSurfaceY(chunk, world, x, z) {
   return -1;
 }
 
+const _treePoisson = new PoissonDiskSampler(42);
+const _treePoissonCache = new Map();
+
 export function generateTrees(chunk, world) {
+  if (world._poissonEnabled === false) return;
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
   const rng = new PRNG(chunk.cx * 1234567 ^ chunk.cz * 7654321 + 999);
 
-  for (let x = 2; x < CHUNK_SIZE - 2; x++) {
-    for (let z = 2; z < CHUNK_SIZE - 2; z++) {
-      const surfaceY = findSurfaceY(chunk, world, x, z);
-      if (surfaceY < 0 || surfaceY < SEA_LEVEL - WORLD_MIN_Y) continue;
+  const cacheKey = `${chunk.cx},${chunk.cz}`;
+  let points = _treePoissonCache.get(cacheKey);
+  if (!points) {
+    points = _treePoisson.sampleChunk(CHUNK_SIZE, 3, 30, ox, oz);
+    if (_treePoissonCache.size > 200) _treePoissonCache.clear();
+    _treePoissonCache.set(cacheKey, points);
+  }
 
-      const worldX = ox + x;
-      const worldZ = oz + z;
-      const biome = world.getBiome(worldX, worldZ);
+  for (const pt of points) {
+    const x = Math.floor(pt.x);
+    const z = Math.floor(pt.z);
+    if (x < 2 || x >= CHUNK_SIZE - 2 || z < 2 || z >= CHUNK_SIZE - 2) continue;
 
-      const treeType = getTreeTypeForBiome(biome);
-      if (!treeType) continue;
+    const surfaceY = findSurfaceY(chunk, world, x, z);
+    if (surfaceY < 0 || surfaceY < SEA_LEVEL - WORLD_MIN_Y) continue;
 
-      const treeChance = biomeIdentityManager.getTreeChance(biome);
-      if (rng.next() > treeChance) continue;
+    const worldX = ox + x;
+    const worldZ = oz + z;
+    const biome = world.getBiome(worldX, worldZ);
 
-      const surfaceBlock = chunk.getBlock(x, surfaceY, z);
-      if (surfaceBlock !== BLOCK.GRASS && surfaceBlock !== BLOCK.DIRT && surfaceBlock !== BLOCK.MUD) continue;
+    const treeType = getTreeTypeForBiome(biome);
+    if (!treeType) continue;
 
-      generateTree(chunk, x, surfaceY + 1, z, treeType, worldX, worldZ, rng);
-    }
+    const treeChance = biomeIdentityManager.getTreeChance(biome);
+    if (rng.next() > treeChance) continue;
+
+    const surfaceBlock = chunk.getBlock(x, surfaceY, z);
+    if (surfaceBlock !== BLOCK.GRASS && surfaceBlock !== BLOCK.DIRT && surfaceBlock !== BLOCK.MUD) continue;
+
+    generateTree(chunk, x, surfaceY + 1, z, treeType, worldX, worldZ, rng);
   }
 }
 
@@ -549,10 +564,47 @@ export function generateChunkWithFeatures(chunk, world) {
     return;
   }
   chunk.generate();
+
+  // PRD P-02: Apply hydrology block modifications (rivers, lakes, waterfalls)
+  const hierarchy = world.generator?.hierarchy;
+  if (hierarchy && hierarchy.hydrology) {
+    const ctx = hierarchy.getChunkContext(chunk.cx, chunk.cz);
+    if (ctx && ctx.hydroData) {
+      const getBlock = (x, y, z) => {
+        if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return 0;
+        if (y < 0 || y >= CHUNK_HEIGHT) return 0;
+        return chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE];
+      };
+      const setBlock = (x, y, z, block) => {
+        if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return;
+        if (y < 0 || y >= CHUNK_HEIGHT) return;
+        chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE] = block;
+      };
+      hierarchy.hydrology.applyToChunk(chunk, ctx.hydroData, getBlock, setBlock);
+    }
+  }
+
   generateOres(chunk, world);
   generateTrees(chunk, world);
   generateDecoration(chunk, world);
   generateStructures(chunk, world);
+  // Update maxContentY after features (trees/decoration may add blocks above surface)
+  _updateContentYRange(chunk);
+}
+
+// Quick scan above stored maxContentY to find any feature-added blocks
+function _updateContentYRange(chunk) {
+  if (chunk.maxContentY === undefined) return;
+  const stride = CHUNK_SIZE * CHUNK_SIZE;
+  const startY = chunk.maxContentY + 1;
+  let newMax = chunk.maxContentY;
+  for (let y = startY; y < CHUNK_HEIGHT; y++) {
+    const base = y * stride;
+    for (let i = 0; i < stride; i++) {
+      if (chunk.blocks[base + i] !== 0) { newMax = y; break; }
+    }
+  }
+  chunk.maxContentY = newMax;
 }
 
 // v7.0: Hierarchical chunk generation with features using ChunkContext
@@ -564,6 +616,25 @@ export function generateChunkHierarchical(chunk, world, context) {
 
   // Base terrain generation (v6.0 still handles block placement)
   chunk.generate();
+
+  // PRD P-02: Apply hydrology block modifications (rivers, lakes, waterfalls)
+  if (context.hydroData) {
+    const getBlock = (x, y, z) => {
+      if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return 0;
+      if (y < 0 || y >= CHUNK_HEIGHT) return 0;
+      return chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE];
+    };
+    const setBlock = (x, y, z, block) => {
+      if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return;
+      if (y < 0 || y >= CHUNK_HEIGHT) return;
+      chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE] = block;
+    };
+    // Use the hydrology instance from the hierarchy generator
+    const hydrology = world.generator?.hierarchy?.hydrology;
+    if (hydrology) {
+      hydrology.applyToChunk(chunk, context.hydroData, getBlock, setBlock);
+    }
+  }
 
   // v7.0: Use context for feature placement
   // Features use hierarchy data for coherent distribution
@@ -579,6 +650,7 @@ export function generateChunkHierarchical(chunk, world, context) {
 
   // Structures: use contextual placement rules
   generateStructures(chunk, world);
+  _updateContentYRange(chunk);
 }
 
 function _generateNetherChunk(chunk, world) {

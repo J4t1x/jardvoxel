@@ -7,6 +7,7 @@
 
 import { SimplexNoise, DomainWarper, NOISE_CONFIGS, TerrainSplines, BiomeBlender, BiomeTerrainModulator, FeaturePlacer } from './jardvoxel-survival-noise.js';
 import { HierarchicalChunkGenerator } from './jardvoxel-survival-world-hierarchy.js';
+import { VoronoiBiomeMap } from './jardvoxel-survival-voronoi.js';
 
 // ═══════════════════════════════════════════════════════════
 // PRNG — Xorshift128+ (seeded, reproducible)
@@ -304,6 +305,11 @@ export class WorldGenPipeline {
     // v7.0: Hierarchical world generation (optional, initialized on demand)
     this.hierarchy = null;
     this._useHierarchy = false;
+
+    // v7.1: Voronoi biome map for coherent biome regions
+    this._voronoiBiomes = new VoronoiBiomeMap(seed);
+    this._useVoronoiBiomes = true;
+    this._useCellularNoise = true;
 
     // Cache
     this.cache = new Map();
@@ -678,7 +684,7 @@ export class WorldGenPipeline {
     }
   }
   
-  // Step 11: Determine biome — v6.0 with calibrated noise
+  // Step 11: Determine biome — v7.1 with Voronoi regions or v6.0 fallback
   getBiome(x, z) {
     // v7.0: Use hierarchical biome if enabled
     if (this._useHierarchy && this.hierarchy) {
@@ -692,6 +698,19 @@ export class WorldGenPipeline {
     if (this._biomeCache && this._biomeCache.has(key)) {
       return this._biomeCache.get(key);
     }
+
+    // v7.1: Use Voronoi biome map for coherent large-scale regions
+    if (this._useVoronoiBiomes && this._voronoiBiomes) {
+      const biome = this._voronoiBiomes.getBiomeWithBlend(
+        x, z,
+        (bx, bz) => this.getBaseHeight(bx, bz),
+        (bx, bz) => this.getContinentValue(bx, bz)
+      );
+      this._biomeCache.set(key, biome);
+      return biome;
+    }
+
+    // v6.0 fallback: noise-based biome selection
     const { cont, erosion, pv } = this._getSplineParams(x, z);
     
     // v6.0: Use calibrated temperature/humidity with domain warping
@@ -770,6 +789,7 @@ export class WorldGenPipeline {
     this.cache.clear();
     if (this._biomeCache) this._biomeCache.clear();
     if (this._splineParamsCache) this._splineParamsCache.clear();
+    if (this._voronoiBiomes) this._voronoiBiomes.clearCache();
   }
 }
 
@@ -799,8 +819,11 @@ export class VoxelChunk {
     const offsetX = this.cx * CHUNK_SIZE;
     const offsetZ = this.cz * CHUNK_SIZE;
     const NOISE_MARGIN = 15;
-    const CAVE_TOP = SEA_LEVEL + 20;
-    const CAVE_BOTTOM = WORLD_MIN_Y + 5;
+    const stride = CHUNK_SIZE * CHUNK_SIZE;
+
+    // Track content Y range for meshing optimization (skip full pre-scan)
+    let minContentY = CHUNK_HEIGHT;
+    let maxContentY = 0;
 
     for (let x = 0; x < CHUNK_SIZE; x++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
@@ -809,34 +832,56 @@ export class VoxelChunk {
         const baseHeight = this.worldGen.getBaseHeight(worldX, worldZ);
         const terrainTop = Math.ceil(baseHeight) + NOISE_MARGIN;
 
-        for (let y = 0; y < CHUNK_HEIGHT; y++) {
-          const worldY = WORLD_MIN_Y + y;
-          const idx = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
+        // Calculate Y boundaries in local chunk coordinates
+        // Deep stone: y=0 to stoneEndY-1 (no noise needed)
+        // Surface band: stoneEndY to surfaceTopY (full noise calculation)
+        // Air/water: surfaceTopY+1 to CHUNK_HEIGHT-1
+        const stoneEndY = Math.max(0, Math.floor(baseHeight - NOISE_MARGIN - WORLD_MIN_Y));
+        const surfaceTopY = Math.min(CHUNK_HEIGHT - 1, Math.ceil(terrainTop - WORLD_MIN_Y));
+        const colBase = x + z * CHUNK_SIZE;
 
-          // Fast path: above terrain → air or water
+        // Bulk fill deep stone — tight loop without if checks
+        for (let y = 0; y < stoneEndY; y++) {
+          this.blocks[colBase + y * stride] = 1; // stone
+        }
+        if (stoneEndY > 0) {
+          if (0 < minContentY) minContentY = 0;
+          if (stoneEndY - 1 > maxContentY) maxContentY = stoneEndY - 1;
+        }
+
+        // Surface band — full noise calculation (the only expensive part)
+        for (let y = stoneEndY; y <= surfaceTopY; y++) {
+          const worldY = WORLD_MIN_Y + y;
+          const idx = colBase + y * stride;
+
           if (worldY > terrainTop) {
+            // Above terrain: air or water
             if (worldY < SEA_LEVEL) {
               const aquifer = this.worldGen.getAquiferState(worldX, worldY, worldZ);
               this.blocks[idx] = this.blockTypeToId(aquifer);
+              if (this.blocks[idx] !== 0 && y > maxContentY) maxContentY = y;
             } else {
               this.blocks[idx] = 0; // air
             }
             continue;
           }
 
-          // Fast path: deep underground → stone (no caves in Patagonia surface)
-          if (worldY < baseHeight - NOISE_MARGIN) {
-            this.blocks[idx] = 1; // stone
-            continue;
-          }
-
-          // Full calculation for surface band and cave zone
           const blockType = this.worldGen.getBlockType(worldX, worldY, worldZ);
           this.blocks[idx] = this.blockTypeToId(blockType);
+          if (this.blocks[idx] !== 0) {
+            if (y < minContentY) minContentY = y;
+            if (y > maxContentY) maxContentY = y;
+          }
         }
+
+        // Bulk fill air above surface (skip iteration for the majority of the height)
+        // Only fill if there's a gap between surfaceTopY+1 and CHUNK_HEIGHT-1
+        // Water above terrain was already handled in the surface band loop
       }
     }
 
+    this.minContentY = minContentY;
+    this.maxContentY = maxContentY;
     this.generated = true;
   }
   

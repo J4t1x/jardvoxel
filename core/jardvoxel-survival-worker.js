@@ -41,5 +41,10 @@ self.onmessage = (e) => {
   } else {
     chunk.generate();
   }
-  self.postMessage({ cx, cz, blocks: chunk.blocks.buffer }, [chunk.blocks.buffer]);
+  self.postMessage({
+    cx, cz,
+    blocks: chunk.blocks.buffer,
+    minContentY: chunk.minContentY ?? 0,
+    maxContentY: chunk.maxContentY ?? 0,
+  }, [chunk.blocks.buffer]);
 };

@@ -23,6 +23,8 @@ import { NetherGenerator, NETHER_BLOCKS } from './jardvoxel-survival-nether.js';
 import { CharacterGenerator, CharacterAnimator } from './jardvoxel-survival-character.js';
 import { ThirdPersonCamera } from './jardvoxel-survival-thirdperson.js';
 import { WaterMaterialManager, WATER_COLORS } from './jardvoxel-survival-water.js';
+import { InstancedFeatureRenderer } from './jardvoxel-survival-instanced.js';
+import { WorkerPool } from './jardvoxel-survival-worker-pool.js';
 
 // Non-solid blocks that players and mobs can walk through
 const NON_SOLID_BLOCKS = new Set([
@@ -58,7 +60,7 @@ export class SurvivalWorld {
     this.waterMeshes = new Map();
     this.pendingChunks = new Set();
     this.chunkPool = [];
-    this.maxPoolSize = 800;
+    this.maxPoolSize = 1200; // Increased pool for larger render distances
     this.worker = null;
     this.workerSupported = typeof Worker !== 'undefined';
     this.dimension = 'overworld';
@@ -72,6 +74,12 @@ export class SurvivalWorld {
     this.waterMaterialManager = null;
     // Shared materials by LOD level (avoid per-chunk allocation)
     this._lodMaterials = null;
+    // PRD G-05: Instanced feature renderer for vegetation
+    this._instancedRenderer = new InstancedFeatureRenderer(scene);
+    this._poissonEnabled = true;
+    // PRD P-04: Multi-worker pool (replaces single worker)
+    this._workerPool = null;
+    this._useWorkerPool = false;
     this._initWorker();
   }
 
@@ -88,58 +96,59 @@ export class SurvivalWorld {
     };
   }
 
-  _initWorker() {
+  async _initWorker() {
     if (!this.workerSupported) return;
     try {
-      this.worker = new Worker(new URL('./jardvoxel-survival-worker.js', import.meta.url), { type: 'module' });
-      this.worker.onmessage = (e) => {
-        const { cx, cz, blocks } = e.data;
-        const chunk = this._getOrCreateChunk(cx, cz);
-        chunk.blocks = new Uint8Array(blocks);
-        chunk.generated = true;
-        // Apply features on main thread (they need chunk modification)
-        generateChunkWithFeatures(chunk, this);
-        if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
-        this.pendingChunks.delete(this._chunkKey(cx, cz));
-        this._rebuildChunkMesh(cx, cz);
-        // Rebuild neighbors to fix border faces (skip during burst to avoid 5x work)
-        if (this._initialLoadBurst > 0) {
-          if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
-          this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
-          this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
-          this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
-          this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
-        } else {
-          this._rebuildChunkMesh(cx - 1, cz);
-          this._rebuildChunkMesh(cx + 1, cz);
-          this._rebuildChunkMesh(cx, cz - 1);
-          this._rebuildChunkMesh(cx, cz + 1);
-        }
-      };
-      this.worker.onerror = (err) => {
-        console.warn('Worker error, falling back to sync:', err.message || err);
-        this.worker = null;
+      // PRD P-04: Use WorkerPool with up to 2 workers (mobile-friendly)
+      const numWorkers = Math.min(2, navigator.hardwareConcurrency || 2);
+      this._workerPool = new WorkerPool(
+        new URL('./jardvoxel-survival-worker.js', import.meta.url),
+        numWorkers
+      );
+      const count = await this._workerPool.init({
+        seed: this.seed,
+        useHierarchy: this.generator._useHierarchy,
+        patagonia: this._usePatagonia,
+      });
+      if (count > 0) {
+        this._useWorkerPool = true;
+        this.worker = null; // Clear legacy single worker
+      } else {
+        this._workerPool = null;
         this.workerSupported = false;
-        // Re-process all pending chunks synchronously
-        const pending = Array.from(this.pendingChunks);
-        this.pendingChunks.clear();
-        for (const key of pending) {
-          const [cx, cz] = key.split(',').map(Number);
-          const chunk = this._getOrCreateChunk(cx, cz);
-          generateChunkWithFeatures(chunk, this);
-          if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
-          this._rebuildChunkMesh(cx, cz);
-          this._rebuildChunkMesh(cx - 1, cz);
-          this._rebuildChunkMesh(cx + 1, cz);
-          this._rebuildChunkMesh(cx, cz - 1);
-          this._rebuildChunkMesh(cx, cz + 1);
-        }
-      };
-      this.worker.postMessage({ type: 'init', seed: this.seed, useHierarchy: this.generator._useHierarchy, patagonia: this._usePatagonia });
+      }
     } catch (err) {
-      console.warn('Worker init failed, falling back to sync:', err);
-      this.worker = null;
+      console.warn('WorkerPool init failed, falling back to sync:', err);
+      this._workerPool = null;
+      this._useWorkerPool = false;
       this.workerSupported = false;
+    }
+  }
+
+  // Called when a worker finishes generating a chunk
+  _onWorkerChunkDone(cx, cz, blocks, minContentY, maxContentY) {
+    const chunk = this._getOrCreateChunk(cx, cz);
+    chunk.blocks = new Uint8Array(blocks);
+    chunk.generated = true;
+    if (minContentY !== undefined) {
+      chunk.minContentY = minContentY;
+      chunk.maxContentY = maxContentY;
+    }
+    generateChunkWithFeatures(chunk, this);
+    if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
+    this.pendingChunks.delete(this._chunkKey(cx, cz));
+    this._rebuildChunkMesh(cx, cz);
+    if (this._initialLoadBurst > 0) {
+      if (!this._pendingNeighborRebuilds) this._pendingNeighborRebuilds = new Set();
+      this._pendingNeighborRebuilds.add(`${cx-1},${cz}`);
+      this._pendingNeighborRebuilds.add(`${cx+1},${cz}`);
+      this._pendingNeighborRebuilds.add(`${cx},${cz-1}`);
+      this._pendingNeighborRebuilds.add(`${cx},${cz+1}`);
+    } else {
+      this._rebuildChunkMesh(cx - 1, cz);
+      this._rebuildChunkMesh(cx + 1, cz);
+      this._rebuildChunkMesh(cx, cz - 1);
+      this._rebuildChunkMesh(cx, cz + 1);
     }
   }
 
@@ -161,7 +170,25 @@ export class SurvivalWorld {
     this.pendingChunks.add(key);
     const chunk = this._getOrCreateChunk(cx, cz);
 
-    if (this.worker) {
+    if (this._useWorkerPool && this._workerPool) {
+      // PRD P-04: Dispatch to worker pool with distance-based priority
+      const priority = this._playerChunkX !== undefined
+        ? Math.sqrt((cx - this._playerChunkX) ** 2 + (cz - this._playerChunkZ) ** 2)
+        : 0;
+      this._workerPool.generateChunk(cx, cz, priority).then(data => {
+        this._onWorkerChunkDone(data.cx, data.cz, data.blocks, data.minContentY, data.maxContentY);
+      }).catch(err => {
+        console.warn('WorkerPool chunk generation failed, falling back to sync:', err);
+        generateChunkWithFeatures(chunk, this);
+        if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
+        this.pendingChunks.delete(key);
+        this._rebuildChunkMesh(cx, cz);
+        this._rebuildChunkMesh(cx - 1, cz);
+        this._rebuildChunkMesh(cx + 1, cz);
+        this._rebuildChunkMesh(cx, cz - 1);
+        this._rebuildChunkMesh(cx, cz + 1);
+      });
+    } else if (this.worker) {
       this.worker.postMessage({ cx, cz });
     } else {
       generateChunkWithFeatures(chunk, this);
@@ -272,13 +299,21 @@ export class SurvivalWorld {
       this.waterMeshes.set(key, wMesh);
     }
     } // end if lod < 3
+
+    // PRD G-05: Build instanced feature meshes (flowers, grass, mushrooms, rocks)
+    if (lod < 3) {
+      this._instancedRenderer.buildForChunk(cx, cz, chunk, lod);
+    }
   }
 
   // SPEC-CHUNK-OPT: Build heightmap for a chunk (occlusion culling)
   _buildHeightmap(cx, cz, chunk) {
     const heights = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
     let sum = 0;
-    const maxY = Math.min(CHUNK_HEIGHT - 1, SEA_LEVEL + 131 - WORLD_MIN_Y);
+    // Use stored maxContentY to limit scan range (avoids scanning 384 levels)
+    const maxY = chunk.maxContentY !== undefined
+      ? Math.min(CHUNK_HEIGHT - 1, chunk.maxContentY + 1)
+      : Math.min(CHUNK_HEIGHT - 1, SEA_LEVEL + 131 - WORLD_MIN_Y);
     for (let x = 0; x < CHUNK_SIZE; x++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
         let topY = 0;
@@ -352,7 +387,7 @@ export class SurvivalWorld {
     return this.generator.getBiome(worldX, worldZ);
   }
 
-  update(playerX, playerZ, fps = 60, camera = null) {
+  update(playerX, playerZ, fps = 60, camera = null, dt = 0.016) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
     this._playerChunkX = pcx;
@@ -381,17 +416,18 @@ export class SurvivalWorld {
     // SPEC-CHUNK-OPT: Camera direction for view-direction loading
     let cameraYaw = 0;
     if (camera) {
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      cameraYaw = Math.atan2(dir.x, dir.z);
+      if (!this._tmpCamDir) this._tmpCamDir = new THREE.Vector3();
+      camera.getWorldDirection(this._tmpCamDir);
+      cameraYaw = Math.atan2(this._tmpCamDir.x, this._tmpCamDir.z);
     }
     const PI = Math.PI;
     const frontArc = PI / 3;
     const sideArc = PI * 0.6;
 
-    // SPEC-CHUNK-OPT: Priority queue — distance-based, no camera direction skipping
+    // SPEC-CHUNK-OPT: Priority queue — distance-based (simplified to avoid blocking)
     // Load all chunks within render distance, prioritizing closest to player
     const toGen = [];
+    
     for (let dx = -rd; dx <= rd; dx++) {
       for (let dz = -rd; dz <= rd; dz++) {
         const dist = Math.sqrt(dx * dx + dz * dz);
@@ -404,12 +440,14 @@ export class SurvivalWorld {
         toGen.push({ cx, cz, dist });
       }
     }
+    // Sort by distance only - simplest and most reliable
     toGen.sort((a, b) => a.dist - b.dist);
 
     // SPEC-CHUNK-OPT: Generate up to N per frame (budget-conscious)
+    // Surface-first: fewer chunks per frame = smoother FPS, terrain appears faster
+    // because each chunk generates surface band only (not full 384 depth)
     const burstActive = this._initialLoadBurst > 0;
-    // Increase budget when FPS is low to ensure near chunks load faster
-    const maxPerFrame = burstActive ? 12 : (fps < 45 ? 8 : (camera ? 4 : 3));
+    const maxPerFrame = burstActive ? 4 : (fps < 45 ? 3 : (camera ? 2 : 2));
     if (burstActive) this._initialLoadBurst--;
     for (let i = 0; i < Math.min(maxPerFrame, toGen.length); i++) {
       this.generateChunk(toGen[i].cx, toGen[i].cz);
@@ -429,6 +467,10 @@ export class SurvivalWorld {
     }
 
     // LOD re-meshing: rebuild chunks whose LOD no longer matches their distance
+    // Throttled to every 0.5s to avoid iterating all meshes every frame
+    this._lodCheckTimer = (this._lodCheckTimer || 0) + dt;
+    if (this._lodCheckTimer >= 0.5) {
+      this._lodCheckTimer = 0;
     let lodUpgrades = 0, lodDowngrades = 0;
     const maxUpgrades = 3, maxDowngrades = 2;
     for (const [key, mesh] of this.meshes) {
@@ -453,6 +495,7 @@ export class SurvivalWorld {
         lodDowngrades++;
       }
     }
+    } // end throttled LOD check
 
     // Unload distant chunks
     for (const [key, chunk] of this.chunks) {
@@ -471,13 +514,17 @@ export class SurvivalWorld {
           m.geometry.dispose();
           this.waterMeshes.delete(key);
         }
+        this._instancedRenderer.disposeChunk(key);
         this.chunks.delete(key);
         this._heightmaps.delete(key);
       }
     }
 
     // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion + aggressive unloading
-    if (camera) {
+    // Throttled to every 0.15s to avoid iterating all meshes every frame
+    this._frustumTimer = (this._frustumTimer || 0) + dt;
+    if (camera && this._frustumTimer >= 0.15) {
+      this._frustumTimer = 0;
       this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
       if (!this._tmpVec) this._tmpVec = new THREE.Vector3();
@@ -521,6 +568,11 @@ export class SurvivalWorld {
       for (const [key, wmesh] of this.waterMeshes) {
         wmesh.visible = this.meshes.get(key) ? this.meshes.get(key).visible : true;
       }
+
+      // PRD G-05: Sync instanced feature visibility with chunk mesh visibility
+      for (const [key, mesh] of this.meshes) {
+        this._instancedRenderer.setChunkVisible(key, mesh.visible);
+      }
     }
   }
 
@@ -547,6 +599,49 @@ export class SurvivalWorld {
 
   getLoadedChunkCount() {
     return this.meshes.size;
+  }
+
+  _removeChunk(key) {
+    if (this.meshes.has(key)) {
+      const m = this.meshes.get(key);
+      this.scene.remove(m);
+      m.geometry.dispose();
+      this.meshes.delete(key);
+    }
+    if (this.waterMeshes && this.waterMeshes.has(key)) {
+      const wm = this.waterMeshes.get(key);
+      this.scene.remove(wm);
+      wm.geometry.dispose();
+      this.waterMeshes.delete(key);
+    }
+    this._instancedRenderer.disposeChunk(key);
+    this.chunks.delete(key);
+    this._heightmaps.delete(key);
+  }
+
+  clearAllChunks() {
+    for (const key of Array.from(this.chunks.keys())) {
+      this._removeChunk(key);
+    }
+    this.pendingChunks.clear();
+  }
+
+  dispose() {
+    // Clean up all meshes and workers
+    for (const key of Array.from(this.chunks.keys())) {
+      this._removeChunk(key);
+    }
+    if (this._workerPool) {
+      this._workerPool.dispose();
+      this._workerPool = null;
+    }
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    if (this._instancedRenderer) {
+      this._instancedRenderer.dispose();
+    }
   }
 }
 
@@ -585,6 +680,13 @@ export class PlayerController {
     this.characterSeed = 0;
     this._mining = false;
     this.thirdPersonCamera = new ThirdPersonCamera();
+    // Pre-allocated temp vectors to avoid GC pressure in hot paths
+    this._tmpForward = new THREE.Vector3();
+    this._tmpRight = new THREE.Vector3();
+    this._tmpMoveDir = new THREE.Vector3();
+    this._tmpOrigin = new THREE.Vector3();
+    this._tmpDir = new THREE.Vector3();
+    this._tmpPos = new THREE.Vector3();
   }
 
   spawn() {
@@ -604,10 +706,10 @@ export class PlayerController {
   update(dt, keys, touchInput = null) {
     const speedMult = this.speedMultiplier || 1.0;
     const speed = (this.flying ? this.flySpeed : (keys.shift ? this.runSpeed : this.moveSpeed)) * speedMult;
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const forward = this._tmpForward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const right = this._tmpRight.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-    const moveDir = new THREE.Vector3();
+    const moveDir = this._tmpMoveDir.set(0, 0, 0);
     if (touchInput && touchInput.moveX !== null && touchInput.moveY !== null) {
       const mx = touchInput.moveX, my = touchInput.moveY;
       const mag = Math.sqrt(mx * mx + my * my);
@@ -704,7 +806,7 @@ export class PlayerController {
 
   _moveAxis(axis, amount) {
     if (amount === 0) return;
-    const pos = this.position.clone();
+    const pos = this._tmpPos.copy(this.position);
     pos[axis] += amount;
 
     const minX = Math.floor(pos.x - this.playerWidth);
@@ -754,25 +856,40 @@ export class PlayerController {
 
   // Raycast for block targeting
   raycast(maxDist = 5) {
-    const origin = this.position.clone();
-    const dir = new THREE.Vector3(
+    const origin = this._tmpOrigin.copy(this.position);
+    const dir = this._tmpDir.set(
       -Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
       -Math.cos(this.yaw) * Math.cos(this.pitch)
     );
 
-    const step = 0.05;
-    for (let d = 0; d < maxDist; d += step) {
-      const x = Math.floor(origin.x + dir.x * d);
-      const y = Math.floor(origin.y + dir.y * d);
-      const z = Math.floor(origin.z + dir.z * d);
+    // DDA voxel traversal — ~10x faster than 0.05-step raymarch
+    let x = Math.floor(origin.x);
+    let y = Math.floor(origin.y);
+    let z = Math.floor(origin.z);
+    const stepX = dir.x > 0 ? 1 : -1;
+    const stepY = dir.y > 0 ? 1 : -1;
+    const stepZ = dir.z > 0 ? 1 : -1;
+    const tDeltaX = Math.abs(1 / dir.x);
+    const tDeltaY = Math.abs(1 / dir.y);
+    const tDeltaZ = Math.abs(1 / dir.z);
+    let tMaxX = ((dir.x > 0 ? (x + 1 - origin.x) : (origin.x - x)) * tDeltaX);
+    let tMaxY = ((dir.y > 0 ? (y + 1 - origin.y) : (origin.y - y)) * tDeltaY);
+    let tMaxZ = ((dir.z > 0 ? (z + 1 - origin.z) : (origin.z - z)) * tDeltaZ);
+    let prevX = x, prevY = y, prevZ = z;
+    let t = 0;
+    while (t < maxDist) {
       const block = this.world.getBlock(x, y, z);
       if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-        // Determine face
-        const prevX = Math.floor(origin.x + dir.x * (d - step));
-        const prevY = Math.floor(origin.y + dir.y * (d - step));
-        const prevZ = Math.floor(origin.z + dir.z * (d - step));
         return { x, y, z, block, face: { dx: prevX - x, dy: prevY - y, dz: prevZ - z } };
+      }
+      prevX = x; prevY = y; prevZ = z;
+      if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+        x += stepX; t = tMaxX; tMaxX += tDeltaX;
+      } else if (tMaxY < tMaxZ) {
+        y += stepY; t = tMaxY; tMaxY += tDeltaY;
+      } else {
+        z += stepZ; t = tMaxZ; tMaxZ += tDeltaZ;
       }
     }
     return null;
@@ -1139,7 +1256,7 @@ export class DayNightCycle {
 
   // SPEC-BIOME-OVERHAUL: Generate cloud texture with adjustable density
   _generateCloudTexture(threshold) {
-    const size = 512;
+    const size = 256;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;

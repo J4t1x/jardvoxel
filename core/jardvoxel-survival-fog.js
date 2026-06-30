@@ -177,6 +177,11 @@ export class VolumetricFog {
       
       finalDensity = this._targetDensity * heightMultiplier * altitudeBoost * (this._rdDensityMultiplier ?? 1);
       
+      // Horizon blending: increase fog exponentially at distance for smooth skydome transition
+      // This creates the illusion of infinite world by fading terrain into sky
+      const horizonFactor = Math.pow(this._rdDensityMultiplier || 1, 2);
+      finalDensity *= horizonFactor;
+      
       // Reduce fog density near camera to avoid hiding terrain
       // Apply a falloff based on render distance - less fog closer to player
       if (this._rdDensityMultiplier) {

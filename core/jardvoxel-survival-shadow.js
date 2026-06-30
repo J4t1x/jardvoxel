@@ -13,9 +13,9 @@ export const SHADOW_QUALITY = {
 };
 
 const QUALITY_PARAMS = {
-  high: { mapSize: 4096, cascades: 3 },
-  medium: { mapSize: 2048, cascades: 1 },
-  low: { mapSize: 1024, cascades: 1 },
+  high: { mapSize: 2048, cascades: 3 },
+  medium: { mapSize: 1024, cascades: 1 },
+  low: { mapSize: 512, cascades: 1 },
 };
 
 const CASCADE_RANGES = [
@@ -32,6 +32,9 @@ export class ShadowManager {
     this.quality = SHADOW_QUALITY.HIGH;
     this.cascades = [];
     this._enabled = true;
+    this._tmpOffset = new THREE.Vector3();
+    this._tmpCenter = new THREE.Vector3();
+    this._tmpSunOffset = new THREE.Vector3(50, 100, 50);
 
     this._init();
   }
@@ -129,7 +132,7 @@ export class ShadowManager {
 
     if (params.cascades === 1) {
       this.sunLight.position.copy(playerPosition);
-      this.sunLight.position.add(new THREE.Vector3(50, 100, 50));
+      this.sunLight.position.add(this._tmpSunOffset);
       this.sunLight.target.position.copy(playerPosition);
       this.sunLight.target.updateMatrixWorld();
     } else {
@@ -137,10 +140,10 @@ export class ShadowManager {
         const light = this.cascades[i];
         const range = CASCADE_RANGES[i];
         const offsetDist = (range.near + range.far) / 2;
-        const offset = cameraDirection.clone().multiplyScalar(offsetDist);
-        const center = playerPosition.clone().add(offset);
+        const offset = this._tmpOffset.copy(cameraDirection).multiplyScalar(offsetDist);
+        const center = this._tmpCenter.copy(playerPosition).add(offset);
         light.position.copy(center);
-        light.position.add(new THREE.Vector3(50, 100, 50));
+        light.position.add(this._tmpSunOffset);
         light.target.position.copy(center);
         light.target.updateMatrixWorld();
       }

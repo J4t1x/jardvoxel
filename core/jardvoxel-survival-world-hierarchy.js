@@ -4,7 +4,8 @@
 // Architecture: World → Continents → Regions → Zones → Chunks → Microsectors
 // ═══════════════════════════════════════════════════════════
 
-import { SimplexNoise, DomainWarper, NOISE_CONFIGS } from './jardvoxel-survival-noise.js';
+import { SimplexNoise, DomainWarper, NOISE_CONFIGS, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
+import { HydrologySystem } from './jardvoxel-survival-hydrology.js';
 
 // v7.0: Define constants locally to avoid circular dependency with jardvoxel-survival-engine.js
 // These are exported for other v7.0 modules to import from here instead of the engine
@@ -592,6 +593,10 @@ export class ZoneGenerator {
     this.world = regionGenerator.world;
     this.zoneNoise = new SimplexNoise(this.world.seed + 13000);
     this.zoneWarper = new DomainWarper(this.world.seed + 13001);
+    // G-03: Cellular F1 noise for irregular lake/wetland shapes
+    this._lakeCellular = new FastNoiseLite(this.world.seed + 13002);
+    this._lakeCellular.setNoiseType(FN_NOISE_TYPE.CELLULAR);
+    this._lakeCellular.setCellularReturnType(FN_CELLULAR_RETURN.F1);
     this._cache = new Map();
   }
 
@@ -649,6 +654,12 @@ export class ZoneGenerator {
       // Oasis — rare but possible
       if (value < 0.7) return ZONE_TYPES.DEFAULT;
     }
+    // G-03: Use cellular F1 to give lakes/wetlands irregular natural boundaries
+    if (selected === ZONE_TYPES.LAKE || selected === ZONE_TYPES.WETLANDS) {
+      const cellF1 = this._lakeCellular.cellular2D(x * 0.005, z * 0.005);
+      // Cellular F1 produces irregular shapes — suppress lake/wetland if cell value too high
+      if (cellF1 > 0.6) return ZONE_TYPES.DEFAULT;
+    }
 
     return selected;
   }
@@ -690,6 +701,10 @@ export class HierarchicalChunkGenerator {
     this.erosionNoise = new SimplexNoise(seed + 201);
     this.warper = new DomainWarper(seed);
 
+    // PRD P-02: Hydrology system for rivers, lakes, valleys
+    this.hydrology = new HydrologySystem(seed);
+    this._useRidgedNoise = true;
+
     // ChunkContext cache
     this._contextCache = new Map();
     this._maxCacheSize = 500;
@@ -714,6 +729,15 @@ export class HierarchicalChunkGenerator {
     // Compute 16x16 height map
     const heightMap = this._computeHeightMap(cx, cz, region, zone, centerProps);
 
+    // PRD P-02: Apply hydrology modifications to heightmap (rivers, valleys, lakes)
+    const hydroData = this.hydrology.applyToHeightmap(cx, cz, heightMap, {
+      generator: this,
+      world: this.world,
+      region,
+      zone,
+      heightMap,
+    });
+
     // Local water level (may vary by zone)
     const waterLevel = this.world.effectiveSeaLevel + (zone.type === ZONE_TYPES.LAKE ? 2 : 0);
 
@@ -725,6 +749,7 @@ export class HierarchicalChunkGenerator {
       zone,
       biomeWeights,
       heightMap,
+      hydroData, // PRD P-02: river/lake/waterfall data
       waterLevel,
       // Global modifiers
       vegetationBoost: this.world._appliedVegetation,
@@ -813,10 +838,35 @@ export class HierarchicalChunkGenerator {
           const landFactor = (contValue - this.world.continentThreshold) / (1 - this.world.continentThreshold);
           height += landFactor * 60 * continentProps.averageAltitude;
 
-          // Region height modifier with noise
+          // Region height modifier with noise (type-aware)
           const warped = this.warper.warp2D(wx, wz, 30, 0.004, 2);
-          const regionNoise = this.terrainNoise.fbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002);
-          const regionHeight = region.heightModifier.min + (region.heightModifier.max - region.heightModifier.min) * (regionNoise + 1) * 0.5;
+          const noiseType = region.noiseType || 'flat';
+          let regionNoise;
+          if (!this._useRidgedNoise) {
+            regionNoise = this.terrainNoise.fbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002);
+          } else {
+            switch (noiseType) {
+              case 'ridged':
+                regionNoise = this.terrainNoise.ridgedFbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002);
+                break;
+              case 'billowy':
+                regionNoise = this.terrainNoise.billowyFbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002);
+                break;
+              case 'stepped':
+                regionNoise = this.terrainNoise.steppedFbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002, 5);
+                break;
+              case 'dunes':
+                regionNoise = this.terrainNoise.dunesFbm2D(warped.x, warped.z, 3, 0.5, 2.0, 0.004);
+                break;
+              default:
+                regionNoise = this.terrainNoise.fbm2D(warped.x, warped.z, 4, 0.5, 2.0, 0.002);
+            }
+          }
+          // Normalize all noise types to [-1, 1] range for height mapping
+          const normalizedNoise = (this._useRidgedNoise && (noiseType === 'ridged' || noiseType === 'billowy' || noiseType === 'dunes'))
+            ? regionNoise * 2 - 1
+            : regionNoise;
+          const regionHeight = region.heightModifier.min + (region.heightModifier.max - region.heightModifier.min) * (normalizedNoise + 1) * 0.5;
           height += regionHeight * ageMult;
 
           // Zone height adjustment
@@ -870,6 +920,7 @@ export class HierarchicalChunkGenerator {
     this.world._continentCache.clear();
     this.regionGen._cache.clear();
     this.zoneGen._cache.clear();
+    if (this.hydrology) this.hydrology.clearCache();
   }
 
   // Get world info

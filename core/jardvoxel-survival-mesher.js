@@ -121,6 +121,8 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
   let vertexCount = 0;
 
   const mergeSize = lodLevel >= 4 ? 8 : lodLevel >= 3 ? 4 : 2;
+  // Use stored maxContentY to avoid scanning from CHUNK_HEIGHT-1 every time
+  const scanTopY = chunk.maxContentY ?? (CHUNK_HEIGHT - 1);
 
   for (let bx = 0; bx < CHUNK_SIZE; bx += mergeSize) {
     for (let bz = 0; bz < CHUNK_SIZE; bz += mergeSize) {
@@ -131,7 +133,7 @@ function _buildSimplifiedMeshSurvival(chunk, world, lodLevel, ox, oz) {
 
       for (let mx = 0; mx < mergeSize && bx + mx < CHUNK_SIZE; mx++) {
         for (let mz = 0; mz < mergeSize && bz + mz < CHUNK_SIZE; mz++) {
-          for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+          for (let y = scanTopY; y >= 0; y--) {
             const b = chunk.getBlock(bx + mx, y, bz + mz);
             if (b !== BLOCK.AIR && b !== BLOCK.WATER) {
               if (y > topY) { topY = y; topBlock = b; }
@@ -219,22 +221,21 @@ export function buildChunkMesh(chunk, world, lodLevel = 0) {
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
 
-  // Pre-scan: find actual Y range with non-air blocks to skip empty slices
-  let minY = CHUNK_HEIGHT, maxY = 0;
-  const blocks = chunk.blocks;
-  const stride = CHUNK_SIZE * CHUNK_SIZE;
-  for (let y = 0; y < CHUNK_HEIGHT; y++) {
-    const base = y * stride;
-    let hasContent = false;
-    for (let i = 0; i < stride; i++) {
-      if (blocks[base + i] !== BLOCK.AIR) { hasContent = true; break; }
+  // Use stored Y range from generation (avoids 384-level pre-scan)
+  let minY = chunk.minContentY ?? CHUNK_HEIGHT;
+  let maxY = chunk.maxContentY ?? 0;
+  // Fallback: if no stored range, do a quick scan
+  if (minY > maxY) {
+    const blocks = chunk.blocks;
+    const stride = CHUNK_SIZE * CHUNK_SIZE;
+    for (let y = 0; y < CHUNK_HEIGHT; y++) {
+      const base = y * stride;
+      for (let i = 0; i < stride; i++) {
+        if (blocks[base + i] !== BLOCK.AIR) { if (y < minY) minY = y; maxY = y; break; }
+      }
     }
-    if (hasContent) {
-      if (y < minY) minY = y;
-      maxY = y;
-    }
+    if (minY > maxY) return { positions, colors, indices }; // entirely empty
   }
-  if (minY > maxY) return { positions, colors, indices }; // entirely empty
 
   // SPEC-CHUNK-OPT: LOD 2/3/4 — Simplified meshing for distant chunks
   if (lodLevel >= 2) {
@@ -447,11 +448,13 @@ export function buildWaterMesh(chunk, world) {
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
 
-  // Find Y range with water blocks
+  // Find Y range with water blocks — use stored content bounds to limit scan
   let minWY = CHUNK_HEIGHT, maxWY = 0;
   const wblocks = chunk.blocks;
   const wstride = CHUNK_SIZE * CHUNK_SIZE;
-  for (let y = 0; y < CHUNK_HEIGHT; y++) {
+  const scanMin = chunk.minContentY ?? 0;
+  const scanMax = chunk.maxContentY ?? (CHUNK_HEIGHT - 1);
+  for (let y = scanMin; y <= scanMax; y++) {
     const base = y * wstride;
     for (let i = 0; i < wstride; i++) {
       if (wblocks[base + i] === BLOCK.WATER) {

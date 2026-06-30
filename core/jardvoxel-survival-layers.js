@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════
 
 import { BIOMES, ZONE_TYPES } from './jardvoxel-survival-world-hierarchy.js';
+import { PoissonDiskSampler } from './jardvoxel-survival-poisson.js';
+import { FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
 
 // Load priority tiers
 const LOAD_PRIORITY = {
@@ -173,22 +175,26 @@ class MicroReliefLayer extends BaseLayer {
 class SurfaceRocksLayer extends BaseLayer {
   constructor() {
     super(3, 'surface_rocks', LOAD_PRIORITY.HIGH);
+    // G-03: Cellular noise F1*F2 for organic rock clustering patterns
+    this._cellular = new FastNoiseLite(7777);
+    this._cellular.setNoiseType(FN_NOISE_TYPE.CELLULAR);
+    this._cellular.setCellularReturnType(FN_CELLULAR_RETURN.F1_TIMES_F2);
   }
 
   generate(chunk, context, helpers) {
     const { heightMap, zone, ox, oz } = context;
     const { setBlock, getBlock } = helpers;
-    const density = (zone.type === ZONE_TYPES.CLIFFS || zone.type === ZONE_TYPES.GORGE) ? 0.04 : 0.01;
+    const density = (zone.type === ZONE_TYPES.CLIFFS || zone.type === ZONE_TYPES.GORGE) ? 0.15 : 0.04;
 
     for (let x = 0; x < 16; x++) {
       for (let z = 0; z < 16; z++) {
-        const hash = this._hash(ox + x, oz + z);
-        if (hash < density) {
+        // G-03: Use cellular F1*F2 instead of _hash() for organic rock distribution
+        const cellValue = this._cellular.cellular2D((ox + x) * 0.08, (oz + z) * 0.08);
+        if (cellValue < density) {
           const y = Math.floor(heightMap[x + z * 16]);
           if (getBlock(x, y + 1, z) === 0) { // air above
-            // Place small rock formation (1-2 blocks)
             setBlock(x, y + 1, z, 'cobblestone');
-            if (hash < density * 0.4) {
+            if (cellValue < density * 0.4) {
               setBlock(x, y + 2, z, 'cobblestone');
             }
           }
@@ -209,6 +215,8 @@ class SurfaceRocksLayer extends BaseLayer {
 class MajorVegetationLayer extends BaseLayer {
   constructor() {
     super(4, 'major_vegetation', LOAD_PRIORITY.HIGH);
+    this._poisson = new PoissonDiskSampler(42);
+    this._poissonCache = new Map();
   }
 
   generate(chunk, context, helpers) {
@@ -222,17 +230,45 @@ class MajorVegetationLayer extends BaseLayer {
                      zone.type === ZONE_TYPES.GROVE ? 1.3 : 1.0;
     const effectiveDensity = treeDensity * zoneMult;
 
-    for (let x = 2; x < 14; x++) {
-      for (let z = 2; z < 14; z++) {
+    if (effectiveDensity < 0.005) return;
+
+    const minRadius = this._getMinRadius(primaryBiome);
+    const targetCount = Math.floor(effectiveDensity * 256);
+
+    const cacheKey = `${ox},${oz}`;
+    let points = this._poissonCache.get(cacheKey);
+    if (!points) {
+      points = this._poisson.sampleChunkWithDensity(16, targetCount, minRadius, ox, oz);
+      if (this._poissonCache.size > 200) this._poissonCache.clear();
+      this._poissonCache.set(cacheKey, points);
+    }
+
+    for (const pt of points) {
+      const x = Math.floor(pt.x);
+      const z = Math.floor(pt.z);
+      if (x < 2 || x > 13 || z < 2 || z > 13) continue;
+
+      const y = Math.floor(heightMap[x + z * 16]);
+      if (getBlock(x, y, z) !== 0 && getBlock(x, y + 1, z) === 0) {
         const hash = this._hash(ox + x, oz + z);
-        if (hash < effectiveDensity) {
-          const y = Math.floor(heightMap[x + z * 16]);
-          if (getBlock(x, y, z) !== 0 && getBlock(x, y + 1, z) === 0) {
-            const treeType = this._getTreeType(primaryBiome, hash);
-            this._placeTree(x, y + 1, z, treeType, setBlock, hash);
-          }
-        }
+        const treeType = this._getTreeType(primaryBiome, hash);
+        this._placeTree(x, y + 1, z, treeType, setBlock, hash);
       }
+    }
+  }
+
+  _getMinRadius(biome) {
+    switch (biome) {
+      case BIOMES.JUNGLE: return 4;
+      case BIOMES.FOREST: return 3;
+      case BIOMES.TAIGA: return 3;
+      case BIOMES.SWAMP: return 3;
+      case BIOMES.MEADOW: return 4;
+      case BIOMES.CHERRY_GROVE: return 4;
+      case BIOMES.AUTUMN_FOREST: return 3;
+      case BIOMES.SAVANNA: return 5;
+      case BIOMES.PLAINS: return 6;
+      default: return 4;
     }
   }
 
@@ -344,6 +380,8 @@ class MajorVegetationLayer extends BaseLayer {
 class MinorVegetationLayer extends BaseLayer {
   constructor() {
     super(5, 'minor_vegetation', LOAD_PRIORITY.MEDIUM);
+    this._poisson = new PoissonDiskSampler(137);
+    this._poissonCache = new Map();
   }
 
   generate(chunk, context, helpers) {
@@ -356,18 +394,45 @@ class MinorVegetationLayer extends BaseLayer {
                      zone.type === ZONE_TYPES.DENSE_FOREST ? 0.3 : 1.0;
 
     const density = this._getBiomeDensity(primaryBiome) * zoneMult * (vegetationBoost || 1.0);
+    if (density < 0.01) return;
 
-    for (let x = 0; x < 16; x++) {
-      for (let z = 0; z < 16; z++) {
+    const minRadius = this._getMinRadius(primaryBiome);
+    const targetCount = Math.floor(density * 256);
+
+    const cacheKey = `${ox},${oz}`;
+    let points = this._poissonCache.get(cacheKey);
+    if (!points) {
+      points = this._poisson.sampleChunkWithDensity(16, targetCount, minRadius, ox, oz);
+      if (this._poissonCache.size > 200) this._poissonCache.clear();
+      this._poissonCache.set(cacheKey, points);
+    }
+
+    for (const pt of points) {
+      const x = Math.floor(pt.x);
+      const z = Math.floor(pt.z);
+      if (x < 0 || x > 15 || z < 0 || z > 15) continue;
+
+      const y = Math.floor(heightMap[x + z * 16]);
+      if (getBlock(x, y + 1, z) === 0 && getBlock(x, y, z) !== 9) {
         const hash = this._hash(ox + x, oz + z);
-        if (hash < density) {
-          const y = Math.floor(heightMap[x + z * 16]);
-          if (getBlock(x, y + 1, z) === 0 && getBlock(x, y, z) !== 9) { // air above, not water
-            const block = this._getVegBlock(primaryBiome, hash);
-            if (block) setBlock(x, y + 1, z, block);
-          }
-        }
+        const block = this._getVegBlock(primaryBiome, hash);
+        if (block) setBlock(x, y + 1, z, block);
       }
+    }
+  }
+
+  _getMinRadius(biome) {
+    switch (biome) {
+      case BIOMES.MEADOW: return 1.5;
+      case BIOMES.CHERRY_GROVE: return 1.5;
+      case BIOMES.JUNGLE: return 1.0;
+      case BIOMES.FOREST: return 1.2;
+      case BIOMES.PLAINS: return 1.8;
+      case BIOMES.SWAMP: return 1.2;
+      case BIOMES.AUTUMN_FOREST: return 1.2;
+      case BIOMES.SAVANNA: return 2.0;
+      case BIOMES.DESERT: return 2.5;
+      default: return 1.5;
     }
   }
 

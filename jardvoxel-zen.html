@@ -241,6 +241,7 @@ canvas{display:block}
     <button class="tab-btn" data-tab="audio">Audio</button>
     <button class="tab-btn" data-tab="controls">Controles</button>
     <button class="tab-btn" data-tab="wellness">Wellness</button>
+    <button class="tab-btn" data-tab="terrain">Terreno</button>
   </div>
   <div class="tab-content show" id="tab-graphics">
     <h3>Graficos</h3>
@@ -280,6 +281,21 @@ canvas{display:block}
     <div class="setting-toggle"><label>Mostrar minimapa</label><div class="toggle-switch" id="setting-show-minimap"></div></div>
     <div class="setting-toggle"><label>Mostrar reloj</label><div class="toggle-switch" id="setting-show-clock"></div></div>
     <div class="setting-toggle"><label>Mostrar controles</label><div class="toggle-switch" id="setting-show-controls-hint"></div></div>
+  </div>
+  <div class="tab-content" id="tab-terrain">
+    <h3>Motor de Terreno Organico</h3>
+    <div class="setting-toggle"><label>Biomas Voronoi (regiones coherentes)</label><div class="toggle-switch" id="setting-voronoi-biomes"></div></div>
+    <div class="setting-toggle"><label>Ruido Ridged (crestas de montana)</label><div class="toggle-switch" id="setting-ridged-noise"></div></div>
+    <div class="setting-toggle"><label>Poisson Disk (vegetacion natural)</label><div class="toggle-switch" id="setting-poisson-veg"></div></div>
+    <div class="setting-toggle"><label>Hidrologia (rios y lagos)</label><div class="toggle-switch" id="setting-hydrology"></div></div>
+    <div class="setting-toggle"><label>Clima procedural (rain shadow)</label><div class="toggle-switch" id="setting-procedural-climate"></div></div>
+    <div class="setting-toggle"><label>Renderizado instanciado (performance)</label><div class="toggle-switch" id="setting-instanced-render"></div></div>
+    <div class="setting-toggle"><label>Multi-worker (generacion async)</label><div class="toggle-switch" id="setting-multi-worker"></div></div>
+    <div class="setting-toggle"><label>Ruido Celular (patrones organicos)</label><div class="toggle-switch" id="setting-cellular-noise"></div></div>
+    <div style="margin-top:1rem;padding:0.6rem;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:6px;font-size:0.7rem;color:#a78bfa;text-align:center">
+      Cambios de terreno requieren regenerar chunks<br>
+      <button id="terrain-regen-btn" style="margin-top:0.5rem;padding:6px 18px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600">Regenerar Terreno</button>
+    </div>
   </div>
   <button id="settings-back">Volver</button>
 </div>
@@ -521,8 +537,8 @@ class ZenGame {
     this.patagonia = new PatagoniaProfile(PATAGONIA.SEED);
     this.seed = PATAGONIA.SEED;
     this.settings = {
-      renderDistance: 48, fov: 110, clouds: true, fog: true, shadows: true,
-      toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
+      renderDistance: 16, fov: 75, clouds: true, fog: true, shadows: false,
+      toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
       joystickSize: 120, autoSaveInterval: 60,
@@ -531,6 +547,10 @@ class ZenGame {
       ambientSoundEnabled: true,
       komorebiEnabled: true, meditationEnabled: true, livingWorldEnabled: true,
       autoHideUI: true,
+      // PRD Organic Terrain toggles
+      voronoiBiomes: true, ridgedNoise: true, poissonVeg: true,
+      hydrology: true, proceduralClimate: true, instancedRender: true,
+      multiWorker: true, cellularNoise: true,
     };
     try {
       const saved = JSON.parse(localStorage.getItem('jardvoxel-zen-settings'));
@@ -572,9 +592,9 @@ class ZenGame {
   initScene() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 4000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -597,13 +617,13 @@ class ZenGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, false, true);
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true);
 
     // ── Adaptive render distance ──
     this.world._adaptiveEnabled = true;
     this.world._targetRenderDist = this.settings.renderDistance;
     this.world._minRenderDist = 16;
-    this.world._initialLoadBurst = 90;
+    this.world._initialLoadBurst = 12;
 
     // ── Patch generator with Patagonia geographic profile ──
     applyPatagoniaToGenerator(this.world.generator, this.patagonia);
@@ -620,8 +640,9 @@ class ZenGame {
     this.ambientParticles = new AmbientParticleSystem(this.scene);
     this.forestCanopy = new ForestCanopyManager(this.scene);
 
-    this.weatherManager = new WeatherManager(this.scene);
+    this.weatherManager = new WeatherManager(this.scene, this.dayNight, this.seed);
     this.weatherManager._setWeather('clear', { x: 0, y: 0, z: 0 }, this.world);
+    this._applyTerrainSettings();
   }
 
   initPlayer() {
@@ -886,6 +907,39 @@ class ZenGame {
     wireToggle('setting-show-clock', 'showClock', (v) => { document.getElementById('clock').style.display = v ? 'block' : 'none'; });
     wireToggle('setting-show-controls-hint', 'showControlsHint', (v) => { document.getElementById('controls-hint').style.display = v ? 'block' : 'none'; });
 
+    // ── PRD Organic Terrain toggles ──
+    wireToggle('setting-voronoi-biomes', 'voronoiBiomes', (v) => {
+      if (this.world && this.world.generator) this.world.generator._useVoronoiBiomes = v;
+    });
+    wireToggle('setting-ridged-noise', 'ridgedNoise', (v) => {
+      if (this.world && this.world.generator && this.world.generator.hierarchy) {
+        this.world.generator.hierarchy._useRidgedNoise = v;
+      }
+    });
+    wireToggle('setting-poisson-veg', 'poissonVeg', (v) => {
+      if (this.world) this.world._poissonEnabled = v;
+    });
+    wireToggle('setting-hydrology', 'hydrology', (v) => {
+      if (this.world && this.world.generator && this.world.generator.hierarchy && this.world.generator.hierarchy.hydrology) {
+        this.world.generator.hierarchy.hydrology.enabled = v;
+      }
+    });
+    wireToggle('setting-procedural-climate', 'proceduralClimate', (v) => {
+      if (this.weatherManager) this.weatherManager._useProceduralClimate = v;
+    });
+    wireToggle('setting-instanced-render', 'instancedRender', (v) => {
+      if (this.world && this.world._instancedRenderer) this.world._instancedRenderer.setEnabled(v);
+    });
+    wireToggle('setting-multi-worker', 'multiWorker', (v) => {
+      if (this.world) this.world._useWorkerPool = v && !!this.world._workerPool;
+    });
+    wireToggle('setting-cellular-noise', 'cellularNoise', (v) => {
+      if (this.world && this.world.generator) this.world.generator._useCellularNoise = v;
+    });
+
+    const regenBtn = document.getElementById('terrain-regen-btn');
+    if (regenBtn) regenBtn.onclick = () => this._regenerateTerrain();
+
     wireSelect('setting-touch-joysticks', 'touchJoysticks');
     wireSelect('setting-autosave', 'autoSaveInterval');
 
@@ -924,6 +978,41 @@ class ZenGame {
     if (clockEl) clockEl.style.display = this.settings.showClock ? 'block' : 'none';
     const controlsHintEl = document.getElementById('controls-hint');
     if (controlsHintEl) controlsHintEl.style.display = this.settings.showControlsHint ? 'block' : 'none';
+  }
+
+  _applyTerrainSettings() {
+    if (!this.world || !this.world.generator) return;
+    const gen = this.world.generator;
+    gen._useVoronoiBiomes = this.settings.voronoiBiomes;
+    gen._useCellularNoise = this.settings.cellularNoise;
+    if (gen.hierarchy) {
+      gen.hierarchy._useRidgedNoise = this.settings.ridgedNoise;
+      if (gen.hierarchy.hydrology) gen.hierarchy.hydrology.enabled = this.settings.hydrology;
+    }
+    this.world._poissonEnabled = this.settings.poissonVeg;
+    if (this.world._instancedRenderer) this.world._instancedRenderer.setEnabled(this.settings.instancedRender);
+    if (this.weatherManager) this.weatherManager._useProceduralClimate = this.settings.proceduralClimate;
+    if (this.world._workerPool) this.world._useWorkerPool = this.settings.multiWorker;
+    else this.world._useWorkerPool = false;
+  }
+
+  _regenerateTerrain() {
+    if (!this.world) return;
+    this._applyTerrainSettings();
+    const px = this.player.position.x;
+    const pz = this.player.position.z;
+    this.world.clearAllChunks();
+    if (this.world.generator) this.world.generator.clearCache();
+    const sx = Math.floor(px / CHUNK_SIZE);
+    const sz = Math.floor(pz / CHUNK_SIZE);
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        this.world.generateChunk(sx + dx, sz + dz);
+      }
+    }
+    this.player.spawn();
+    this.world.update(px, pz, 60, this.camera);
+    if (this.uiManager) this.uiManager.showToast('Terreno regenerado', 'info');
   }
 
   _saveSettings() {
@@ -1354,7 +1443,7 @@ class ZenGame {
       this._pointLightTimer = 0;
     }
     this._pointLightTimer += dt;
-    if (this._pointLightTimer < 1.0) return;
+    if (this._pointLightTimer < 2.0) return;
     this._pointLightTimer = 0;
     const px = this.player.position.x, py = this.player.position.y, pz = this.player.position.z;
     const range = 8;
@@ -1386,7 +1475,7 @@ class ZenGame {
   _renderMinimap() {
     if (!this._minimapTimer) this._minimapTimer = 0;
     this._minimapTimer += this.currentDt;
-    if (this._minimapTimer < 2.0) return;
+    if (this._minimapTimer < 4.0) return;
     this._minimapTimer = 0;
     const canvas = document.getElementById('minimap');
     if (!canvas) return;
@@ -1456,7 +1545,7 @@ class ZenGame {
       const touchInput = this.touchControls ? this.touchControls.getMoveInput() : null;
       if (this.touchControls) this.touchControls.updateLook(dt);
       this.player.update(dt, this.keys, touchInput);
-      this.world.update(this.player.position.x, this.player.position.z, this.fps, this.camera);
+      this.world.update(this.player.position.x, this.player.position.z, this.fps, this.camera, dt);
 
       if (this.settings.autoSaveInterval > 0) {
         this.autoSaveTimer += dt;
@@ -1476,7 +1565,13 @@ class ZenGame {
 
       this._updatePointLights(dt);
 
-      const target = this._cachedRaycast || this.player.raycast(5);
+      // Throttle raycast for block highlight (every 0.1s)
+      this._raycastTimer = (this._raycastTimer || 0) + dt;
+      if (this._raycastTimer >= 0.1) {
+        this._raycastTimer = 0;
+        this._cachedRaycast = this.player.raycast(5);
+      }
+      const target = this._cachedRaycast;
       if (target) {
         this.blockHighlight.visible = true;
         this.blockHighlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
@@ -1529,7 +1624,8 @@ class ZenGame {
     if (this.world.waterMaterialManager) {
       const skyColor = this.dayNight.skyDome ? this.dayNight.skyDome.material.uniforms.bottomColor.value : null;
       if (!this._tmpSunDir) this._tmpSunDir = new THREE.Vector3();
-      this._tmpSunDir.copy(this._tmpCamDir || new THREE.Vector3());
+      if (this._tmpCamDir) this._tmpSunDir.copy(this._tmpCamDir);
+      else this._tmpSunDir.set(0, 0, 0);
       this._tmpSunDir.negate().normalize();
       this.world.waterMaterialManager.update(dt, this.camera.position, skyColor, this._tmpSunDir);
     }

@@ -3,7 +3,7 @@
 // SPEC-105: Fine-grained decoration per 4x4 sector within chunks
 // ═══════════════════════════════════════════════════════════
 
-import { SimplexNoise } from './jardvoxel-survival-noise.js';
+import { SimplexNoise, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
 import { BIOMES, ZONE_TYPES } from './jardvoxel-survival-world-hierarchy.js';
 
 const SECTOR_SIZE = 4; // 4x4 blocks per sector
@@ -82,6 +82,10 @@ export class MicrosectorGenerator {
   constructor(seed) {
     this.seed = seed;
     this.detailNoise = new SimplexNoise(seed + 14000);
+    // G-03: Cellular F1 noise for organic clearing boundaries
+    this._clearingNoise = new FastNoiseLite(seed + 14001);
+    this._clearingNoise.setNoiseType(FN_NOISE_TYPE.CELLULAR);
+    this._clearingNoise.setCellularReturnType(FN_CELLULAR_RETURN.F1);
   }
 
   // Generate microsector decorations for a chunk
@@ -105,7 +109,11 @@ export class MicrosectorGenerator {
     // Correct loop: 4x4 grid of sectors
     for (let sx = 0; sx < 4; sx++) {
       for (let sz = 0; sz < 4; sz++) {
-        const sectorHash = this._hash(ox + sx * SECTOR_SIZE, oz + sz * SECTOR_SIZE);
+        // G-03: Use cellular F1 for organic clearing boundaries
+        const sectorHash = this._clearingNoise.cellular2D(
+          (ox + sx * SECTOR_SIZE) * 0.03,
+          (oz + sz * SECTOR_SIZE) * 0.03
+        );
         const sectorDensity = baseDensity * (0.5 + sectorHash * 0.5);
 
         // Pick decoration type for this sector

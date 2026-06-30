@@ -275,6 +275,64 @@ export class SimplexNoise {
     return total / maxValue;
   }
 
+  ridgedFbm2D(x, y, octaves, persistence, lacunarity, scale) {
+    let total = 0;
+    let amplitude = 1;
+    let frequency = scale;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      const n = this.noise2D(x * frequency, y * frequency);
+      const ridged = 1 - Math.abs(n);
+      total += ridged * ridged * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return total / maxValue;
+  }
+
+  billowyFbm2D(x, y, octaves, persistence, lacunarity, scale) {
+    let total = 0;
+    let amplitude = 1;
+    let frequency = scale;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      const n = this.noise2D(x * frequency, y * frequency);
+      total += Math.abs(n) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return total / maxValue;
+  }
+
+  steppedFbm2D(x, y, octaves, persistence, lacunarity, scale, steps = 4) {
+    const fbm = this.fbm2D(x, y, octaves, persistence, lacunarity, scale);
+    return Math.floor(fbm * steps) / steps;
+  }
+
+  dunesFbm2D(x, y, octaves, persistence, lacunarity, scale) {
+    let total = 0;
+    let amplitude = 1;
+    let frequency = scale;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      const n = this.noise2D(x * frequency, y * frequency);
+      const dune = Math.sin(n * Math.PI * 2) * 0.5 + 0.5;
+      total += dune * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return total / maxValue;
+  }
+
   _dot2(g, x, y) {
     return g[0] * x + g[1] * y;
   }
@@ -756,5 +814,268 @@ export class HydraulicErosion {
     }
 
     return heightmap;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRD G-02: FastNoise Lite — OpenSimplex2, Cellular, Value Noise
+// Backwards-compatible API with extended noise types
+// ═══════════════════════════════════════════════════════════
+
+export const FN_NOISE_TYPE = {
+  SIMPLEX: 0,
+  OPENSIMPLEX2: 1,
+  CELLULAR: 2,
+  VALUE: 3,
+};
+
+export const FN_CELLULAR_DIST = {
+  EUCLIDEAN: 0,
+  MANHATTAN: 1,
+  HYBRID: 2,
+};
+
+export const FN_CELLULAR_RETURN = {
+  F1: 0,
+  F2: 1,
+  F1_MINUS_F2: 2,
+  F1_TIMES_F2: 3,
+};
+
+// OpenSimplex2 2D implementation (KdotJPG's algorithm)
+// Uses permuted gradient table and stretched lattice
+class _OpenSimplex2 {
+  constructor(seed) {
+    this.perm = new Uint8Array(256);
+    this.permGrad2D = new Uint8Array(256);
+    const prng = new PRNG(seed);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(prng.next() * (i + 1));
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    const gradients2D = [
+      5, 2, 2, 5, -5, 2, -2, 5, 5, -2, 2, -5, -5, -2, -2, -5,
+    ];
+    for (let i = 0; i < 256; i++) {
+      this.perm[i] = p[i];
+      this.permGrad2D[i] = gradients2D[p[i] & 7];
+    }
+  }
+
+  noise2D(x, y) {
+    const SQRT3 = 1.7320508075688772;
+    const F2 = 0.5 * (SQRT3 - 1);
+    const G2 = (3 - SQRT3) / 6;
+
+    const s = (x + y) * F2;
+    const i = Math.floor(x + s);
+    const j = Math.floor(y + s);
+
+    const t = (i + j) * G2;
+    const X0 = i - t;
+    const Y0 = j - t;
+    const x0 = x - X0;
+    const y0 = y - Y0;
+
+    const i1 = x0 > y0 ? 1 : 0;
+    const j1 = x0 > y0 ? 0 : 1;
+
+    const x1 = x0 - i1 + G2;
+    const y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2;
+    const y2 = y0 - 1 + 2 * G2;
+
+    const ii = i & 255;
+    const jj = j & 255;
+
+    let n0 = 0, n1 = 0, n2 = 0;
+    let t0 = 0.5 - x0 * x0 - y0 * y0;
+    if (t0 >= 0) {
+      const gi0 = this.permGrad2D[ii + this.perm[jj]];
+      t0 *= t0;
+      n0 = t0 * t0 * (gi0 * x0 + (gi0 >> 1) * y0);
+    }
+    let t1 = 0.5 - x1 * x1 - y1 * y1;
+    if (t1 >= 0) {
+      const gi1 = this.permGrad2D[ii + i1 + this.perm[jj + j1]];
+      t1 *= t1;
+      n1 = t1 * t1 * (gi1 * x1 + (gi1 >> 1) * y1);
+    }
+    let t2 = 0.5 - x2 * x2 - y2 * y2;
+    if (t2 >= 0) {
+      const gi2 = this.permGrad2D[ii + 1 + this.perm[jj + 1]];
+      t2 *= t2;
+      n2 = t2 * t2 * (gi2 * x2 + (gi2 >> 1) * y2);
+    }
+
+    return (n0 + n1 + n2) * 99.83685;
+  }
+}
+
+// Value Noise — cheap variation noise
+class _ValueNoise {
+  constructor(seed) {
+    this.perm = new Uint8Array(512);
+    const prng = new PRNG(seed);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(prng.next() * (i + 1));
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+  }
+
+  _val(ix, iz) {
+    const h = this.perm[(ix & 255) + this.perm[iz & 255]];
+    return (h / 255) * 2 - 1;
+  }
+
+  _smooth(t) { return t * t * (3 - 2 * t); }
+
+  noise2D(x, y) {
+    const ix = Math.floor(x);
+    const iz = Math.floor(y);
+    const fx = x - ix;
+    const fz = y - iz;
+    const sx = this._smooth(fx);
+    const sz = this._smooth(fz);
+    const v00 = this._val(ix, iz);
+    const v10 = this._val(ix + 1, iz);
+    const v01 = this._val(ix, iz + 1);
+    const v11 = this._val(ix + 1, iz + 1);
+    const a = v00 + sx * (v10 - v00);
+    const b = v01 + sx * (v11 - v01);
+    return a + sz * (b - a);
+  }
+}
+
+// Cellular (Worley) Noise — F1, F2, F1-F2, F1*F2
+class _CellularNoise {
+  constructor(seed) {
+    this._seed = seed;
+    this._distFunc = FN_CELLULAR_DIST.EUCLIDEAN;
+    this._returnType = FN_CELLULAR_RETURN.F1;
+  }
+
+  setDistanceFunction(d) { this._distFunc = d; }
+  setReturnType(r) { this._returnType = r; }
+
+  _hashFloat(ix, iz) {
+    const h = ((ix * 374761393 + iz * 668265263) ^ this._seed) & 0x7FFFFFFF;
+    return h / 0x7FFFFFFF;
+  }
+
+  _dist(dx, dz) {
+    if (this._distFunc === FN_CELLULAR_DIST.MANHATTAN) {
+      return Math.abs(dx) + Math.abs(dz);
+    } else if (this._distFunc === FN_CELLULAR_DIST.HYBRID) {
+      return Math.abs(dx) + Math.abs(dz) + Math.sqrt(dx * dx + dz * dz);
+    }
+    return Math.sqrt(dx * dx + dz * dz);
+  }
+
+  noise2D(x, y) {
+    const ix = Math.floor(x);
+    const iz = Math.floor(y);
+    let f1 = Infinity, f2 = Infinity;
+
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const cx = ix + dx;
+        const cz = iz + dz;
+        const h1 = this._hashFloat(cx, cz);
+        const h2 = this._hashFloat(cx + 999, cz + 999);
+        const px = cx + h1;
+        const pz = cz + h2;
+        const d = this._dist(px - x, pz - y);
+        if (d < f1) { f2 = f1; f1 = d; }
+        else if (d < f2) { f2 = d; }
+      }
+    }
+
+    switch (this._returnType) {
+      case FN_CELLULAR_RETURN.F1: return f1;
+      case FN_CELLULAR_RETURN.F2: return f2;
+      case FN_CELLULAR_RETURN.F1_MINUS_F2: return f1 - f2;
+      case FN_CELLULAR_RETURN.F1_TIMES_F2: return f1 * f2;
+      default: return f1;
+    }
+  }
+}
+
+// FastNoiseLite — unified noise interface with swappable backends
+export class FastNoiseLite {
+  constructor(seed) {
+    this._seed = seed;
+    this._noiseType = FN_NOISE_TYPE.OPENSIMPLEX2;
+    this._domainWarpAmp = 0;
+    this._domainWarpNoise = null;
+
+    this._simplex = new SimplexNoise(seed);
+    this._openSimplex = new _OpenSimplex2(seed);
+    this._value = new _ValueNoise(seed);
+    this._cellular = new _CellularNoise(seed);
+  }
+
+  setNoiseType(type) { this._noiseType = type; }
+  setCellularDistanceFunction(d) { this._cellular.setDistanceFunction(d); }
+  setCellularReturnType(r) { this._cellular.setReturnType(r); }
+  setDomainWarpAmp(amp) {
+    this._domainWarpAmp = amp;
+    if (amp > 0 && !this._domainWarpNoise) {
+      this._domainWarpNoise = new FastNoiseLite(this._seed + 7777);
+      this._domainWarpNoise._noiseType = FN_NOISE_TYPE.OPENSIMPLEX2;
+    }
+  }
+
+  _warp(x, y) {
+    if (this._domainWarpAmp <= 0 || !this._domainWarpNoise) return { x, y };
+    const wx = this._domainWarpNoise._rawNoise2D(x * 0.01, y * 0.01) * this._domainWarpAmp;
+    const wy = this._domainWarpNoise._rawNoise2D((x + 1000) * 0.01, (y + 1000) * 0.01) * this._domainWarpAmp;
+    return { x: x + wx, y: y + wy };
+  }
+
+  _rawNoise2D(x, y) {
+    switch (this._noiseType) {
+      case FN_NOISE_TYPE.SIMPLEX: return this._simplex.noise2D(x, y);
+      case FN_NOISE_TYPE.OPENSIMPLEX2: return this._openSimplex.noise2D(x, y);
+      case FN_NOISE_TYPE.CELLULAR: return this._cellular.noise2D(x, y);
+      case FN_NOISE_TYPE.VALUE: return this._value.noise2D(x, y);
+      default: return this._openSimplex.noise2D(x, y);
+    }
+  }
+
+  // Backwards-compatible API
+  noise2D(x, y) {
+    const w = this._warp(x, y);
+    return this._rawNoise2D(w.x, w.y);
+  }
+
+  noise3D(x, y, z) {
+    return this._simplex.noise3D(x, y, z);
+  }
+
+  fbm2D(x, y, octaves, persistence, lacunarity, scale) {
+    const w = this._warp(x, y);
+    let total = 0, amplitude = 1, frequency = scale, maxValue = 0;
+    for (let i = 0; i < octaves; i++) {
+      total += this._rawNoise2D(w.x * frequency, w.y * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+    return total / maxValue;
+  }
+
+  fbm3D(x, y, z, octaves, persistence, lacunarity, scale) {
+    return this._simplex.fbm3D(x, y, z, octaves, persistence, lacunarity, scale);
+  }
+
+  // Cellular-specific access
+  cellular2D(x, y) {
+    return this._cellular.noise2D(x, y);
   }
 }
