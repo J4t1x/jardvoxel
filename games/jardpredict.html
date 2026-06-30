@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a1a">
+<title>JardPredict</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --color-bg:#0a0a1a; --color-surface:#12122a; --color-up:#00ff88;
+  --color-down:#ff3366; --color-gold:#ffd700; --color-accent:#7c3aed;
+  --color-text:#ffffff; --color-muted:#8888aa;
+}
+
+[data-theme="neon"] {
+  --color-bg:#0a0011; --color-surface:#1a0022; --color-up:#00ffff;
+  --color-down:#ff00ff; --color-gold:#ffff00; --color-accent:#ff00aa;
+  --color-text:#ffffff; --color-muted:#aa66aa;
+}
+
+[data-theme="pastel"] {
+  --color-bg:#1a1a2e; --color-surface:#22223a; --color-up:#88ffcc;
+  --color-down:#ff99bb; --color-gold:#ffeeaa; --color-accent:#bb88ff;
+  --color-text:#ffffff; --color-muted:#aaaacc;
+}
+
+[data-theme="retro"] {
+  --color-bg:#1a0a00; --color-surface:#2a1500; --color-up:#00ff41;
+  --color-down:#ff0040; --color-gold:#ffaa00; --color-accent:#ff6600;
+  --color-text:#ffcc88; --color-muted:#aa6644;
+}
+
+html,body {
+  height:100%; overflow:hidden; font-family:'Georgia','Times New Roman',serif;
+  background:var(--color-bg); color:var(--color-text);
+  user-select:none; -webkit-user-select:none;
+}
+
+/* === FONDO ANIMADO === */
+#fondo {
+  position:fixed; inset:0;
+  background:linear-gradient(135deg,#0a0a1a 0%,#1a0a3d 25%,#2d0e4e 50%,#1a0a3d 75%,#0a0a1a 100%);
+  background-size:400% 400%; animation:gradientFondo 15s ease infinite; z-index:0;
+}
+@keyframes gradientFondo { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+.aurora { position:fixed; border-radius:50%; filter:blur(80px); opacity:0.2; z-index:0; pointer-events:none; animation:auroraMove 20s ease-in-out infinite; }
+.aurora-1{width:300px;height:300px;background:radial-gradient(circle,var(--color-accent),transparent 70%);top:-100px;left:-100px}
+.aurora-2{width:250px;height:250px;background:radial-gradient(circle,var(--color-up),transparent 70%);bottom:-80px;right:-80px;animation-delay:-7s}
+.aurora-3{width:200px;height:200px;background:radial-gradient(circle,var(--color-down),transparent 70%);top:40%;left:50%;animation-delay:-14s}
+@keyframes auroraMove { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(80px,-50px) scale(1.3)} 66%{transform:translate(-60px,60px) scale(0.8)} }
+
+.estrella{position:fixed;width:2px;height:2px;background:white;border-radius:50%;opacity:0.5;z-index:0;animation:twinkle 3s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0.2}50%{opacity:0.8}}
+
+/* === CINEMATIC EFFECTS === */
+#flash-overlay{position:fixed;inset:0;z-index:90;pointer-events:none;opacity:0;transition:opacity 0.1s}
+#flash-overlay.flash-green{background:radial-gradient(circle,rgba(0,255,136,0.4) 0%,transparent 70%);opacity:1;animation:flashFade 0.5s ease-out forwards}
+#flash-overlay.flash-red{background:radial-gradient(circle,rgba(255,51,102,0.5) 0%,transparent 70%);opacity:1;animation:flashFade 0.3s ease-out forwards}
+#flash-overlay.flash-gold{background:radial-gradient(circle,rgba(255,215,0,0.4) 0%,transparent 70%);opacity:1;animation:flashFade 0.6s ease-out forwards}
+@keyframes flashFade{0%{opacity:1}100%{opacity:0}}
+
+#vignette{position:fixed;inset:0;z-index:3;pointer-events:none;box-shadow:inset 0 0 100px rgba(0,0,0,0.3);transition:box-shadow 0.5s}
+#vignette.frenzy{box-shadow:inset 0 0 150px rgba(255,215,0,0.4)}
+
+body.shake{animation:bodyShake 0.4s ease}
+@keyframes bodyShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-5px,3px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,5px)}80%{transform:translate(3px,-5px)}}
+
+/* === PARTÍCULAS === */
+.particula{position:fixed;z-index:85;pointer-events:none;font-size:20px;animation:particulaVolar 1s ease-out forwards}
+@keyframes particulaVolar{0%{opacity:1;transform:translate(0,0) scale(1) rotate(0deg)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0.3) rotate(var(--rot))}}
+
+.confeti{position:fixed;z-index:86;pointer-events:none;font-size:18px;animation:confetiCae 2s linear forwards}
+@keyframes confetiCae{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(110vh) rotate(720deg)}}
+
+/* === SCORE FLOTANTE === */
+.score-flotante{position:fixed;z-index:87;pointer-events:none;font-size:clamp(1.2em,5vw,2em);font-weight:bold;animation:scoreFlotar 1.2s ease-out forwards;text-shadow:0 0 10px currentColor}
+@keyframes scoreFlotar{0%{opacity:1;transform:translateY(0) scale(0.5)}20%{transform:translateY(-20px) scale(1.2)}100%{opacity:0;transform:translateY(-80px) scale(1)}}
+
+/* === COMBO DISPLAY === */
+.combo-display{position:fixed;bottom:25%;left:50%;transform:translateX(-50%);z-index:80;pointer-events:none;opacity:0;font-size:clamp(1.5em,7vw,3em);font-weight:bold;text-shadow:0 0 20px currentColor;transition:opacity 0.3s}
+.combo-display.activo{opacity:1;animation:comboPop 0.4s ease}
+@keyframes comboPop{0%{transform:translateX(-50%) scale(0.5)}50%{transform:translateX(-50%) scale(1.3)}100%{transform:translateX(-50%) scale(1)}}
+
+/* === HUD === */
+.hud-top {
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:env(safe-area-inset-top,10px) 12px 8px;
+  background:rgba(10,10,26,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(124,58,237,0.2);
+  pointer-events:none;
+}
+.hud-top > * { pointer-events:auto; }
+
+.hud-saldo {
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+}
+.hud-saldo .label { font-size:0.65em; color:var(--color-muted); text-transform:uppercase; letter-spacing:1px; }
+.hud-saldo .valor { font-size:clamp(1.1em,5vw,1.6em); font-weight:bold; color:var(--color-gold); text-shadow:0 0 8px rgba(255,215,0,0.3); }
+
+.hud-center { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.hud-nivel { font-size:0.8em; color:var(--color-accent); font-weight:bold; }
+.hud-racha-num { font-size:clamp(1em,4vw,1.3em); font-weight:bold; color:var(--color-gold); }
+
+.hud-sound {
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  font-size:1.2em; cursor:pointer; border-radius:50%;
+  background:rgba(124,58,237,0.15); transition:background 0.2s;
+}
+.hud-sound:active { background:rgba(124,58,237,0.4); }
+
+/* === STREAK BAR === */
+.streak-bar-container {
+  position:fixed; top:env(safe-area-inset-top,48px); left:12px; right:12px; z-index:49;
+  height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;
+  margin-top:4px;
+}
+.streak-bar-fill {
+  height:100%; width:0%; border-radius:3px;
+  background:linear-gradient(90deg,var(--color-down),var(--color-gold),var(--color-up));
+  transition:width 0.3s ease; box-shadow:0 0 8px rgba(255,215,0,0.4);
+}
+.streak-bar-fill.full { animation:streakPulse 0.6s ease-in-out infinite; }
+@keyframes streakPulse { 0%,100%{box-shadow:0 0 8px rgba(255,215,0,0.4)} 50%{box-shadow:0 0 20px rgba(255,215,0,0.8)} }
+
+/* === CHART AREA === */
+#chart-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:flex; align-items:flex-end; justify-content:center; gap:4px;
+  padding:20px 10px;
+  background:rgba(18,18,42,0.4); border-radius:12px;
+  border:1px solid rgba(124,58,237,0.15);
+  overflow:hidden;
+}
+
+.candle {
+  flex:1; max-width:60px; min-width:20px; height:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  position:relative;
+}
+.candle-body {
+  width:70%; border-radius:2px; position:relative;
+  animation:candleAppear 0.3s ease;
+}
+@keyframes candleAppear { 0%{opacity:0;transform:scaleY(0)} 100%{opacity:1;transform:scaleY(1)} }
+.candle-body.up { background:var(--color-up); box-shadow:0 0 8px rgba(0,255,136,0.3); }
+.candle-body.down { background:var(--color-down); box-shadow:0 0 8px rgba(255,51,102,0.3); }
+.candle-wick {
+  width:2px; position:absolute; left:50%; transform:translateX(-50%);
+  border-radius:1px;
+}
+.candle-wick.up { background:var(--color-up); }
+.candle-wick.down { background:var(--color-down); }
+
+.candle.predicting { animation:candlePulse 0.5s ease-in-out infinite; }
+@keyframes candlePulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+.candle-result { animation:candleResult 0.5s ease; }
+@keyframes candleResult { 0%{transform:scale(0.5);opacity:0} 50%{transform:scale(1.3)} 100%{transform:scale(1);opacity:1} }
+
+/* === HUD BOTTOM === */
+.hud-bottom {
+  position:fixed; bottom:0; left:0; right:0; z-index:50;
+  padding:8px 12px env(safe-area-inset-bottom,12px);
+  background:rgba(10,10,26,0.7); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-top:1px solid rgba(124,58,237,0.2);
+  display:flex; flex-direction:column; gap:8px;
+}
+
+.apuesta-row { display:flex; gap:6px; justify-content:center; }
+.btn-apuesta {
+  flex:1; max-width:80px; padding:8px 4px; border:none; border-radius:8px;
+  font-size:0.85em; font-weight:bold; cursor:pointer; transition:all 0.15s;
+  background:rgba(124,58,237,0.2); color:var(--color-text);
+  border:1px solid rgba(124,58,237,0.3);
+}
+.btn-apuesta:active { transform:scale(0.95); background:rgba(124,58,237,0.5); }
+.btn-apuesta.selected { background:rgba(124,58,237,0.5); border-color:var(--color-accent); box-shadow:0 0 10px rgba(124,58,237,0.4); }
+.btn-apuesta.allin { background:rgba(255,215,0,0.15); border-color:rgba(255,215,0,0.3); color:var(--color-gold); }
+.btn-apuesta.allin.selected { background:rgba(255,215,0,0.3); box-shadow:0 0 10px rgba(255,215,0,0.4); }
+
+.prediccion-row { display:flex; gap:8px; justify-content:center; align-items:center; }
+.btn-prediccion {
+  flex:1; max-width:120px; padding:12px 8px; border:none; border-radius:12px;
+  font-size:1.3em; font-weight:bold; cursor:pointer; transition:all 0.15s;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+.btn-prediccion .label { font-size:0.5em; text-transform:uppercase; letter-spacing:1px; opacity:0.7; }
+.btn-prediccion:active { transform:scale(0.95); }
+.btn-prediccion:disabled { opacity:0.4; cursor:default; }
+
+.btn-up { background:rgba(0,255,136,0.15); border:2px solid var(--color-up); color:var(--color-up); }
+.btn-up:active { background:rgba(0,255,136,0.4); }
+.btn-down { background:rgba(255,51,102,0.15); border:2px solid var(--color-down); color:var(--color-down); }
+.btn-down:active { background:rgba(255,51,102,0.4); }
+
+.mult-display {
+  font-size:0.8em; color:var(--color-gold); font-weight:bold; text-align:center;
+  min-width:50px; text-shadow:0 0 6px rgba(255,215,0,0.3);
+}
+
+/* === PANTALLAS === */
+.pantalla {
+  position:fixed; inset:0; z-index:100;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  background:rgba(10,10,26,0.85); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px);
+  padding:20px; text-align:center;
+}
+.pantalla.oculta { display:none; }
+
+.titulo-juego {
+  font-size:clamp(2em,10vw,4em); font-weight:bold;
+  background:linear-gradient(135deg,var(--color-up),var(--color-gold),var(--color-accent));
+  background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; animation:tituloGradient 3s ease infinite;
+  text-shadow:0 0 30px rgba(124,58,237,0.3);
+}
+@keyframes tituloGradient { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+
+.subtitulo { font-size:clamp(0.9em,4vw,1.2em); color:var(--color-muted); }
+
+.icono-start {
+  font-size:clamp(3em,15vw,5em); animation:iconoPulse 2s ease-in-out infinite;
+  cursor:pointer;
+}
+@keyframes iconoPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.15);opacity:1} }
+
+.btn-start {
+  padding:14px 40px; font-size:1.2em; font-weight:bold; border:none; border-radius:30px;
+  background:linear-gradient(135deg,var(--color-accent),var(--color-up));
+  color:white; cursor:pointer; transition:all 0.2s;
+  box-shadow:0 4px 20px rgba(124,58,237,0.4);
+}
+.btn-start:active { transform:scale(0.95); }
+
+.game-over-stats {
+  display:flex; flex-direction:column; gap:8px; font-size:1.1em;
+}
+.game-over-stats .stat { display:flex; justify-content:space-between; gap:20px; }
+.game-over-stats .stat .v { color:var(--color-gold); font-weight:bold; }
+
+/* === SHOP MODAL === */
+.modal-overlay {
+  position:fixed; inset:0; z-index:110;
+  background:rgba(10,10,26,0.9); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  padding:20px; overflow-y:auto;
+}
+.modal-overlay.oculta { display:none; }
+.modal-titulo { font-size:clamp(1.5em,7vw,2.5em); font-weight:bold; color:var(--color-gold); text-shadow:0 0 15px rgba(255,215,0,0.3); }
+.modal-close {
+  position:absolute; top:15px; right:15px; width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center; font-size:1.3em; cursor:pointer;
+  border-radius:50%; background:rgba(255,51,102,0.15); border:1px solid rgba(255,51,102,0.3);
+}
+.upgrade-list { display:flex; flex-direction:column; gap:8px; width:100%; max-width:400px; }
+.upgrade-item {
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  background:rgba(18,18,42,0.6); border-radius:10px; border:1px solid rgba(124,58,237,0.2);
+  cursor:pointer; transition:all 0.15s;
+}
+.upgrade-item:active { transform:scale(0.98); }
+.upgrade-item.comprado { opacity:0.5; border-color:rgba(0,255,136,0.3); }
+.upgrade-item.no-affordable { opacity:0.4; }
+.upgrade-icon { font-size:1.8em; flex-shrink:0; }
+.upgrade-info { flex:1; text-align:left; }
+.upgrade-info .nombre { font-size:0.9em; font-weight:bold; }
+.upgrade-info .desc { font-size:0.7em; color:var(--color-muted); }
+.upgrade-precio { font-size:0.85em; color:var(--color-gold); font-weight:bold; flex-shrink:0; }
+.upgrade-precio.comprado { color:var(--color-up); }
+
+/* === ACHIEVEMENT POPUP === */
+.achievement-popup {
+  position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-100px);
+  z-index:105; padding:10px 20px; border-radius:12px;
+  background:rgba(18,18,42,0.9); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--color-gold); box-shadow:0 4px 20px rgba(255,215,0,0.3);
+  display:flex; align-items:center; gap:10px; opacity:0;
+  transition:transform 0.4s ease, opacity 0.4s ease; pointer-events:none;
+}
+.achievement-popup.show { transform:translateX(-50%) translateY(0); opacity:1; }
+.achievement-popup .icon { font-size:1.8em; }
+.achievement-popup .text { text-align:left; }
+.achievement-popup .text .title { font-size:0.7em; color:var(--color-gold); text-transform:uppercase; letter-spacing:1px; }
+.achievement-popup .text .name { font-size:0.95em; font-weight:bold; }
+
+/* === LEADERBOARD === */
+.leaderboard-list { display:flex; flex-direction:column; gap:6px; width:100%; max-width:350px; }
+.leaderboard-row {
+  display:flex; justify-content:space-between; align-items:center; padding:8px 12px;
+  background:rgba(18,18,42,0.5); border-radius:8px; border:1px solid rgba(124,58,237,0.15);
+}
+.leaderboard-row .pos { font-size:0.9em; color:var(--color-muted); width:30px; }
+.leaderboard-row .score { font-size:0.9em; color:var(--color-gold); font-weight:bold; }
+.leaderboard-row .nivel { font-size:0.75em; color:var(--color-accent); }
+
+/* === INSURANCE BUTTON === */
+.btn-insurance {
+  padding:6px 12px; font-size:0.75em; font-weight:bold; border:none; border-radius:8px;
+  background:rgba(0,150,255,0.15); border:1px solid rgba(0,150,255,0.3); color:#0096ff;
+  cursor:pointer; transition:all 0.15s; display:none;
+}
+.btn-insurance:active { transform:scale(0.95); }
+.btn-insurance.show { display:inline-block; }
+
+/* === DAILY CHALLENGE BUTTON === */
+.btn-daily {
+  padding:8px 16px; font-size:0.85em; font-weight:bold; border:none; border-radius:20px;
+  background:linear-gradient(135deg,var(--color-accent),#0096ff); color:white;
+  cursor:pointer; transition:all 0.15s;
+  box-shadow:0 2px 10px rgba(124,58,237,0.3);
+}
+.btn-daily:active { transform:scale(0.95); }
+.btn-daily.done { opacity:0.4; cursor:default; }
+
+/* === LEVEL PROGRESS BAR === */
+.level-progress {
+  width:60px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;
+  margin-top:2px;
+}
+.level-progress-fill {
+  height:100%; background:var(--color-accent); border-radius:2px; transition:width 0.3s;
+}
+
+/* === HUD SHOP BUTTON === */
+.hud-shop {
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  font-size:1.1em; cursor:pointer; border-radius:50%;
+  background:rgba(255,215,0,0.1); transition:background 0.2s; margin-left:4px;
+}
+.hud-shop:active { background:rgba(255,215,0,0.3); }
+
+/* === MODE SELECTOR === */
+.mode-grid {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; max-width:350px;
+}
+.mode-card {
+  padding:14px 10px; border-radius:12px; cursor:pointer; transition:all 0.15s;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  background:rgba(18,18,42,0.6); border:1px solid rgba(124,58,237,0.2);
+}
+.mode-card:active { transform:scale(0.95); }
+.mode-card .icon { font-size:2em; }
+.mode-card .name { font-size:0.85em; font-weight:bold; }
+.mode-card .desc { font-size:0.65em; color:var(--color-muted); text-align:center; }
+.mode-card.classic { border-color:rgba(0,255,136,0.3); }
+.mode-card.colorrush { border-color:rgba(255,51,102,0.3); }
+.mode-card.number { border-color:rgba(255,215,0,0.3); }
+.mode-card.rush { border-color:rgba(124,58,237,0.4); }
+.mode-card.survival { border-color:rgba(255,100,0,0.3); }
+.mode-card.duel { border-color:rgba(0,150,255,0.3); }
+.mode-card.arrow { border-color:rgba(0,255,200,0.3); }
+.mode-card.coin { border-color:rgba(255,215,0,0.3); }
+.mode-card.trend { border-color:rgba(255,100,200,0.3); }
+
+/* === COLOR RUSH ROULETTE === */
+#roulette-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(18,18,42,0.4); border-radius:12px; border:1px solid rgba(124,58,237,0.15);
+  overflow:hidden;
+}
+.roulette-wheel {
+  width:clamp(200px,60vw,280px); height:clamp(200px,60vw,280px);
+  border-radius:50%; position:relative; transition:transform 3s cubic-bezier(0.17,0.67,0.12,0.99);
+  border:4px solid rgba(255,255,255,0.1);
+}
+.roulette-sector {
+  position:absolute; top:0; left:50%; width:50%; height:50%; transform-origin:bottom left;
+}
+.roulette-ball {
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  width:12px; height:12px; border-radius:50%; background:white;
+  box-shadow:0 0 10px white; z-index:5;
+}
+
+/* === NUMBER SLOT MACHINE === */
+#number-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:none; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  background:rgba(18,18,42,0.4); border-radius:12px; border:1px solid rgba(124,58,237,0.15);
+}
+.slot-number {
+  font-size:clamp(3em,15vw,6em); font-weight:bold; color:var(--color-gold);
+  text-shadow:0 0 20px rgba(255,215,0,0.4); transition:transform 0.1s;
+}
+.slot-number.spinning { animation:slotSpin 0.1s linear infinite; }
+@keyframes slotSpin { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
+.slot-range { font-size:0.9em; color:var(--color-muted); }
+
+/* === ARROW FLOW === */
+#arrow-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  background:rgba(18,18,42,0.4); border-radius:12px; border:1px solid rgba(124,58,237,0.15);
+  overflow:hidden;
+}
+.arrow-flow-display {
+  width:100%; flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+}
+.arrow-item {
+  position:absolute; font-size:clamp(2em,10vw,4em); font-weight:bold;
+  opacity:0; transform:scale(0.5); transition:all 0.2s ease;
+}
+.arrow-item.show { opacity:1; transform:scale(1); }
+.arrow-item.fade { opacity:0.3; transform:scale(0.8); }
+.arrow-item.up { color:var(--color-up); text-shadow:0 0 15px rgba(0,255,136,0.5); }
+.arrow-item.down { color:var(--color-down); text-shadow:0 0 15px rgba(255,51,102,0.5); }
+.arrow-item.left, .arrow-item.right { color:var(--color-muted); text-shadow:0 0 10px rgba(136,136,170,0.3); }
+.arrow-next-hint { font-size:0.85em; color:var(--color-muted); text-align:center; padding-bottom:8px; }
+.arrow-speed-bar { width:80%; height:4px; background:rgba(124,58,237,0.2); border-radius:2px; overflow:hidden; }
+.arrow-speed-fill { height:100%; background:var(--color-accent); transition:width 0.3s; }
+
+/* === COIN FLIP RUSH === */
+#coin-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(18,18,42,0.4); border-radius:12px; border:1px solid rgba(124,58,237,0.15);
+  perspective:600px;
+}
+.coin-3d {
+  width:clamp(120px,35vw,180px); height:clamp(120px,35vw,180px);
+  position:relative; transform-style:preserve-3d;
+  transition:transform 0s;
+}
+.coin-face {
+  position:absolute; inset:0; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:clamp(3em,12vw,5em); font-weight:bold;
+  backface-visibility:hidden;
+}
+.coin-face.heads { background:radial-gradient(circle at 35% 35%,#ffd700,#b8860b); color:#1a1a2e; box-shadow:0 0 30px rgba(255,215,0,0.4); }
+.coin-face.tails { background:radial-gradient(circle at 35% 35%,#c0c0c0,#808080); color:#1a1a2e; box-shadow:0 0 30px rgba(192,192,192,0.4); transform:rotateY(180deg); }
+.coin-3d.flipping { animation:coinFlip 2.5s ease-out; }
+@keyframes coinFlip {
+  0% { transform:rotateY(0deg) rotateX(0deg) scale(1); }
+  50% { transform:rotateY(900deg) rotateX(20deg) scale(1.15); }
+  100% { transform:rotateY(1800deg) rotateX(0deg) scale(1); }
+}
+.coin-3d.result-heads { transform:rotateY(0deg); }
+.coin-3d.result-tails { transform:rotateY(180deg); }
+
+/* === TREND HUNTER === */
+#trend-area {
+  position:fixed; top:70px; bottom:140px; left:12px; right:12px; z-index:10;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(18,18,42,0.4); border-radius:12px; border:1px solid rgba(124,58,237,0.15);
+}
+#trendCanvas { width:100%; height:100%; border-radius:12px; }
+.trend-marker {
+  position:absolute; width:10px; height:10px; border-radius:50%;
+  background:var(--color-accent); box-shadow:0 0 10px var(--color-accent);
+  z-index:12; transition:left 0.1s, top 0.1s;
+}
+
+/* === RUSH TIMER === */
+.rush-timer {
+  position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:55;
+  font-size:clamp(1.5em,7vw,2.5em); font-weight:bold; color:var(--color-down);
+  text-shadow:0 0 10px rgba(255,51,102,0.4); display:none;
+}
+.rush-timer.show { display:block; }
+.rush-timer.urgent { animation:timerPulse 0.5s ease-in-out infinite; }
+@keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* === DUEL HUD === */
+.duel-hud {
+  position:fixed; top:60px; left:12px; right:12px; z-index:55;
+  display:none; justify-content:space-between; align-items:center;
+  font-size:0.85em;
+}
+.duel-hud.show { display:flex; }
+.duel-side { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.duel-side .name { font-weight:bold; }
+.duel-side .score { font-size:1.3em; color:var(--color-gold); }
+.duel-vs { font-size:1.2em; font-weight:bold; color:var(--color-accent); }
+
+/* === SURVIVAL RONDA COUNTER === */
+.survival-info {
+  position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:55;
+  font-size:0.9em; color:var(--color-down); display:none; font-weight:bold;
+}
+.survival-info.show { display:block; }
+
+/* === RESPONSIVE === */
+@media (max-height:500px) {
+  #chart-area { top:60px; bottom:120px; }
+  .hud-bottom { padding:6px 12px; }
+  .btn-prediccion { padding:8px 6px; font-size:1.1em; }
+}
+
+/* === LOADING SCREEN === */
+#loadingScreen {
+  position:fixed; inset:0; z-index:200; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:20px;
+  background:var(--color-bg); transition:opacity 0.5s;
+}
+#loadingScreen.hide { opacity:0; pointer-events:none; }
+.loading-coin {
+  font-size:3em; animation:loadingSpin 1.5s ease-in-out infinite;
+}
+@keyframes loadingSpin {
+  0%{transform:rotateY(0deg) scale(1)}
+  50%{transform:rotateY(180deg) scale(1.2)}
+  100%{transform:rotateY(360deg) scale(1)}
+}
+.loading-text {
+  font-size:1.2em; font-weight:bold;
+  background:linear-gradient(135deg,var(--color-up),var(--color-gold),var(--color-accent));
+  background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; animation:tituloGradient 2s ease infinite;
+}
+.loading-bar {
+  width:200px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;
+}
+.loading-bar-fill {
+  height:100%; width:0%; background:linear-gradient(90deg,var(--color-up),var(--color-gold));
+  border-radius:2px; animation:loadingFill 1.5s ease forwards;
+}
+@keyframes loadingFill { 0%{width:0%} 100%{width:100%} }
+
+/* === TUTORIAL === */
+.tutorial-overlay {
+  position:fixed; inset:0; z-index:120; pointer-events:none;
+}
+.tutorial-tooltip {
+  position:absolute; padding:12px 16px; border-radius:12px;
+  background:rgba(18,18,42,0.95); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--color-accent); box-shadow:0 4px 20px rgba(124,58,237,0.4);
+  font-size:0.9em; max-width:280px; pointer-events:auto;
+  display:flex; flex-direction:column; gap:8px;
+  animation:tooltipAppear 0.4s ease;
+}
+@keyframes tooltipAppear { 0%{opacity:0;transform:scale(0.8)} 100%{opacity:1;transform:scale(1)} }
+.tutorial-tooltip .step { font-size:0.7em; color:var(--color-accent); text-transform:uppercase; letter-spacing:1px; }
+.tutorial-tooltip .text { line-height:1.4; }
+.tutorial-tooltip .btn-next {
+  align-self:flex-end; padding:6px 16px; border:none; border-radius:20px;
+  background:var(--color-accent); color:white; font-size:0.8em; cursor:pointer;
+}
+.tutorial-tooltip .btn-next:active { transform:scale(0.95); }
+.tutorial-highlight {
+  position:absolute; border:2px solid var(--color-gold); border-radius:12px;
+  box-shadow:0 0 20px rgba(255,215,0,0.4); pointer-events:none;
+  animation:highlightPulse 1.5s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.4)} 50%{box-shadow:0 0 40px rgba(255,215,0,0.7)} }
+
+/* === THEME SELECTOR === */
+.theme-selector {
+  display:flex; gap:8px; justify-content:center; margin-top:8px;
+}
+.theme-btn {
+  width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,0.2);
+  cursor:pointer; transition:all 0.2s;
+}
+.theme-btn:active { transform:scale(0.9); }
+.theme-btn.selected { border-color:var(--color-gold); box-shadow:0 0 10px rgba(255,215,0,0.4); }
+.theme-btn.dark { background:linear-gradient(135deg,#0a0a1a,#7c3aed); }
+.theme-btn.neon { background:linear-gradient(135deg,#0a0011,#ff00aa); }
+.theme-btn.pastel { background:linear-gradient(135deg,#1a1a2e,#bb88ff); }
+.theme-btn.retro { background:linear-gradient(135deg,#1a0a00,#ff6600); }
+
+/* === SCREEN TRANSITIONS === */
+.pantalla { animation:screenFadeIn 0.4s ease; }
+@keyframes screenFadeIn { 0%{opacity:0;transform:scale(0.95)} 100%{opacity:1;transform:scale(1)} }
+
+/* === FRENZY MODE VISUAL === */
+#fondo.frenzy-bg { animation:gradientFondo 5s ease infinite; filter:hue-rotate(20deg) brightness(1.3); }
+.aurora.frenzy-aurora { opacity:0.4 !important; animation-duration:10s !important; }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen">
+  <div class="loading-coin">🪙</div>
+  <div class="loading-text">JardPredict</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- FONDO -->
+<div id="fondo"></div>
+<div class="aurora aurora-1"></div>
+<div class="aurora aurora-2"></div>
+<div class="aurora aurora-3"></div>
+<div id="estrellas"></div>
+
+<!-- EFFECTS -->
+<div id="flash-overlay"></div>
+<div id="vignette"></div>
+
+<!-- HUD TOP -->
+<div class="hud-top" id="hudTop" style="display:none;">
+  <div class="hud-saldo">
+    <span class="label">Saldo</span>
+    <span class="valor" id="saldoDisplay">🪙 100</span>
+  </div>
+  <div class="hud-center">
+    <span class="hud-nivel" id="nivelDisplay">Nivel 1</span>
+    <span class="hud-racha-num" id="rachaDisplay">🔥 0</span>
+  </div>
+  <div style="display:flex; gap:4px;">
+    <div class="hud-shop" id="btnShop">🛒</div>
+    <div class="hud-shop" id="btnSettings" style="background:rgba(0,150,255,0.1);">⚙️</div>
+    <div class="hud-sound" id="soundToggle">🔊</div>
+  </div>
+</div>
+
+<!-- STREAK BAR -->
+<div class="streak-bar-container" id="streakBarContainer" style="display:none;">
+  <div class="streak-bar-fill" id="streakBarFill"></div>
+</div>
+
+<!-- CHART AREA -->
+<div id="chart-area" style="display:none;"></div>
+
+<!-- HUD BOTTOM -->
+<div class="hud-bottom" id="hudBottom" style="display:none;">
+  <div class="apuesta-row">
+    <button class="btn-apuesta" data-apuesta="10">🪙10</button>
+    <button class="btn-apuesta" data-apuesta="50">🪙50</button>
+    <button class="btn-apuesta" data-apuesta="100">🪙100</button>
+    <button class="btn-apuesta allin" data-apuesta="allin">ALL IN</button>
+  </div>
+  <div class="prediccion-row">
+    <button class="btn-prediccion btn-up" id="btnUp" disabled>↑<span class="label">Sube</span></button>
+    <div class="mult-display" id="multDisplay">x1.5</div>
+    <button class="btn-prediccion btn-down" id="btnDown" disabled>↓<span class="label">Baja</span></button>
+  </div>
+</div>
+
+<!-- COMBO DISPLAY -->
+<div class="combo-display" id="comboDisplay"></div>
+
+<!-- PANTALLA INICIO -->
+<div class="pantalla" id="pantallaInicio">
+  <div class="titulo-juego">JardPredict</div>
+  <div class="subtitulo">Predice. Apuesta. Gana.</div>
+  <div class="icono-start" id="iconoStart">🪙</div>
+  <div class="mode-grid" id="modeGrid">
+    <div class="mode-card classic" data-mode="classic"><div class="icon">📈</div><div class="name">Classic</div><div class="desc">Crypto Pulse</div></div>
+    <div class="mode-card colorrush" data-mode="colorrush"><div class="icon">🎨</div><div class="name">Color Rush</div><div class="desc">Ruleta de colores</div></div>
+    <div class="mode-card number" data-mode="number"><div class="icon">🔢</div><div class="name">Number</div><div class="desc">Mayor o menor</div></div>
+    <div class="mode-card rush" data-mode="rush"><div class="icon">⚡</div><div class="name">Rush</div><div class="desc">60 segundos</div></div>
+    <div class="mode-card survival" data-mode="survival"><div class="icon">🛡️</div><div class="name">Survival</div><div class="desc">Sin free money</div></div>
+    <div class="mode-card duel" data-mode="duel"><div class="icon">⚔️</div><div class="name">Duel</div><div class="desc">vs IA</div></div>
+    <div class="mode-card arrow" data-mode="arrow"><div class="icon">➡️</div><div class="name">Arrow Flow</div><div class="desc">Velocidad creciente</div></div>
+    <div class="mode-card coin" data-mode="coin"><div class="icon">🪙</div><div class="name">Coin Flip</div><div class="desc">Cara o cruz 3D</div></div>
+    <div class="mode-card trend" data-mode="trend"><div class="icon">📊</div><div class="name">Trend Hunter</div><div class="desc">Línea en tiempo real</div></div>
+  </div>
+  <button class="btn-daily" id="btnDaily">🎯 Daily Challenge</button>
+  <button class="btn-daily" id="btnLeaderboard" style="background:linear-gradient(135deg,var(--color-gold),var(--color-accent));">🏆 Leaderboard</button>
+  <div class="theme-selector" id="themeSelector">
+    <div class="theme-btn dark selected" data-theme="dark"></div>
+    <div class="theme-btn neon" data-theme="neon"></div>
+    <div class="theme-btn pastel" data-theme="pastel"></div>
+    <div class="theme-btn retro" data-theme="retro"></div>
+  </div>
+</div>
+
+<!-- PANTALLA GAME OVER -->
+<div class="pantalla oculta" id="pantallaGameOver">
+  <div class="titulo-juego" style="font-size:clamp(1.5em,8vw,3em);">Game Over</div>
+  <div class="game-over-stats" id="gameOverStats"></div>
+  <button class="btn-start" id="btnRestart">JUGAR DE NUEVO</button>
+</div>
+
+<!-- SHOP MODAL -->
+<div class="modal-overlay oculta" id="shopModal">
+  <div class="modal-close" id="shopClose">✕</div>
+  <div class="modal-titulo">🛒 Tienda de Upgrades</div>
+  <div style="font-size:0.85em; color:var(--color-muted);">Saldo: <span id="shopSaldo" style="color:var(--color-gold);font-weight:bold;">🪙 0</span></div>
+  <div class="upgrade-list" id="upgradeList"></div>
+</div>
+
+<!-- LEADERBOARD MODAL -->
+<div class="modal-overlay oculta" id="leaderboardModal">
+  <div class="modal-close" id="leaderboardClose">✕</div>
+  <div class="modal-titulo">🏆 Leaderboard</div>
+  <div class="leaderboard-list" id="leaderboardList"></div>
+</div>
+
+<!-- ACHIEVEMENT POPUP -->
+<div class="achievement-popup" id="achievementPopup">
+  <div class="icon" id="achIcon">🏆</div>
+  <div class="text"><div class="title">Achievement</div><div class="name" id="achName"></div></div>
+</div>
+
+<!-- INSURANCE BUTTON -->
+<button class="btn-insurance" id="btnInsurance">🛡️ Seguro</button>
+
+<!-- TUTORIAL OVERLAY -->
+<div class="tutorial-overlay" id="tutorialOverlay" style="display:none;"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay oculta" id="settingsModal">
+  <div class="modal-close" id="settingsClose">✕</div>
+  <div class="modal-titulo">⚙️ Settings</div>
+  <div style="display:flex;flex-direction:column;gap:16px;align-items:center;">
+    <div>
+      <div style="font-size:0.85em;color:var(--color-muted);margin-bottom:8px;">Tema visual</div>
+      <div class="theme-selector" id="themeSelectorSettings">
+        <div class="theme-btn dark" data-theme="dark"></div>
+        <div class="theme-btn neon" data-theme="neon"></div>
+        <div class="theme-btn pastel" data-theme="pastel"></div>
+        <div class="theme-btn retro" data-theme="retro"></div>
+      </div>
+    </div>
+    <div style="font-size:0.8em;color:var(--color-muted);text-align:center;line-height:1.6;">
+      <div>⌨️ Atajos: ↑/↓ predecir · 1/2/3 apostar · Enter confirmar · ESC cerrar</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODE AREAS -->
+<div id="roulette-area"><div class="roulette-wheel" id="rouletteWheel"></div></div>
+<div id="number-area"><div class="slot-number" id="slotNumber">?</div><div class="slot-range" id="slotRange">Rango: 1-100</div></div>
+
+<!-- MODE HUDS -->
+<div class="rush-timer" id="rushTimer">60s</div>
+<div class="duel-hud" id="duelHud">
+  <div class="duel-side"><div class="name">Tú</div><div class="score" id="duelPlayerScore">0</div></div>
+  <div class="duel-vs">VS</div>
+  <div class="duel-side"><div class="name" id="duelIAName">IA</div><div class="score" id="duelIAScore">0</div></div>
+</div>
+<div class="survival-info" id="survivalInfo">Ronda 1 · Apuesta mín: 10</div>
+
+<!-- ARROW FLOW AREA -->
+<div id="arrow-area">
+  <div class="arrow-flow-display" id="arrowDisplay"></div>
+  <div class="arrow-next-hint" id="arrowHint">Predice: ¿Próxima flecha ↑ o ↓?</div>
+  <div class="arrow-speed-bar"><div class="arrow-speed-fill" id="arrowSpeedFill" style="width:10%;"></div></div>
+</div>
+
+<!-- COIN FLIP AREA -->
+<div id="coin-area">
+  <div class="coin-3d" id="coin3d">
+    <div class="coin-face heads">🪙</div>
+    <div class="coin-face tails">⚡</div>
+  </div>
+</div>
+
+<!-- TREND HUNTER AREA -->
+<div id="trend-area">
+  <canvas id="trendCanvas"></canvas>
+  <div class="trend-marker" id="trendMarker" style="display:none;"></div>
+</div>
+
+<script>
+// ====== ESTADO DEL JUEGO ======
+let state = {
+  saldo: 100,
+  racha: 0,
+  rachaMax: 0,
+  apuestaSeleccionada: 10,
+  prediccion: null,
+  rondasGanadas: 0,
+  rondasPerdidas: 0,
+  totalRondas: 0,
+  soundOn: true,
+  jugando: false,
+  esperandoResultado: false,
+  velas: [],
+  nivel: 1,
+  expTotal: 0,
+  upgrades: { luckyCharm:false, multiplierBoost:false, insuranceDiscount:false, streakSaver:false, autoCollect:false, maxBetUnlock:false, doublePrediction:false },
+  achievements: [],
+  insuranceActiva: false,
+  streakSaverUsed: false,
+  dailyChallenge: { fecha:null, completado:false, resultado:null },
+  highScore: 0,
+  modoJuego: 'classic',
+  theme: 'dark',
+  tutorialStep: 0,
+};
+
+const SAVE_KEY = 'jard-predict-save';
+
+// ====== AUDIO ======
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+
+function playTono(freq, dur, type, vol) {
+  if (!state.soundOn || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+
+function playWin() { playTono(523,0.15,'sine',0.1); setTimeout(()=>playTono(659,0.15,'sine',0.1),80); setTimeout(()=>playTono(784,0.2,'sine',0.1),160); }
+function playLoss() { playTono(330,0.2,'sine',0.08); setTimeout(()=>playTono(220,0.3,'sine',0.08),100); }
+function playStreak(n) { playTono(440 + n*60, 0.15, 'triangle', 0.1); }
+function playBet() { playTono(800, 0.08, 'square', 0.06); }
+function playCoin() { playTono(1319, 0.1, 'sine', 0.08); }
+function playLevelUp() { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTono(f,0.15,'sine',0.1),i*80)); }
+function playAllIn() { playTono(1568, 0.2, 'square', 0.08); }
+
+// ====== HAPTICS ======
+function vibrate(pattern) {
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch(e) {} }
+}
+
+// ====== SAVE / LOAD ======
+function guardarEstado() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      saldo: state.saldo, rachaMax: state.rachaMax, rondasGanadas: state.rondasGanadas,
+      rondasPerdidas: state.rondasPerdidas, totalRondas: state.totalRondas,
+      soundOn: state.soundOn, nivel: state.nivel, expTotal: state.expTotal,
+      upgrades: state.upgrades, achievements: state.achievements,
+      dailyChallenge: state.dailyChallenge, highScore: state.highScore,
+      theme: state.theme,
+    }));
+    guardarLeaderboard();
+  } catch(e) {}
+}
+
+function cargarEstado() {
+  try {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      state.saldo = data.saldo ?? 100;
+      state.rachaMax = data.rachaMax ?? 0;
+      state.rondasGanadas = data.rondasGanadas ?? 0;
+      state.rondasPerdidas = data.rondasPerdidas ?? 0;
+      state.totalRondas = data.totalRondas ?? 0;
+      state.soundOn = data.soundOn ?? true;
+      state.nivel = data.nivel ?? 1;
+      state.expTotal = data.expTotal ?? 0;
+      state.upgrades = data.upgrades ?? state.upgrades;
+      state.achievements = data.achievements ?? [];
+      state.dailyChallenge = data.dailyChallenge ?? { fecha:null, completado:false, resultado:null };
+      state.highScore = data.highScore ?? 0;
+      state.theme = data.theme ?? 'dark';
+    }
+  } catch(e) {}
+}
+
+// ====== LEADERBOARD ======
+const LB_KEY = 'jard-predict-leaderboard';
+function guardarLeaderboard() {
+  try {
+    let lb = JSON.parse(localStorage.getItem(LB_KEY) || '[]');
+    const entry = { score: state.expTotal, nivel: state.nivel, rachaMax: state.rachaMax, modo: state.modoJuego, fecha: Date.now() };
+    lb.push(entry);
+    lb.sort((a,b) => b.score - a.score);
+    lb = lb.slice(0, 10);
+    localStorage.setItem(LB_KEY, JSON.stringify(lb));
+  } catch(e) {}
+}
+
+function cargarLeaderboard() {
+  try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function renderLeaderboard() {
+  const lb = cargarLeaderboard();
+  const cont = document.getElementById('leaderboardList');
+  if (lb.length === 0) {
+    cont.innerHTML = '<div style="color:var(--color-muted);text-align:center;padding:20px;">Sin registros aún. ¡Juega para aparecer aquí!</div>';
+    return;
+  }
+  cont.innerHTML = lb.map((e, i) => `
+    <div class="leaderboard-row">
+      <span class="pos">#${i+1}</span>
+      <span class="score">🪙 ${e.score}</span>
+      <span class="nivel">${e.modo||'classic'} Nv${e.nivel} 🔥${e.rachaMax}</span>
+    </div>
+  `).join('');
+}
+
+// ====== UPGRADES ======
+const UPGRADES = [
+  { id:'luckyCharm', icon:'🍀', nombre:'Lucky Charm', desc:'+5% prob critical hit', precio:200 },
+  { id:'multiplierBoost', icon:'⚡', nombre:'Multiplier Boost', desc:'Multiplicador base x1.5 → x2', precio:500 },
+  { id:'insuranceDiscount', icon:'🛡️', nombre:'Insurance Discount', desc:'Seguro cuesta 5% en vez de 10%', precio:300 },
+  { id:'streakSaver', icon:'💾', nombre:'Streak Saver', desc:'Perder no rompe racha 1 vez/sesión', precio:800 },
+  { id:'autoCollect', icon:'♻️', nombre:'Auto-Collect', desc:'10% recuperación automática en pérdida', precio:400 },
+  { id:'maxBetUnlock', icon:'💎', nombre:'Max Bet Unlock', desc:'Apuesta máxima hasta 500', precio:600 },
+  { id:'doublePrediction', icon:'🎲', nombre:'Double Prediction', desc:'2 apuestas simultáneas', precio:1000 },
+];
+
+function renderShop() {
+  const cont = document.getElementById('upgradeList');
+  document.getElementById('shopSaldo').textContent = '🪙 ' + state.saldo;
+  cont.innerHTML = UPGRADES.map(u => {
+    const comprado = state.upgrades[u.id];
+    const affordable = state.saldo >= u.precio;
+    return `
+      <div class="upgrade-item ${comprado?'comprado':''} ${!comprado&&!affordable?'no-affordable':''}" data-upgrade="${u.id}">
+        <div class="upgrade-icon">${u.icon}</div>
+        <div class="upgrade-info">
+          <div class="nombre">${u.nombre}</div>
+          <div class="desc">${u.desc}</div>
+        </div>
+        <div class="upgrade-precio ${comprado?'comprado':''}">${comprado?'✅':'🪙'+u.precio}</div>
+      </div>
+    `;
+  }).join('');
+
+  cont.querySelectorAll('.upgrade-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.upgrade;
+      comprarUpgrade(id);
+    });
+  });
+}
+
+function comprarUpgrade(id) {
+  const u = UPGRADES.find(x => x.id === id);
+  if (!u || state.upgrades[id]) return;
+  if (state.saldo < u.precio) { playLoss(); return; }
+  state.saldo -= u.precio;
+  state.upgrades[id] = true;
+  playCoin(); vibrate([20,30,20,30,40]);
+  mostrarScoreFlotante('-' + u.precio + ' 🪙', 'var(--color-accent)');
+  actualizarHUD(); guardarEstado(); renderShop();
+  checkAchievements();
+}
+
+// ====== ACHIEVEMENTS ======
+const ACHIEVEMENTS = [
+  { id:'firstWin', icon:'🎯', nombre:'First Win', cond:()=>state.rondasGanadas>=1, premio:50 },
+  { id:'hotStreak', icon:'🔥', nombre:'Hot Streak', cond:()=>state.rachaMax>=5, premio:100 },
+  { id:'onFire', icon:'🌟', nombre:'On Fire', cond:()=>state.rachaMax>=10, premio:500 },
+  { id:'highRoller', icon:'💰', nombre:'High Roller', cond:()=>state.apuestaSeleccionada==='allin'||(typeof state.apuestaSeleccionada==='number'&&state.apuestaSeleccionada>=500), premio:200 },
+  { id:'comeback', icon:'💪', nombre:'Comeback', cond:()=>state._comeback===true, premio:300 },
+  { id:'allIn', icon:'🤑', nombre:'All In Win', cond:()=>state._allInWin===true, premio:500 },
+  { id:'centurion', icon:'💯', nombre:'Centurion', cond:()=>state.rondasGanadas>=100, premio:1000 },
+  { id:'perfectDay', icon:'📅', nombre:'Perfect Day', cond:()=>state._dailyPerfect===true, premio:1000 },
+];
+
+function checkAchievements() {
+  ACHIEVEMENTS.forEach(a => {
+    if (!state.achievements.includes(a.id) && a.cond()) {
+      state.achievements.push(a.id);
+      state.saldo += a.premio;
+      mostrarAchievementPopup(a);
+      playLevelUp(); vibrate([50,30,50,30,50,30,100]);
+      guardarEstado(); actualizarHUD();
+    }
+  });
+}
+
+function mostrarAchievementPopup(a) {
+  const el = document.getElementById('achievementPopup');
+  document.getElementById('achIcon').textContent = a.icon;
+  document.getElementById('achName').textContent = a.nombre + ' (+' + a.premio + '🪙)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ====== DAILY CHALLENGE ======
+function getFechaStr() {
+  const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+
+function dailyAvailable() {
+  return state.dailyChallenge.fecha !== getFechaStr();
+}
+
+function iniciarDailyChallenge() {
+  if (!dailyAvailable()) return;
+  state.modoJuego = 'daily';
+  state.dailyChallenge.fecha = getFechaStr();
+  state.dailyChallenge.completado = false;
+  state.dailyChallenge.resultado = null;
+  state.saldo = 100;
+  state.racha = 0;
+  state.esperandoResultado = false;
+  state._dailySeed = getFechaStr();
+  state._dailyRondas = 0;
+  state._dailyAciertos = 0;
+  state._dailyPerfect = false;
+
+  document.getElementById('pantallaInicio').classList.add('oculta');
+  document.getElementById('hudTop').style.display = 'flex';
+  document.getElementById('streakBarContainer').style.display = 'block';
+  document.getElementById('chart-area').style.display = 'flex';
+  document.getElementById('hudBottom').style.display = 'flex';
+
+  initAudio(); initVelas(); actualizarHUD(); seleccionarApuesta(100);
+  vibrate(50);
+}
+
+// ====== INSURANCE ======
+function getInsuranceCost(apuesta) {
+  const pct = state.upgrades.insuranceDiscount ? 0.05 : 0.10;
+  return Math.ceil(apuesta * pct);
+}
+
+function toggleInsurance() {
+  if (state.racha < 5 || state.esperandoResultado) return;
+  const apuesta = getApuestaActual();
+  const cost = getInsuranceCost(apuesta);
+  if (!state.insuranceActiva) {
+    if (state.saldo < cost) return;
+    state.saldo -= cost;
+    state.insuranceActiva = true;
+    playBet(); vibrate(20);
+  } else {
+    state.saldo += cost;
+    state.insuranceActiva = false;
+  }
+  actualizarHUD(); guardarEstado();
+}
+
+// ====== MULTIPLICADOR POR RACHA ======
+function getMultiplicador() {
+  const r = state.racha;
+  let base = 1.5;
+  if (r >= 10) base = 10;
+  else if (r >= 7) base = 5;
+  else if (r >= 5) base = 3;
+  else if (r >= 3) base = 2;
+  if (state.upgrades.multiplierBoost && base === 1.5) base = 2;
+  return base;
+}
+
+function getMultColor() {
+  const r = state.racha;
+  if (r >= 10) return 'var(--color-gold)';
+  if (r >= 7) return 'var(--color-down)';
+  if (r >= 5) return '#ff9800';
+  if (r >= 3) return 'var(--color-gold)';
+  return '#ffffff';
+}
+
+// ====== VELAS / CHART ======
+function generarVela(prevClose) {
+  const open = prevClose;
+  const change = (Math.random() - 0.48) * 40;
+  const close = Math.max(1, open + change);
+  const high = Math.max(open, close) + Math.random() * 15;
+  const low = Math.min(open, close) - Math.random() * 15;
+  return { open, close, high, low, up: close >= open };
+}
+
+function initVelas() {
+  state.velas = [];
+  let prev = 100;
+  for (let i = 0; i < 5; i++) {
+    const v = generarVela(prev);
+    state.velas.push(v);
+    prev = v.close;
+  }
+  renderVelas();
+}
+
+function renderVelas() {
+  const chart = document.getElementById('chart-area');
+  chart.innerHTML = '';
+  const allValues = state.velas.flatMap(v => [v.high, v.low]);
+  const min = Math.min(...allValues) - 5;
+  const max = Math.max(...allValues) + 5;
+  const range = max - min || 1;
+  const chartH = chart.clientHeight - 40;
+
+  state.velas.forEach((v, i) => {
+    const candle = document.createElement('div');
+    candle.className = 'candle';
+    const bodyTop = ((max - Math.max(v.open, v.close)) / range) * chartH;
+    const bodyH = Math.max(4, (Math.abs(v.close - v.open) / range) * chartH);
+    const wickTop = ((max - v.high) / range) * chartH;
+    const wickH = ((v.high - v.low) / range) * chartH;
+
+    const wick = document.createElement('div');
+    wick.className = 'candle-wick ' + (v.up ? 'up' : 'down');
+    wick.style.top = wickTop + 'px';
+    wick.style.height = wickH + 'px';
+
+    const body = document.createElement('div');
+    body.className = 'candle-body ' + (v.up ? 'up' : 'down');
+    body.style.position = 'absolute';
+    body.style.top = bodyTop + 'px';
+    body.style.height = bodyH + 'px';
+
+    if (i === state.velas.length - 1 && state.esperandoResultado) {
+      candle.classList.add('predicting');
+    }
+    if (i === state.velas.length - 1 && v._justResult) {
+      body.classList.add('candle-result');
+      v._justResult = false;
+    }
+
+    candle.appendChild(wick);
+    candle.appendChild(body);
+    chart.appendChild(candle);
+  });
+}
+
+function animarNuevaVela(prediccion) {
+  state.esperandoResultado = true;
+  const prevClose = state.velas[state.velas.length - 1].close;
+
+  // Generar vela con sesgo según predicción (más justo posible, ligero sesgo)
+  const nuevaVela = generarVela(prevClose);
+  state.velas.push(nuevaVela);
+  if (state.velas.length > 6) state.velas.shift();
+  nuevaVela._justResult = true;
+
+  renderVelas();
+
+  // Resolver después de 2.5s
+  setTimeout(() => {
+    if (state.modoJuego === 'classic') {
+      resolverPrediccion(prediccion, nuevaVela);
+    } else {
+      const acierto = (prediccion === 'up' && nuevaVela.up) || (prediccion === 'down' && !nuevaVela.up);
+      const apuesta = getApuestaActual();
+      resolverResultadoModo(acierto, apuesta, prediccion);
+    }
+  }, 2500);
+}
+
+// ====== LÓGICA DE RONDA ======
+function seleccionarApuesta(monto) {
+  if (state.esperandoResultado) return;
+  state.apuestaSeleccionada = monto;
+  document.querySelectorAll('.btn-apuesta').forEach(b => b.classList.remove('selected'));
+  const btn = document.querySelector(`[data-apuesta="${monto}"]`);
+  if (btn) btn.classList.add('selected');
+  playBet();
+  vibrate(20);
+  actualizarPrediccionButtons();
+}
+
+function actualizarPrediccionButtons() {
+  const apuesta = getApuestaActual();
+  const puedeApostar = apuesta > 0 && apuesta <= state.saldo && !state.esperandoResultado;
+  document.getElementById('btnUp').disabled = !puedeApostar;
+  document.getElementById('btnDown').disabled = !puedeApostar;
+}
+
+function getApuestaActual() {
+  if (state.apuestaSeleccionada === 'allin') return state.saldo;
+  return Math.min(state.apuestaSeleccionada, state.saldo);
+}
+
+function predecir(direccion) {
+  if (state.esperandoResultado) return;
+  const apuesta = getApuestaActual();
+  if (apuesta <= 0 || apuesta > state.saldo) return;
+
+  state.prediccion = direccion;
+  state.saldo -= apuesta;
+  state.totalRondas++;
+  actualizarHUD();
+  playBet();
+  vibrate(20);
+
+  document.getElementById('btnUp').disabled = true;
+  document.getElementById('btnDown').disabled = true;
+
+  animarNuevaVela(direccion);
+}
+
+function resolverPrediccion(prediccion, vela) {
+  const acierto = (prediccion === 'up' && vela.up) || (prediccion === 'down' && !vela.up);
+  const apuesta = getApuestaActual();
+
+  if (acierto) {
+    state.racha++;
+    state.rondasGanadas++;
+    let mult = getMultiplicador();
+    // Lucky Charm: +5% chance to double multiplier
+    if (state.upgrades.luckyCharm && Math.random() < 0.05) mult *= 2;
+    const ganancia = Math.floor(apuesta * mult);
+    state.saldo += ganancia;
+    state.expTotal += ganancia;
+
+    // Track all-in win
+    if (state.apuestaSeleccionada === 'allin') state._allInWin = true;
+
+    // Efectos visuales
+    flashOverlay('green');
+    crearParticulas(window.innerWidth/2, window.innerHeight/2, '🎉🪙✨');
+    mostrarScoreFlotante('+' + ganancia + ' 🪙', 'var(--color-up)');
+    mostrarCombo();
+    playWin();
+    playCoin();
+
+    if (state.racha >= 5) {
+      document.body.classList.add('shake');
+      setTimeout(() => document.body.classList.remove('shake'), 400);
+      vibrate([30,20,30,20,50]);
+      if (state.racha >= 10) {
+        flashOverlay('gold');
+        crearConfeti();
+        document.getElementById('vignette').classList.add('frenzy');
+        vibrate([50,30,50,30,80]);
+      }
+    } else {
+      vibrate(30);
+    }
+
+    if (state.racha > state.rachaMax) state.rachaMax = state.racha;
+
+    // Level up check
+    checkLevelUp();
+    checkAchievements();
+  } else {
+    // Streak Saver: prevent racha loss once per session
+    if (state.upgrades.streakSaver && !state.streakSaverUsed) {
+      state.streakSaverUsed = true;
+      mostrarScoreFlotante('💾 Streak Saver!', 'var(--color-accent)');
+    } else {
+      state.racha = 0;
+    }
+
+    state.rondasPerdidas++;
+    flashOverlay('red');
+
+    // Insurance: recover 50% if active
+    let perdida = apuesta;
+    if (state.insuranceActiva) {
+      const recovery = Math.floor(apuesta * 0.5);
+      state.saldo += recovery;
+      perdida = apuesta - recovery;
+      state.insuranceActiva = false;
+      mostrarScoreFlotante('🛡️ +' + recovery + ' 🪙', '#0096ff');
+    }
+
+    // Auto-Collect: 10% recovery
+    if (state.upgrades.autoCollect) {
+      const recovery = Math.floor(apuesta * 0.1);
+      state.saldo += recovery;
+    }
+
+    mostrarScoreFlotante('-' + perdida + ' 🪙', 'var(--color-down)');
+    playLoss();
+    vibrate([50,30,50]);
+    document.getElementById('vignette').classList.remove('frenzy');
+
+    // Bankruptcy protection
+    if (state.saldo <= 0) {
+      state.saldo = 10;
+      state._comeback = true;
+      mostrarScoreFlotante('Free 10 🪙', 'var(--color-gold)');
+      playCoin();
+    }
+
+    checkAchievements();
+  }
+
+  // Daily challenge tracking
+  if (state.modoJuego === 'daily') {
+    state._dailyRondas = (state._dailyRondas || 0) + 1;
+    if (acierto) state._dailyAciertos = (state._dailyAciertos || 0) + 1;
+  }
+
+  state.esperandoResultado = false;
+  state.prediccion = null;
+  actualizarHUD();
+  guardarEstado();
+  actualizarPrediccionButtons();
+}
+
+// ====== NIVELES ======
+function getNivelFromExp(exp) {
+  if (exp >= 5000) return 3;
+  if (exp >= 2000) return 2;
+  return 1;
+}
+
+function checkLevelUp() {
+  const nuevoNivel = getNivelFromExp(state.expTotal);
+  if (nuevoNivel > state.nivel) {
+    state.nivel = nuevoNivel;
+    crearConfeti();
+    playLevelUp();
+    vibrate([50,30,50,30,50,30,100]);
+    mostrarScoreFlotante('NIVEL ' + nuevoNivel + '!', 'var(--color-gold)');
+  }
+}
+
+// ====== EFECTOS VISUALES ======
+function flashOverlay(color) {
+  const el = document.getElementById('flash-overlay');
+  el.className = 'flash-' + color;
+  setTimeout(() => el.className = '', 600);
+}
+
+function crearParticulas(x, y, emojis) {
+  const chars = emojis.split('');
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('div');
+    p.className = 'particula';
+    p.textContent = chars[Math.floor(Math.random() * chars.length)];
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    const angle = (i / 12) * Math.PI * 2;
+    const dist = 60 + Math.random() * 40;
+    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+    p.style.setProperty('--rot', (Math.random() * 360) + 'deg');
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1000);
+  }
+}
+
+function crearConfeti() {
+  const emojis = '🎉🪙✨🎊⭐';
+  for (let i = 0; i < 20; i++) {
+    const c = document.createElement('div');
+    c.className = 'confeti';
+    c.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.top = '-20px';
+    c.style.animationDelay = Math.random() * 0.5 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 2500);
+  }
+}
+
+function mostrarScoreFlotante(texto, color) {
+  const el = document.createElement('div');
+  el.className = 'score-flotante';
+  el.textContent = texto;
+  el.style.color = color;
+  el.style.left = '50%';
+  el.style.top = '40%';
+  el.style.transform = 'translateX(-50%)';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+function mostrarCombo() {
+  if (state.racha < 2) return;
+  const el = document.getElementById('comboDisplay');
+  const mult = getMultiplicador();
+  el.textContent = '🔥 STREAK x' + state.racha + '!';
+  el.style.color = getMultColor();
+  el.classList.remove('activo');
+  void el.offsetWidth;
+  el.classList.add('activo');
+  playStreak(state.racha);
+  setTimeout(() => el.classList.remove('activo'), 1500);
+}
+
+// ====== HUD UPDATE ======
+function actualizarHUD() {
+  document.getElementById('saldoDisplay').textContent = '🪙 ' + state.saldo;
+  document.getElementById('rachaDisplay').textContent = '🔥 ' + state.racha;
+  document.getElementById('nivelDisplay').textContent = 'Nivel ' + state.nivel;
+  document.getElementById('multDisplay').textContent = 'x' + getMultiplicador();
+  document.getElementById('multDisplay').style.color = getMultColor();
+
+  // Streak bar
+  const fill = document.getElementById('streakBarFill');
+  const pct = Math.min(100, (state.racha / 10) * 100);
+  fill.style.width = pct + '%';
+  if (state.racha >= 10) fill.classList.add('full');
+  else fill.classList.remove('full');
+
+  // Insurance button
+  const btnIns = document.getElementById('btnInsurance');
+  if (state.racha >= 5 && !state.esperandoResultado && !state.insuranceActiva) {
+    btnIns.classList.add('show');
+    const cost = getInsuranceCost(getApuestaActual());
+    btnIns.textContent = '🛡️ Seguro 🪙' + cost;
+  } else if (state.insuranceActiva) {
+    btnIns.classList.add('show');
+    btnIns.textContent = '🛡️ Activo';
+  } else {
+    btnIns.classList.remove('show');
+  }
+
+  // Actualizar botones de apuesta
+  document.querySelectorAll('.btn-apuesta').forEach(b => {
+    const val = b.dataset.apuesta;
+    if (val !== 'allin') {
+      const num = parseInt(val);
+      b.disabled = num > state.saldo;
+      b.style.opacity = num > state.saldo ? '0.3' : '1';
+    }
+  });
+}
+
+// ====== INICIO / FIN ======
+function iniciarJuego(modo) {
+  cargarEstado();
+  state.jugando = true;
+  state.racha = 0;
+  state.esperandoResultado = false;
+  state.insuranceActiva = false;
+  state.streakSaverUsed = false;
+  state.modoJuego = modo || 'classic';
+
+  document.getElementById('pantallaInicio').classList.add('oculta');
+  document.getElementById('pantallaGameOver').classList.add('oculta');
+  document.getElementById('hudTop').style.display = 'flex';
+  document.getElementById('streakBarContainer').style.display = 'block';
+  document.getElementById('hudBottom').style.display = 'flex';
+
+  // Hide all mode-specific areas
+  document.getElementById('chart-area').style.display = 'none';
+  document.getElementById('roulette-area').style.display = 'none';
+  document.getElementById('number-area').style.display = 'none';
+  document.getElementById('rushTimer').classList.remove('show','urgent');
+  document.getElementById('duelHud').classList.remove('show');
+  document.getElementById('survivalInfo').classList.remove('show');
+  document.getElementById('arrow-area').style.display = 'none';
+  document.getElementById('coin-area').style.display = 'none';
+  document.getElementById('trend-area').style.display = 'none';
+
+  if (state.modoJuego === 'classic') {
+    document.getElementById('chart-area').style.display = 'flex';
+    initVelas();
+    seleccionarApuesta(10);
+  } else if (state.modoJuego === 'colorrush') {
+    document.getElementById('roulette-area').style.display = 'flex';
+    initRoulette();
+    seleccionarApuesta(10);
+  } else if (state.modoJuego === 'number') {
+    document.getElementById('number-area').style.display = 'flex';
+    initSlotMachine();
+    seleccionarApuesta(10);
+  } else if (state.modoJuego === 'rush') {
+    document.getElementById('chart-area').style.display = 'flex';
+    document.getElementById('rushTimer').classList.add('show');
+    state.saldo = Math.max(state.saldo, 50);
+    state._rushTimeLeft = 60;
+    state._rushStart = Date.now();
+    initVelas();
+    seleccionarApuesta(50);
+    startRushTimer();
+  } else if (state.modoJuego === 'survival') {
+    document.getElementById('chart-area').style.display = 'flex';
+    document.getElementById('survivalInfo').classList.add('show');
+    state.saldo = 100;
+    state._survivalRound = 1;
+    state._survivalMinBet = 10;
+    initVelas();
+    seleccionarApuesta(10);
+    updateSurvivalInfo();
+  } else if (state.modoJuego === 'duel') {
+    document.getElementById('chart-area').style.display = 'flex';
+    document.getElementById('duelHud').classList.add('show');
+    state.saldo = Math.max(state.saldo, 200);
+    state._duelRound = 0;
+    state._duelMaxRounds = 10;
+    state._duelPlayerScore = 0;
+    state._duelIAScore = 0;
+    state._duelIAName = ['Conservadora','Agresiva','Caótica'][Math.floor(Math.random()*3)];
+    state._duelIAPersonality = state._duelIAName;
+    document.getElementById('duelIAName').textContent = 'IA ' + state._duelIAName;
+    document.getElementById('duelPlayerScore').textContent = '0';
+    document.getElementById('duelIAScore').textContent = '0';
+    initVelas();
+    seleccionarApuesta(200);
+  } else if (state.modoJuego === 'arrow') {
+    document.getElementById('arrow-area').style.display = 'flex';
+    state._arrowRound = 0;
+    state._arrowSpeed = 1500;
+    state._arrowInterval = null;
+    state._arrowHistory = [];
+    initArrowFlow();
+    seleccionarApuesta(10);
+  } else if (state.modoJuego === 'coin') {
+    document.getElementById('coin-area').style.display = 'flex';
+    initCoinFlip();
+    seleccionarApuesta(10);
+  } else if (state.modoJuego === 'trend') {
+    document.getElementById('trend-area').style.display = 'flex';
+    initTrendHunter();
+    seleccionarApuesta(10);
+  }
+
+  actualizarHUD();
+  vibrate(50);
+  startDynamicMusic();
+
+  // Tutorial on first play
+  if (state.totalRondas === 0 && state.modoJuego === 'classic') {
+    setTimeout(() => showTutorialStep(0), 500);
+  }
+}
+
+function gameOver() {
+  state.jugando = false;
+  stopDynamicMusic();
+  if (state._arrowInterval) { clearInterval(state._arrowInterval); state._arrowInterval = null; }
+  if (state.expTotal > state.highScore) state.highScore = state.expTotal;
+  guardarEstado();
+
+  document.getElementById('hudTop').style.display = 'none';
+  document.getElementById('streakBarContainer').style.display = 'none';
+  document.getElementById('chart-area').style.display = 'none';
+  document.getElementById('hudBottom').style.display = 'none';
+  document.getElementById('btnInsurance').classList.remove('show');
+  document.getElementById('roulette-area').style.display = 'none';
+  document.getElementById('number-area').style.display = 'none';
+  document.getElementById('rushTimer').classList.remove('show','urgent');
+  document.getElementById('duelHud').classList.remove('show');
+  document.getElementById('survivalInfo').classList.remove('show');
+  document.getElementById('arrow-area').style.display = 'none';
+  document.getElementById('coin-area').style.display = 'none';
+  document.getElementById('trend-area').style.display = 'none';
+
+  // Duel result
+  let duelResult = '';
+  if (state.modoJuego === 'duel') {
+    if (state._duelPlayerScore > state._duelIAScore) { duelResult = '¡Victoria! '; state.saldo += 400; }
+    else if (state._duelPlayerScore < state._duelIAScore) duelResult = 'Derrota ';
+    else duelResult = 'Empate ';
+  }
+
+  const stats = document.getElementById('gameOverStats');
+  stats.innerHTML = `
+    <div class="stat"><span>Modo:</span><span class="v">${state.modoJuego}</span></div>
+    ${duelResult ? `<div class="stat"><span>Duel:</span><span class="v">${duelResult}${state._duelPlayerScore}-${state._duelIAScore}</span></div>` : ''}
+    <div class="stat"><span>Rondas jugadas:</span><span class="v">${state.totalRondas}</span></div>
+    <div class="stat"><span>Rondas ganadas:</span><span class="v">${state.rondasGanadas}</span></div>
+    <div class="stat"><span>Racha máxima:</span><span class="v">🔥 ${state.rachaMax}</span></div>
+    <div class="stat"><span>Nivel alcanzado:</span><span class="v">${state.nivel}</span></div>
+    <div class="stat"><span>Saldo final:</span><span class="v">🪙 ${state.saldo}</span></div>
+    <div class="stat"><span>High Score:</span><span class="v">🪙 ${state.highScore}</span></div>
+    <div class="stat"><span>Achievements:</span><span class="v">🏆 ${state.achievements.length}/${ACHIEVEMENTS.length}</span></div>
+  `;
+  // Daily challenge result tracking
+  if (state.modoJuego === 'daily') {
+    state.dailyChallenge.completado = true;
+    const totalRondas = state._dailyRondas || state.totalRondas;
+    const aciertos = state._dailyAciertos || state.rondasGanadas;
+    state.dailyChallenge.resultado = aciertos + '/' + totalRondas;
+    if (totalRondas > 0 && aciertos === totalRondas) {
+      state._dailyPerfect = true;
+    }
+    checkAchievements();
+  }
+
+  document.getElementById('pantallaGameOver').classList.remove('oculta');
+}
+
+// ====== COLOR RUSH ======
+function initRoulette() {
+  const wheel = document.getElementById('rouletteWheel');
+  wheel.innerHTML = '';
+  wheel.style.transform = 'rotate(0deg)';
+  // 8 sectors: 4 red, 4 blue alternating
+  const colors = ['#ff3366','#0096ff','#ff3366','#0096ff','#ff3366','#0096ff','#ff3366','#0096ff'];
+  colors.forEach((c, i) => {
+    const sector = document.createElement('div');
+    sector.className = 'roulette-sector';
+    sector.style.background = c;
+    sector.style.transform = `rotate(${i * 45}deg)`;
+    sector.style.clipPath = 'polygon(0 0, 100% 0, 50% 100%)';
+    sector.style.opacity = '0.7';
+    wheel.appendChild(sector);
+  });
+  const ball = document.createElement('div');
+  ball.className = 'roulette-ball';
+  wheel.appendChild(ball);
+}
+
+function spinRoulette(prediccion) {
+  const wheel = document.getElementById('rouletteWheel');
+  const targetSector = Math.floor(Math.random() * 8);
+  const targetColor = targetSector % 2 === 0 ? 'red' : 'blue';
+  const finalRotation = 360 * 5 + (targetSector * 45) + 22.5;
+  wheel.style.transform = `rotate(${finalRotation}deg)`;
+
+  setTimeout(() => {
+    const acierto = prediccion === targetColor;
+    const apuesta = getApuestaActual();
+    resolverResultadoModo(acierto, apuesta, prediccion);
+  }, 3000);
+}
+
+// ====== NUMBER UP/DOWN ======
+function initSlotMachine() {
+  document.getElementById('slotNumber').textContent = '?';
+  document.getElementById('slotNumber').classList.remove('spinning');
+  const range = 50 + (state.nivel - 1) * 25;
+  document.getElementById('slotRange').textContent = `Rango: 1-${range}`;
+  state._slotRange = range;
+  state._slotCurrent = Math.floor(Math.random() * range) + 1;
+  document.getElementById('slotNumber').textContent = state._slotCurrent;
+}
+
+function spinSlotMachine(prediccion) {
+  const el = document.getElementById('slotNumber');
+  el.classList.add('spinning');
+  const range = state._slotRange || 100;
+
+  const spinInterval = setInterval(() => {
+    el.textContent = Math.floor(Math.random() * range) + 1;
+  }, 80);
+
+  setTimeout(() => {
+    clearInterval(spinInterval);
+    el.classList.remove('spinning');
+    const newNum = Math.floor(Math.random() * range) + 1;
+    el.textContent = newNum;
+    const acierto = (prediccion === 'up' && newNum > state._slotCurrent) || (prediccion === 'down' && newNum < state._slotCurrent);
+    const apuesta = getApuestaActual();
+    state._slotCurrent = newNum;
+    resolverResultadoModo(acierto, apuesta, prediccion);
+  }, 2000);
+}
+
+// ====== RUSH MODE ======
+function startRushTimer() {
+  state._rushInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state._rushStart) / 1000);
+    const left = Math.max(0, 60 - elapsed);
+    state._rushTimeLeft = left;
+    const timer = document.getElementById('rushTimer');
+    timer.textContent = left + 's';
+    if (left <= 10) timer.classList.add('urgent');
+    if (left <= 0) {
+      clearInterval(state._rushInterval);
+      gameOver();
+    }
+  }, 100);
+}
+
+// ====== SURVIVAL MODE ======
+function updateSurvivalInfo() {
+  const minBet = 10 + Math.floor(state._survivalRound / 5) * 20;
+  state._survivalMinBet = minBet;
+  document.getElementById('survivalInfo').textContent = `Ronda ${state._survivalRound} · Apuesta mín: ${minBet}`;
+}
+
+// ====== ARROW FLOW ======
+const ARROW_DIRECTIONS = ['up','down','left','right'];
+function initArrowFlow() {
+  const display = document.getElementById('arrowDisplay');
+  display.innerHTML = '';
+  state._arrowRound = 0;
+  state._arrowSpeed = 1500;
+  state._arrowHistory = [];
+  state._arrowInterval = null;
+  state._arrowCurrent = null;
+  document.getElementById('arrowSpeedFill').style.width = '10%';
+  startArrowFlow();
+}
+
+function startArrowFlow() {
+  if (state._arrowInterval) clearInterval(state._arrowInterval);
+  const display = document.getElementById('arrowDisplay');
+  function showNext() {
+    if (!state.jugando || state.esperandoResultado) return;
+    const dir = ARROW_DIRECTIONS[Math.floor(Math.random() * 4)];
+    state._arrowCurrent = dir;
+    const el = document.createElement('div');
+    el.className = 'arrow-item ' + dir + ' show';
+    el.textContent = dir === 'up' ? '↑' : dir === 'down' ? '↓' : dir === 'left' ? '←' : '→';
+    const angle = Math.random() * 360;
+    const dist = 60 + Math.random() * 40;
+    el.style.left = `calc(50% + ${Math.cos(angle * Math.PI / 180) * dist}px)`;
+    el.style.top = `calc(50% + ${Math.sin(angle * Math.PI / 180) * dist}px)`;
+    display.appendChild(el);
+    setTimeout(() => el.classList.add('fade'), state._arrowSpeed * 0.5);
+    setTimeout(() => el.remove(), state._arrowSpeed + 200);
+    state._arrowHistory.push(dir);
+    if (state._arrowHistory.length > 6) state._arrowHistory.shift();
+  }
+  showNext();
+  state._arrowInterval = setInterval(showNext, state._arrowSpeed);
+}
+
+function spinArrowFlow(prediccion) {
+  if (state._arrowInterval) { clearInterval(state._arrowInterval); state._arrowInterval = null; }
+  const dir = state._arrowCurrent || ARROW_DIRECTIONS[Math.floor(Math.random() * 2)];
+  setTimeout(() => {
+    const acierto = (prediccion === 'up' && dir === 'up') || (prediccion === 'down' && dir === 'down');
+    const apuesta = getApuestaActual();
+    resolverResultadoModo(acierto, apuesta, prediccion);
+    // Increase speed progressively
+    state._arrowRound++;
+    state._arrowSpeed = Math.max(400, 1500 - state._arrowRound * 80);
+    document.getElementById('arrowSpeedFill').style.width = Math.min(100, 10 + state._arrowRound * 8) + '%';
+    if (state.jugando) startArrowFlow();
+  }, 800);
+}
+
+// ====== COIN FLIP RUSH ======
+function initCoinFlip() {
+  const coin = document.getElementById('coin3d');
+  coin.className = 'coin-3d result-heads';
+}
+
+function flipCoin(prediccion) {
+  const coin = document.getElementById('coin3d');
+  coin.className = 'coin-3d flipping';
+  setTimeout(() => {
+    const result = Math.random() < 0.5 ? 'heads' : 'tails';
+    coin.className = 'coin-3d result-' + result;
+    const acierto = (prediccion === 'up' && result === 'heads') || (prediccion === 'down' && result === 'tails');
+    const apuesta = getApuestaActual();
+    resolverResultadoModo(acierto, apuesta, prediccion);
+  }, 2500);
+}
+
+// ====== TREND HUNTER ======
+function initTrendHunter() {
+  const canvas = document.getElementById('trendCanvas');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width || 300;
+  canvas.height = rect.height || 400;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  state._trendPoints = [];
+  state._trendStartY = canvas.height / 2;
+  state._trendCurrentY = state._trendStartY;
+  state._trendCanvasW = canvas.width;
+  state._trendCanvasH = canvas.height;
+  // Draw initial point
+  ctx.fillStyle = '#7c3aed';
+  ctx.beginPath();
+  ctx.arc(10, state._trendStartY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  state._trendPoints.push({ x: 10, y: state._trendStartY });
+}
+
+function runTrendHunter(prediccion) {
+  const canvas = document.getElementById('trendCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = state._trendCanvasW || canvas.width;
+  const h = state._trendCanvasH || canvas.height;
+  const points = state._trendPoints || [];
+  const startY = state._trendCurrentY || h / 2;
+  const totalSteps = 60;
+  const stepWidth = (w - 20) / totalSteps;
+  let step = 0;
+  let currentY = startY;
+
+  // Draw grid
+  ctx.strokeStyle = 'rgba(124,58,237,0.08)';
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx < w; gx += 30) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke(); }
+  for (let gy = 0; gy < h; gy += 30) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke(); }
+
+  // Draw start marker line
+  ctx.strokeStyle = 'rgba(124,58,237,0.3)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, startY); ctx.lineTo(w, startY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const trendInterval = setInterval(() => {
+    if (step >= totalSteps) {
+      clearInterval(trendInterval);
+      const endY = currentY;
+      const acierto = (prediccion === 'up' && endY < startY) || (prediccion === 'down' && endY > startY);
+      const apuesta = getApuestaActual();
+      resolverResultadoModo(acierto, apuesta, prediccion);
+      return;
+    }
+    // Random walk with slight drift
+    const drift = (Math.random() - 0.5) * 12;
+    currentY = Math.max(20, Math.min(h - 20, currentY + drift));
+    const x = 10 + (step + 1) * stepWidth;
+    const prevX = 10 + step * stepWidth;
+    const prevY = step === 0 ? startY : (state._trendPoints[state._trendPoints.length - 1]?.y || startY);
+
+    // Neon glow line
+    ctx.strokeStyle = '#00ff88';
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(prevX, prevY);
+    ctx.lineTo(x, currentY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    state._trendPoints.push({ x, y: currentY });
+    state._trendCurrentY = currentY;
+    step++;
+  }, 50);
+}
+
+// ====== DUEL MODE ======
+function duelIAPredict() {
+  const p = state._duelIAPersonality;
+  if (p === 'Conservadora') return Math.random() < 0.55 ? 'up' : 'down';
+  if (p === 'Agresiva') return Math.random() < 0.5 ? 'up' : 'down';
+  return Math.random() < 0.5 ? 'up' : 'down';
+}
+
+// ====== RESOLVER POR MODO ======
+function resolverResultadoModo(acierto, apuesta, prediccion) {
+  if (acierto) {
+    state.racha++;
+    state.rondasGanadas++;
+    let mult = getMultiplicador();
+    if (state.modoJuego === 'rush') mult *= 2;
+    if (state.upgrades.luckyCharm && Math.random() < 0.05) mult *= 2;
+    const ganancia = Math.floor(apuesta * mult);
+    state.saldo += ganancia;
+    state.expTotal += ganancia;
+    flashOverlay('green');
+    crearParticulas(window.innerWidth/2, window.innerHeight/2, '🎉🪙✨');
+    mostrarScoreFlotante('+' + ganancia + ' 🪙', 'var(--color-up)');
+    mostrarCombo();
+    playWin(); playCoin();
+    if (state.racha >= 5) { document.body.classList.add('shake'); setTimeout(()=>document.body.classList.remove('shake'),400); vibrate([30,20,30,20,50]); }
+    else vibrate(30);
+    if (state.racha > state.rachaMax) state.rachaMax = state.racha;
+    checkLevelUp(); checkAchievements();
+    updateFrenzyVisual();
+  } else {
+    if (state.upgrades.streakSaver && !state.streakSaverUsed) { state.streakSaverUsed = true; mostrarScoreFlotante('💾 Streak Saver!','var(--color-accent)'); }
+    else state.racha = 0;
+    state.rondasPerdidas++;
+    flashOverlay('red');
+    let perdida = apuesta;
+    if (state.insuranceActiva) { const r = Math.floor(apuesta*0.5); state.saldo += r; perdida = apuesta - r; state.insuranceActiva = false; mostrarScoreFlotante('🛡️ +'+r+' 🪙','#0096ff'); }
+    if (state.upgrades.autoCollect) state.saldo += Math.floor(apuesta * 0.1);
+    mostrarScoreFlotante('-' + perdida + ' 🪙', 'var(--color-down)');
+    playLoss(); vibrate([50,30,50]);
+    document.getElementById('vignette').classList.remove('frenzy');
+    if (state.modoJuego === 'survival' && state.saldo <= 0) { gameOver(); return; }
+    if (state.saldo <= 0 && state.modoJuego !== 'survival') { state.saldo = 10; state._comeback = true; mostrarScoreFlotante('Free 10 🪙','var(--color-gold)'); playCoin(); }
+    checkAchievements();
+  }
+
+  // Duel logic
+  if (state.modoJuego === 'duel') {
+    state._duelRound++;
+    const iaPred = duelIAPredict();
+    const iaAcierto = Math.random() < 0.48;
+    if (acierto) state._duelPlayerScore++;
+    if (iaAcierto) state._duelIAScore++;
+    document.getElementById('duelPlayerScore').textContent = state._duelPlayerScore;
+    document.getElementById('duelIAScore').textContent = state._duelIAScore;
+    if (state._duelRound >= state._duelMaxRounds) { gameOver(); return; }
+  }
+
+  // Daily challenge tracking (mode resolver)
+  if (state.modoJuego === 'daily') {
+    state._dailyRondas = (state._dailyRondas || 0) + 1;
+    if (acierto) state._dailyAciertos = (state._dailyAciertos || 0) + 1;
+  }
+
+  // Survival round increment
+  if (state.modoJuego === 'survival') {
+    state._survivalRound++;
+    updateSurvivalInfo();
+  }
+
+  state.esperandoResultado = false;
+  state.prediccion = null;
+  actualizarHUD();
+  guardarEstado();
+  actualizarPrediccionButtons();
+
+  // Re-init mode-specific displays
+  if (state.modoJuego === 'colorrush') initRoulette();
+  if (state.modoJuego === 'number') initSlotMachine();
+  if (state.modoJuego === 'arrow') initArrowFlow();
+  if (state.modoJuego === 'coin') initCoinFlip();
+  if (state.modoJuego === 'trend') initTrendHunter();
+}
+
+// ====== PREDECIR POR MODO ======
+function predecirModo(direccion) {
+  if (state.esperandoResultado) return;
+  const apuesta = getApuestaActual();
+  if (apuesta <= 0 || apuesta > state.saldo) return;
+  if (state.modoJuego === 'survival' && apuesta < state._survivalMinBet) return;
+
+  state.prediccion = direccion;
+  state.saldo -= apuesta;
+  state.totalRondas++;
+  actualizarHUD();
+  playBet(); vibrate(20);
+  document.getElementById('btnUp').disabled = true;
+  document.getElementById('btnDown').disabled = true;
+  state.esperandoResultado = true;
+
+  if (state.modoJuego === 'classic') {
+    animarNuevaVela(direccion);
+  } else if (state.modoJuego === 'colorrush') {
+    spinRoulette(direccion);
+  } else if (state.modoJuego === 'number') {
+    spinSlotMachine(direccion);
+  } else if (state.modoJuego === 'rush') {
+    animarNuevaVela(direccion);
+  } else if (state.modoJuego === 'survival') {
+    animarNuevaVela(direccion);
+  } else if (state.modoJuego === 'duel') {
+    animarNuevaVela(direccion);
+  } else if (state.modoJuego === 'arrow') {
+    spinArrowFlow(direccion);
+  } else if (state.modoJuego === 'coin') {
+    flipCoin(direccion);
+  } else if (state.modoJuego === 'trend') {
+    runTrendHunter(direccion);
+  }
+}
+function crearEstrellas() {
+  const cont = document.getElementById('estrellas');
+  for (let i = 0; i < 30; i++) {
+    const s = document.createElement('div');
+    s.className = 'estrella';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 100 + 'vh';
+    s.style.animationDelay = Math.random() * 3 + 's';
+    cont.appendChild(s);
+  }
+}
+
+// ====== EVENT LISTENERS ======
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    iniciarJuego(card.dataset.mode);
+  });
+});
+document.getElementById('iconoStart').addEventListener('click', () => iniciarJuego('classic'));
+document.getElementById('btnRestart').addEventListener('click', () => {
+  document.getElementById('pantallaGameOver').classList.add('oculta');
+  document.getElementById('pantallaInicio').classList.remove('oculta');
+});
+
+// Theme selectors
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTheme(btn.dataset.theme));
+});
+
+// Settings
+document.getElementById('btnSettings').addEventListener('click', () => {
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('selected', b.dataset.theme === state.theme));
+  document.getElementById('settingsModal').classList.remove('oculta');
+});
+document.getElementById('settingsClose').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.add('oculta');
+});
+
+// Keyboard support
+document.addEventListener('keydown', (e) => {
+  if (!state.jugando) return;
+  if (e.key === 'ArrowUp') { e.preventDefault(); if(!state.esperandoResultado) predecirModo('up'); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); if(!state.esperandoResultado) predecirModo('down'); }
+  else if (e.key === '1') seleccionarApuesta(10);
+  else if (e.key === '2') seleccionarApuesta(50);
+  else if (e.key === '3') seleccionarApuesta(100);
+  else if (e.key === 'Enter') { if(!state.esperandoResultado) predecirModo('up'); }
+  else if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('oculta'));
+  }
+});
+
+document.querySelectorAll('.btn-apuesta').forEach(b => {
+  b.addEventListener('click', () => {
+    const val = b.dataset.apuesta;
+    if (val === 'allin') seleccionarApuesta('allin');
+    else seleccionarApuesta(parseInt(val));
+  });
+});
+
+document.getElementById('btnUp').addEventListener('click', () => {
+  if (state.modoJuego === 'classic') predecir('up');
+  else predecirModo('up');
+});
+document.getElementById('btnDown').addEventListener('click', () => {
+  if (state.modoJuego === 'classic') predecir('down');
+  else predecirModo('down');
+});
+
+document.getElementById('soundToggle').addEventListener('click', () => {
+  state.soundOn = !state.soundOn;
+  document.getElementById('soundToggle').textContent = state.soundOn ? '🔊' : '🔇';
+  guardarEstado();
+});
+
+document.getElementById('btnShop').addEventListener('click', () => {
+  renderShop();
+  document.getElementById('shopModal').classList.remove('oculta');
+});
+document.getElementById('shopClose').addEventListener('click', () => {
+  document.getElementById('shopModal').classList.add('oculta');
+});
+
+document.getElementById('btnLeaderboard').addEventListener('click', () => {
+  renderLeaderboard();
+  document.getElementById('leaderboardModal').classList.remove('oculta');
+});
+document.getElementById('leaderboardClose').addEventListener('click', () => {
+  document.getElementById('leaderboardModal').classList.add('oculta');
+});
+
+document.getElementById('btnDaily').addEventListener('click', () => {
+  if (dailyAvailable()) iniciarDailyChallenge();
+});
+
+document.getElementById('btnInsurance').addEventListener('click', toggleInsurance);
+
+// ====== THEMES ======
+function setTheme(theme) {
+  state.theme = theme;
+  if (theme === 'dark') document.body.removeAttribute('data-theme');
+  else document.body.setAttribute('data-theme', theme);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('selected', b.dataset.theme === theme));
+  guardarEstado();
+}
+
+// ====== TUTORIAL ======
+const TUTORIAL_STEPS = [
+  { text: 'Predice si la próxima vela sube ↑ o baja ↓', target: 'btnUp', pos: 'bottom' },
+  { text: 'Elige cuánto apostar con estos botones', target: 'apuestaRow', pos: 'top' },
+  { text: 'Encadena aciertos para multiplicadores mayores', target: 'streakBarContainer', pos: 'bottom' },
+  { text: 'Compra upgrades en la tienda 🛒', target: 'btnShop', pos: 'bottom' },
+];
+
+function showTutorialStep(step) {
+  const overlay = document.getElementById('tutorialOverlay');
+  if (step >= TUTORIAL_STEPS.length) {
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+    state.tutorialStep = -1;
+    return;
+  }
+  overlay.style.display = 'block';
+  overlay.innerHTML = '';
+  const t = TUTORIAL_STEPS[step];
+  const target = document.getElementById(t.target) || document.querySelector('.' + t.target);
+  if (!target) { showTutorialStep(step + 1); return; }
+  const rect = target.getBoundingClientRect();
+
+  // Highlight
+  const hl = document.createElement('div');
+  hl.className = 'tutorial-highlight';
+  hl.style.left = (rect.left - 4) + 'px';
+  hl.style.top = (rect.top - 4) + 'px';
+  hl.style.width = (rect.width + 8) + 'px';
+  hl.style.height = (rect.height + 8) + 'px';
+  overlay.appendChild(hl);
+
+  // Tooltip
+  const tt = document.createElement('div');
+  tt.className = 'tutorial-tooltip';
+  tt.innerHTML = `<div class="step">Paso ${step+1}/${TUTORIAL_STEPS.length}</div><div class="text">${t.text}</div><button class="btn-next">${step < TUTORIAL_STEPS.length-1 ? 'Siguiente' : '¡Listo!'}</button>`;
+  overlay.appendChild(tt);
+
+  const ttRect = tt.getBoundingClientRect();
+  let ttLeft, ttTop;
+  if (t.pos === 'bottom') { ttLeft = rect.left + rect.width/2 - ttRect.width/2; ttTop = rect.bottom + 12; }
+  else { ttLeft = rect.left + rect.width/2 - ttRect.width/2; ttTop = rect.top - ttRect.height - 12; }
+  ttLeft = Math.max(10, Math.min(window.innerWidth - ttRect.width - 10, ttLeft));
+  ttTop = Math.max(10, Math.min(window.innerHeight - ttRect.height - 10, ttTop));
+  tt.style.left = ttLeft + 'px';
+  tt.style.top = ttTop + 'px';
+
+  tt.querySelector('.btn-next').addEventListener('click', () => showTutorialStep(step + 1));
+}
+
+// ====== DYNAMIC MUSIC ======
+let musicLayers = { drums:null, bass:null, melody:null, harmony:null };
+let musicInterval = null;
+
+function startDynamicMusic() {
+  stopDynamicMusic();
+  musicInterval = setInterval(() => {
+    if (!state.jugando || !state.soundOn) return;
+    const r = state.racha;
+    if (r >= 3) playTono(120, 0.3, 'sine', 0.03); // bass
+    if (r >= 5) playTono(440, 0.15, 'triangle', 0.04); // melody
+    if (r >= 7) playTono(660, 0.1, 'sine', 0.03); // harmony
+    if (r >= 10) playTono(880, 0.08, 'square', 0.02); // drums
+  }, 800);
+}
+
+function stopDynamicMusic() {
+  if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+}
+
+// ====== FRENZY VISUAL ======
+function updateFrenzyVisual() {
+  const fondo = document.getElementById('fondo');
+  const aurs = document.querySelectorAll('.aurora');
+  if (state.racha >= 10) {
+    fondo.classList.add('frenzy-bg');
+    aurs.forEach(a => a.classList.add('frenzy-aurora'));
+  } else {
+    fondo.classList.remove('frenzy-bg');
+    aurs.forEach(a => a.classList.remove('frenzy-aurora'));
+  }
+}
+
+// ====== PWA MANIFEST + SERVICE WORKER (inline) ======
+function setupPWA() {
+  const manifest = {
+    name: 'JardPredict', short_name: 'JardPredict',
+    start_url: '.', display: 'standalone',
+    background_color: '#0a0a1a', theme_color: '#0a0a1a',
+    icons: [{ src: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="80">🪙</text></svg>'), sizes: '192x192', type: 'image/svg+xml' }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+
+  // Favicon
+  const fav = document.createElement('link');
+  fav.rel = 'icon';
+  fav.href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="80">🪙</text></svg>');
+  document.head.appendChild(fav);
+
+  // Service Worker inline for offline support
+  if ('serviceWorker' in navigator) {
+    const swCode = [
+      'const CACHE_NAME="jardpredict-v1";',
+      'self.addEventListener("install",function(e){self.skipWaiting();});',
+      'self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim());});',
+      'self.addEventListener("fetch",function(e){',
+      '  e.respondWith(',
+      '    caches.match(e.request).then(function(r){',
+      '      return r||fetch(e.request).then(function(resp){',
+      '        var cl=resp.clone();',
+      '        caches.open(CACHE_NAME).then(function(c){c.put(e.request,cl);});',
+      '        return resp;',
+      '      }).catch(function(){return r;});',
+      '    })',
+      '  );',
+      '});'
+    ].join('');
+    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl).catch(function(){ /* offline mode optional */ });
+  }
+}
+
+// ====== INIT ======
+crearEstrellas();
+cargarEstado();
+setTheme(state.theme);
+document.getElementById('soundToggle').textContent = state.soundOn ? '🔊' : '🔇';
+if (!dailyAvailable()) document.getElementById('btnDaily').classList.add('done');
+setupPWA();
+
+// Loading screen
+setTimeout(() => {
+  document.getElementById('loadingScreen').classList.add('hide');
+  setTimeout(() => document.getElementById('loadingScreen').style.display = 'none', 500);
+}, 1500);
+</script>
+</body>
+</html>
