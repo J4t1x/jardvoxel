@@ -11,9 +11,9 @@ describe('PostprocessingManager', () => {
     camera = new THREE.PerspectiveCamera(75, 1, 0.1, 500);
   });
 
-  it('should initialize with HIGH quality by default', () => {
+  it('should initialize with MEDIUM quality by default', () => {
     const pm = new PostprocessingManager(renderer, scene, camera);
-    expect(pm.quality).toBe(QUALITY.HIGH);
+    expect(pm.quality).toBe(QUALITY.MEDIUM);
     expect(pm.composer).toBeTruthy();
     expect(pm.ssaoPass).toBeTruthy();
     expect(pm.bloomPass).toBeTruthy();
@@ -56,8 +56,9 @@ describe('PostprocessingManager', () => {
     expect(composerCalled).toBe(false);
   });
 
-  it('should auto-downgrade quality when FPS drops below 45', () => {
+  it('should auto-downgrade HIGH to MEDIUM when FPS drops below 45', () => {
     const pm = new PostprocessingManager(renderer, scene, camera);
+    pm.setQuality(QUALITY.HIGH);
     expect(pm.quality).toBe(QUALITY.HIGH);
     for (let i = 0; i < 5; i++) {
       pm.update(1.0, 40);
@@ -113,18 +114,18 @@ describe('PostprocessingManager', () => {
   it('should have correct bloom parameters for HIGH quality', () => {
     const pm = new PostprocessingManager(renderer, scene, camera);
     pm.setQuality(QUALITY.HIGH);
-    expect(pm.bloomPass.strength).toBe(0.15);
-    expect(pm.bloomPass.radius).toBe(0.4);
-    expect(pm.bloomPass.threshold).toBe(0.85);
+    expect(pm.bloomPass.strength).toBe(0.22);
+    expect(pm.bloomPass.radius).toBe(0.6);
+    expect(pm.bloomPass.threshold).toBe(0.75);
   });
 
   it('should have SSAO enabled only at HIGH quality', () => {
     const pm = new PostprocessingManager(renderer, scene, camera);
-    expect(pm.ssaoPass.enabled).toBe(true);
-    pm.setQuality(QUALITY.MEDIUM);
     expect(pm.ssaoPass.enabled).toBe(false);
     pm.setQuality(QUALITY.HIGH);
     expect(pm.ssaoPass.enabled).toBe(true);
+    pm.setQuality(QUALITY.MEDIUM);
+    expect(pm.ssaoPass.enabled).toBe(false);
   });
 
   it('should not auto-switch when disabled', () => {
@@ -133,6 +134,6 @@ describe('PostprocessingManager', () => {
     for (let i = 0; i < 5; i++) {
       pm.update(1.0, 20);
     }
-    expect(pm.quality).toBe(QUALITY.HIGH);
+    expect(pm.quality).toBe(QUALITY.MEDIUM);
   });
 });

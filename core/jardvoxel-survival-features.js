@@ -78,7 +78,7 @@ function findSurfaceY(chunk, world, x, z) {
 const _treePoisson = new PoissonDiskSampler(42);
 const _treePoissonCache = new Map();
 
-export function generateTrees(chunk, world) {
+export function generateTrees(chunk, world, densityMod = 1.0) {
   if (world._poissonEnabled === false) return;
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
@@ -93,6 +93,8 @@ export function generateTrees(chunk, world) {
   }
 
   for (const pt of points) {
+    // SPEC-111: Apply scene density modifier
+    if (densityMod < 1.0 && rng.next() > densityMod) continue;
     const x = Math.floor(pt.x);
     const z = Math.floor(pt.z);
     if (x < 2 || x >= CHUNK_SIZE - 2 || z < 2 || z >= CHUNK_SIZE - 2) continue;
@@ -220,10 +222,11 @@ function placeJungleTree(chunk, x, y, z, rng) {
 // Decoration — flowers, grass, cactus, dead bushes
 // ═══════════════════════════════════════════════════════════
 
-export function generateDecoration(chunk, world) {
+export function generateDecoration(chunk, world, densityMod = 1.0) {
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
   const rng = new PRNG(chunk.cx * 98765 ^ chunk.cz * 43210 + 555);
+  const flowerMod = densityMod;
 
   for (let x = 0; x < CHUNK_SIZE; x++) {
     for (let z = 0; z < CHUNK_SIZE; z++) {
@@ -242,12 +245,12 @@ export function generateDecoration(chunk, world) {
         case BIOMES.PLAINS:
         case BIOMES.MEADOW:
           if (rng.next() < 0.05) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
-          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_RED);
-          if (rng.next() < 0.02) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_YELLOW);
-          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_WHITE);
-          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
-          if (rng.next() < 0.01) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_SUNFLOWER);
-          if (rng.next() < 0.005) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
+          if (rng.next() < 0.02 * flowerMod) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_RED);
+          if (rng.next() < 0.02 * flowerMod) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.FLOWER_YELLOW);
+          if (rng.next() < 0.01 * flowerMod) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_WHITE);
+          if (rng.next() < 0.01 * flowerMod) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_ORANGE);
+          if (rng.next() < 0.01 * flowerMod) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.FLOWER_SUNFLOWER);
+          if (rng.next() < 0.005 * flowerMod) setBlockSafe(chunk, x, placeY, z, VEGETATION_BLOCKS.BERRY_BUSH);
           break;
         case BIOMES.FOREST:
           if (rng.next() < 0.06) setBlockSafe(chunk, x, placeY, z, MC_BLOCKS.TALL_GRASS);
@@ -641,12 +644,18 @@ export function generateChunkHierarchical(chunk, world, context) {
   generateOres(chunk, world);
 
   // Trees: use ecosystem/tree density from context
+  // SPEC-111: Apply scene tree density modifier
   if (context.region && context.region.treeDensity > 0.05) {
-    generateTrees(chunk, world);
+    const sceneTreeMod = context.scene ? context.scene.treeDensityMod : 1.0;
+    if (context.region.treeDensity * sceneTreeMod > 0.05) {
+      generateTrees(chunk, world, sceneTreeMod);
+    }
   }
 
   // Decoration: use zone microDetail multiplier
-  generateDecoration(chunk, world);
+  // SPEC-111: Apply scene flower density modifier
+  const sceneFlowerMod = context.scene ? context.scene.flowerDensityMod : 1.0;
+  generateDecoration(chunk, world, sceneFlowerMod);
 
   // Structures: use contextual placement rules
   generateStructures(chunk, world);

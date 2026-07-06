@@ -42,6 +42,8 @@ import {
   applyPatagoniaToGenerator,
 } from './jardvoxel-patagonia.js';
 import { TouchControls } from './jardvoxel-zen-touch.js';
+import { OceanSystem } from './jardvoxel-survival-ocean.js';
+import { RestorationSystem } from './jardvoxel-survival-restoration.js';
 
 const BIOME_NAMES = PATAGONIA_BIOME_NAMES;
 const AMBIENT_BIOME_MAP = PATAGONIA_AMBIENT_MAP;
@@ -85,6 +87,12 @@ export class ZenGame {
     this.uiHideTimer = 0;
     this.arrows = [];
 
+    // SPEC-115: Archipelago mode state — enabled by default (PRD: Archipiélagos Procedurales)
+    this.archipelagoMode = true;
+    this.oceanSystem = null;
+    this.restorationSystem = null;
+    this._discoveryOverlayTimer = 0;
+
     this.initScene();
     this.initWorld();
     this.initPlayer();
@@ -126,6 +134,12 @@ export class ZenGame {
     if (data.resonance) this.resonanceSystem.deserialize(data.resonance);
     if (data.journal) this.journal.deserialize(data.journal);
     if (data.discoveredBiomes) this.discoveredBiomes = new Set(data.discoveredBiomes);
+    // SPEC-115: Load archipelago state
+    if (data.archipelago) {
+      this.archipelagoMode = true;
+      // Archipelago systems will be initialized in initWorld after world creation
+      this._pendingArchipelagoData = data.archipelago;
+    }
   }
 
   _loadFromLocalStorage() {
@@ -167,7 +181,7 @@ export class ZenGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true);
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true, this.archipelagoMode);
 
     // ── Adaptive render distance ──
     this.world._adaptiveEnabled = true;
@@ -218,6 +232,21 @@ export class ZenGame {
         }).catch(() => {});
       }
     };
+
+    // SPEC-115: Initialize archipelago systems if enabled
+    if (this.archipelagoMode && this.world.generator && this.world.generator.hierarchy && this.world.generator.hierarchy._archipelago) {
+      const arch = this.world.generator.hierarchy._archipelago;
+      this.oceanSystem = new OceanSystem(arch);
+      this.restorationSystem = new RestorationSystem(arch);
+      // Wire archipelago LOD bias into streaming manager if available
+      if (this.world.generator.hierarchy._streamingManager) {
+        this.world.generator.hierarchy._streamingManager.setArchipelago(arch);
+      }
+      // Wire archipelago into distant terrain ring
+      if (this.world._distantTerrain) {
+        this.world._distantTerrain.setArchipelago(arch);
+      }
+    }
   }
 
   initPlayer() {
@@ -225,7 +254,14 @@ export class ZenGame {
     this.player.flying = true;
 
     // ── Override spawn to use Patagonia coordinates ────────
-    const spawn = this.patagonia.getSpawnPoint();
+    // In archipelago mode, spawn on the first island center
+    let spawn;
+    if (this.archipelagoMode && this.world.generator?.hierarchy?._archipelago?.islands?.length > 0) {
+      const island = this.world.generator.hierarchy._archipelago.islands[0];
+      spawn = { x: island.centerX, y: SEA_LEVEL + 20, z: island.centerZ };
+    } else {
+      spawn = this.patagonia.getSpawnPoint();
+    }
     this.player.spawn = function() {
       const sx = spawn.x, sz = spawn.z;
       for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
@@ -650,13 +686,20 @@ export class ZenGame {
   _initSave() { /* replaced by async _initSave above */ }
 
   _getSaveData() {
-    return {
+    const data = {
       seed: this.seed,
       blockMods: Array.from(this.blockModifications.entries()),
       resonance: this.resonanceSystem.serialize(),
       journal: this.journal.serialize(),
       discoveredBiomes: Array.from(this.discoveredBiomes),
     };
+    // SPEC-115: Save archipelago state
+    if (this.archipelagoMode && this.restorationSystem) {
+      data.archipelago = {
+        restoration: this.restorationSystem.serialize(),
+      };
+    }
+    return data;
   }
 
   async _saveNow() {
@@ -1206,7 +1249,59 @@ export class ZenGame {
     ctx.lineTo(radius - Math.sin(yaw) * 4 + Math.cos(yaw) * 3, radius - Math.cos(yaw) * 4 - Math.sin(yaw) * 3);
     ctx.lineTo(radius - Math.sin(yaw) * 4 - Math.cos(yaw) * 3, radius - Math.cos(yaw) * 4 + Math.sin(yaw) * 3);
     ctx.closePath(); ctx.fill();
+
+    // SPEC-115: Draw discovered island markers on minimap
+    if (this.archipelagoMode && this.restorationSystem) {
+      const markers = this.restorationSystem.getMinimapMarkers();
+      const moodColors = {
+        serene: '#A0D0E0', mysterious: '#8050C0', vibrant: '#E0A040',
+        melancholic: '#5070A0', ancient: '#C0A060', ethereal: '#C0E0FF',
+      };
+      for (const marker of markers) {
+        const dx = marker.x - px;
+        const dz = marker.z - pz;
+        const mx = radius + (dx / range) * radius;
+        const mz = radius + (dz / range) * radius;
+        // Only draw if within minimap range
+        if (mx >= 0 && mx < size && mz >= 0 && mz < size) {
+          ctx.fillStyle = moodColors[marker.type] || '#E0C080';
+          ctx.beginPath();
+          ctx.arc(mx, mz, 3, 0, Math.PI * 2);
+          ctx.fill();
+          // Progress ring
+          if (marker.progress < 1.0) {
+            ctx.strokeStyle = '#FFFFFF80';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(mx, mz, 4, -Math.PI / 2, -Math.PI / 2 + marker.progress * Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
     ctx.restore();
+  }
+
+  // SPEC-115: Show garden discovery overlay
+  _showDiscoveryOverlay(discovery) {
+    const overlay = document.getElementById('discovery-overlay');
+    if (!overlay) return;
+    const moodColors = {
+      serene: '#A0D0E0', mysterious: '#8050C0', vibrant: '#E0A040',
+      melancholic: '#5070A0', ancient: '#C0A060', ethereal: '#C0E0FF',
+    };
+    const color = moodColors[discovery.mood] || '#E0C080';
+    overlay.innerHTML = `
+      <div style="text-align:center; padding: 20px; border: 2px solid ${color}; border-radius: 12px; background: rgba(0,0,0,0.7);">
+        <div style="font-size: 14px; color: #AAA;">Has descubierto:</div>
+        <div style="font-size: 24px; color: ${color}; margin: 8px 0;">${discovery.gardenName}</div>
+        <div style="font-size: 14px; color: #CCC; font-style: italic;">${discovery.discoveryQuote || ''}</div>
+      </div>
+    `;
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+    this._discoveryOverlayTimer = 5.0;
   }
 
   animate() {
@@ -1253,6 +1348,76 @@ export class ZenGame {
       if (this.touchControls) this.touchControls.updateLook(dt);
       this.player.update(dt, this.keys, touchInput);
       this.world.update(this.player.position.x, this.player.position.z, this.fps, this.camera, dt);
+
+      // SPEC-115: Archipelago system updates
+      if (this.archipelagoMode) {
+        const px = this.player.position.x;
+        const pz = this.player.position.z;
+        const timeOfDay = this.dayNight ? this.dayNight.time : 0.5;
+
+        // Ocean system update
+        if (this.oceanSystem) {
+          this.oceanSystem.update(px, pz, dt, timeOfDay);
+          // Apply ocean fog modifiers
+          if (this.fogManager) {
+            this.fogManager.setOceanDensityMod(this.oceanSystem.getFogDensityMod());
+            this.fogManager.setOceanColorShift(this.oceanSystem.getFogColorShift());
+          }
+          // Ocean music state
+          if (this.chilltune) {
+            const oceanState = this.oceanSystem.getPendingMusicState();
+            if (oceanState) this.chilltune.setState(oceanState);
+          }
+        }
+
+        // Restoration system — check proximity and discovery
+        if (this.restorationSystem) {
+          const arch = this.world.generator.hierarchy._archipelago;
+          const island = arch.getIslandAt(px, pz);
+
+          // Garden discovery
+          if (island && !this.restorationSystem.isDiscovered(island.gardenId)) {
+            const discovery = this.restorationSystem.discoverGarden(island);
+            if (discovery) {
+              this._showDiscoveryOverlay(discovery);
+              if (this.journal) {
+                this.journal.addEntry(ENTRY_TYPES.GARDEN_DISCOVERY, discovery.gardenName, discovery.discoveryQuote, { mood: discovery.mood });
+                this.journal._stats.gardensDiscovered++;
+              }
+            }
+          }
+
+          // Restoration point proximity check
+          const proxResult = this.restorationSystem.checkProximity(px, pz);
+          if (proxResult) {
+            const activation = this.restorationSystem.activatePoint(proxResult.point, proxResult.island);
+            if (activation) {
+              if (this.uiManager) this.uiManager.showToast(`Punto de restauración: ${activation.pointName}`, 'discovery');
+              if (this.journal) {
+                this.journal.addEntry(ENTRY_TYPES.RESTORATION_POINT, activation.pointName, activation.description, { garden: activation.gardenName });
+                this.journal._stats.restorationPointsActivated++;
+                if (activation.gardenProgress >= 1.0) {
+                  this.journal.addEntry(ENTRY_TYPES.GARDEN_RESTORED, activation.gardenName, 'Jardín completamente restaurado.');
+                  this.journal._stats.gardensRestored++;
+                }
+              }
+            }
+          }
+
+          // Update visual effects
+          this.restorationSystem.updateEffects(dt);
+        }
+
+        // SPEC-115: Ocean swim speed boost (+50%)
+        if (this.player.inWater) {
+          const inOcean = arch.isOcean(px, pz);
+          if (inOcean) {
+            // Apply speed boost by scaling velocity — multiply horizontal movement
+            this.player.velocity.x *= 1.5;
+            this.player.velocity.z *= 1.5;
+          }
+        }
+      }
 
       if (this.settings.autoSaveInterval > 0) {
         this.autoSaveTimer += dt;
@@ -1486,6 +1651,18 @@ export class ZenGame {
         if (this._lastFaunaPhase !== faunaPhase) {
           this._lastFaunaPhase = faunaPhase;
           this.ambientSoundManager._updateFaunaCycle(faunaPhase);
+        }
+      }
+    }
+
+    // SPEC-115: Discovery overlay fade-out
+    if (this._discoveryOverlayTimer > 0) {
+      this._discoveryOverlayTimer -= dt;
+      if (this._discoveryOverlayTimer <= 0) {
+        const overlay = document.getElementById('discovery-overlay');
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => { overlay.style.display = 'none'; }, 500);
         }
       }
     }

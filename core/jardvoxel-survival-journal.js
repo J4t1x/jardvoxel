@@ -21,6 +21,10 @@ const ENTRY_TYPES = {
   FIRST_BLOCK:        'first_block',
   TREE_PLANTED:       'tree_planted',
   FISH_CAUGHT:        'fish_caught',
+  // SPEC-113: Archipelago entries
+  GARDEN_DISCOVERY:   'garden_discovery',
+  RESTORATION_POINT:  'restoration_point',
+  GARDEN_RESTORED:    'garden_restored',
   CUSTOM:             'custom',
 };
 
@@ -37,6 +41,10 @@ export class ExplorationJournal {
       fishCaught: 0,
       timePlayed: 0,
       highestResonance: 0,
+      // SPEC-113: Archipelago stats
+      gardensDiscovered: 0,
+      restorationPointsActivated: 0,
+      gardensRestored: 0,
     };
     this._lastPlayerPos = null;
   }
@@ -162,6 +170,9 @@ export class ExplorationJournal {
       fishCaught: 0,
       timePlayed: 0,
       highestResonance: 0,
+      gardensDiscovered: 0,
+      restorationPointsActivated: 0,
+      gardensRestored: 0,
     };
     this._save = () => {};
   }

@@ -322,9 +322,9 @@ export class WorldGenPipeline {
   }
 
   // v7.0: Enable hierarchical world generation
-  enableHierarchy() {
+  enableHierarchy(options = {}) {
     if (!this.hierarchy) {
-      this.hierarchy = new HierarchicalChunkGenerator(this.seed);
+      this.hierarchy = new HierarchicalChunkGenerator(this.seed, options);
     }
     this._useHierarchy = true;
     return this.hierarchy;

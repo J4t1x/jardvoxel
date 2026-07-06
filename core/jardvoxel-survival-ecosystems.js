@@ -333,8 +333,13 @@ export class EcosystemSystem {
   }
 
   // Get fauna spawn list for biome
-  getFauna(biome, zoneType) {
+  // SPEC-111: restorationFactor scales fauna density (0.4 = sparse, 1.0 = full)
+  getFauna(biome, zoneType, restorationFactor = 1.0) {
     const eco = this.getEcosystem(biome, zoneType);
+    if (restorationFactor < 1.0) {
+      // Filter out some fauna based on restoration factor
+      return eco.fauna.filter(() => Math.random() < restorationFactor);
+    }
     return eco.fauna;
   }
 

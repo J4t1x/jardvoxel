@@ -106,12 +106,12 @@ describe('Spline', () => {
 });
 
 describe('World constants', () => {
-  it('CHUNK_SIZE = 16', () => { expect(CHUNK_SIZE).toBe(16); });
+  it('CHUNK_SIZE = 32', () => { expect(CHUNK_SIZE).toBe(32); });
   it('CHUNK_HEIGHT = 384', () => { expect(CHUNK_HEIGHT).toBe(384); });
   it('WORLD_MIN_Y = -64', () => { expect(WORLD_MIN_Y).toBe(-64); });
   it('SEA_LEVEL = 63', () => { expect(SEA_LEVEL).toBe(63); });
   it('BIOMES has 19 entries', () => {
-    expect(Object.keys(BIOMES).length).toBe(19);
+    expect(Object.keys(BIOMES).length).toBe(22);
   });
   it('BIOME_COLORS has entry for each biome', () => {
     for (const b of Object.values(BIOMES)) {

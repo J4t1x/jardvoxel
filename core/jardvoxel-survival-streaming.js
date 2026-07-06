@@ -34,6 +34,15 @@ export class StreamingManager {
     this.chunkManager = chunkManager;
     this.layerSystem = layerSystem;
     this._tierCache = new Map(); // chunkKey → tier
+    // SPEC-114: Archipelago LOD bias
+    this._archipelagoMode = false;
+    this._archipelago = null;
+  }
+
+  // SPEC-114: Enable archipelago LOD bias
+  setArchipelago(archipelago) {
+    this._archipelago = archipelago;
+    this._archipelagoMode = archipelago !== null;
   }
 
   // Determine tier for a chunk based on distance from player
@@ -41,6 +50,26 @@ export class StreamingManager {
     const dx = Math.abs(cx - playerCX);
     const dz = Math.abs(cz - playerCZ);
     const dist = Math.max(dx, dz); // Chebyshev distance — natural for chunk grids
+
+    // SPEC-114: In archipelago mode, bias ocean chunks to HORIZON
+    if (this._archipelagoMode && this._archipelago) {
+      const worldX = cx * 32 + 16;
+      const worldZ = cz * 32 + 16;
+      const isOcean = this._archipelago.isOcean(worldX, worldZ);
+
+      if (isOcean) {
+        // Ocean chunks: bias to HORIZON unless very close
+        if (dist <= TIER_DISTANCES[STREAMING_TIERS.NEAR]) return STREAMING_TIERS.NEAR;
+        // Ocean chunks skip MEDIUM and FAR — go straight to HORIZON
+        return STREAMING_TIERS.HORIZON;
+      } else {
+        // Island chunks: prioritize for full detail (extend NEAR range)
+        if (dist <= TIER_DISTANCES[STREAMING_TIERS.NEAR] + 2) return STREAMING_TIERS.NEAR;
+        if (dist <= TIER_DISTANCES[STREAMING_TIERS.MEDIUM] + 2) return STREAMING_TIERS.MEDIUM;
+        if (dist <= TIER_DISTANCES[STREAMING_TIERS.FAR]) return STREAMING_TIERS.FAR;
+        return STREAMING_TIERS.HORIZON;
+      }
+    }
 
     if (dist <= TIER_DISTANCES[STREAMING_TIERS.NEAR]) return STREAMING_TIERS.NEAR;
     if (dist <= TIER_DISTANCES[STREAMING_TIERS.MEDIUM]) return STREAMING_TIERS.MEDIUM;

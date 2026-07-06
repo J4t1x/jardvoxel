@@ -111,6 +111,43 @@ const PARTICLE_CONFIGS = {
     nightOnly: false,
     dayOnly: false,
   },
+  // SPEC-112: Ocean particles
+  mist_spray: {
+    color: 0xC8D8E0,
+    size: 0.15,
+    gravity: 0.3,
+    windFactor: 1.0,
+    count: 40,
+    nightOnly: false,
+    dayOnly: false,
+  },
+  bioluminescence_ocean: {
+    color: 0x40FFC8,
+    size: 0.12,
+    gravity: 0.0,
+    windFactor: 0.1,
+    count: 60,
+    nightOnly: true,
+    dayOnly: false,
+  },
+  ice_floe: {
+    color: 0xF0F8FF,
+    size: 0.4,
+    gravity: 0.0,
+    windFactor: 0.3,
+    count: 30,
+    nightOnly: false,
+    dayOnly: false,
+  },
+  ocean_dust: {
+    color: 0xE8E0D0,
+    size: 0.2,
+    gravity: 0.01,
+    windFactor: 0.2,
+    count: 35,
+    nightOnly: false,
+    dayOnly: true,
+  },
 };
 
 const CAVE_PARTICLE_TYPE = 'dust_motes';

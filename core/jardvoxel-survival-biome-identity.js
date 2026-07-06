@@ -63,6 +63,7 @@ export const BIOME_PARTICLES = {
   SPORES: 'spores',
   FALLING_LEAVES: 'falling_leaves',
   PETALS: 'petals',
+  BIOLUMINESCENCE: 'bioluminescence',
   NONE: 'none',
 };
 

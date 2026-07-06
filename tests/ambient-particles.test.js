@@ -46,7 +46,7 @@ describe('AmbientParticleSystem', () => {
     const aps = new AmbientParticleSystem(scene);
     aps.setBiome(BIOMES.SWAMP);
     expect(aps.getCurrentType()).toBe('fireflies');
-    expect(aps.getActiveCount()).toBe(40);
+    expect(aps.getActiveCount()).toBe(50);
     aps.dispose();
   });
 
@@ -198,6 +198,6 @@ describe('AmbientParticleSystem', () => {
 
   it('should export PARTICLE_RADIUS and MAX_PARTICLES', () => {
     expect(PARTICLE_RADIUS).toBe(32);
-    expect(MAX_PARTICLES).toBe(100);
+    expect(MAX_PARTICLES).toBe(130);
   });
 });

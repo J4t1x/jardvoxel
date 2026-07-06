@@ -93,11 +93,29 @@ export class VolumetricFog {
     this._currentBiome = biomeName;
     const key = biomeName ? biomeName.toLowerCase().replace(/[^a-z_]/g, '').replace(/\s+/g, '_') : 'default';
     this._targetDensity = BIOME_FOG_DENSITY[key] ?? BIOME_FOG_DENSITY.default;
+    // SPEC-112: Apply ocean density modifier if set
+    if (this._oceanDensityMod) {
+      this._targetDensity *= this._oceanDensityMod;
+    }
     // SPEC-BIOME-OVERHAUL: Set biome-specific fog color
     if (!this._isCave) {
       const fogColor = BIOME_FOG_COLORS[key] ?? BIOME_FOG_COLORS.default;
       this._biomeColor = new THREE.Color(fogColor);
+      // SPEC-112: Apply ocean color shift if set
+      if (this._oceanColorShift) {
+        this._biomeColor.offsetHSL(0, 0, this._oceanColorShift);
+      }
     }
+  }
+
+  // SPEC-112: Set ocean density modifier (called by OceanSystem)
+  setOceanDensityMod(mod) {
+    this._oceanDensityMod = mod;
+  }
+
+  // SPEC-112: Set ocean color shift (called by OceanSystem)
+  setOceanColorShift(shift) {
+    this._oceanColorShift = shift;
   }
 
   setCave(isCave) {

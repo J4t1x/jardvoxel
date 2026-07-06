@@ -15,13 +15,26 @@ function makeMockCtx() {
     start() {}, stop() {}, connect: () => chainable, disconnect: () => {}, onended: null,
   });
   ctx.createBiquadFilter = () => ({
-    type: '', frequency: { value: 0 }, connect: () => chainable, disconnect: () => {},
+    type: '', frequency: { value: 0 }, Q: { value: 0 }, connect: () => chainable, disconnect: () => {},
   });
   ctx.createPanner = () => ({
     panningModel: '', distanceModel: '', refDistance: 0, maxDistance: 0, rolloffFactor: 0,
     positionX: { value: 0 }, positionY: { value: 0 }, positionZ: { value: 0 },
     setPosition() {}, connect: () => chainable, disconnect: () => {},
   });
+  ctx.createConvolver = () => ({ connect: () => chainable, disconnect: () => {} });
+  ctx.createBuffer = (channels, length, sampleRate) => ({
+    numberOfChannels: channels,
+    length: length,
+    sampleRate: sampleRate,
+    getChannelData: () => new Float32Array(length),
+  });
+  ctx.createBufferSource = () => ({
+    buffer: null, loop: false,
+    start() {}, stop() {},
+    connect: () => chainable, disconnect: () => {},
+  });
+  ctx.sampleRate = 44100;
   ctx.listener = {
     positionX: { value: 0 }, positionY: { value: 0 }, positionZ: { value: 0 },
     forwardX: { value: 0 }, forwardY: { value: 0 }, forwardZ: { value: 0 },
@@ -40,7 +53,7 @@ describe('Ambient Sound System — SPEC-084', () => {
   describe('Biome Profiles', () => {
     it('should define 10 biome ambient profiles', () => {
       const biomes = Object.keys(AMBIENT_PROFILES);
-      expect(biomes.length).toBe(10);
+      expect(biomes.length).toBe(13);
     });
 
     it('should have plains profile with birds, wind, insects', () => {
@@ -80,10 +93,10 @@ describe('Ambient Sound System — SPEC-084', () => {
       expect(types).toContain('seagulls');
     });
 
-    it('should have caves profile with drip and echo', () => {
+    it('should have caves profile with drip and chimes', () => {
       const types = AMBIENT_PROFILES.caves.ambient.map(s => s.type);
       expect(types).toContain('drip');
-      expect(types).toContain('echo');
+      expect(types).toContain('chimes');
     });
 
     it('should have mystic_grove profile with chimes and whispers', () => {

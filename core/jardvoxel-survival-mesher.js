@@ -70,13 +70,17 @@ function hash3(x, y, z) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-function colorVariation(x, y, z, baseColor) {
+function colorVariation(x, y, z, baseColor, restorationFactor = 1.0) {
   const v = (hash3(x, y, z) - 0.5) * 0.12;
   const hueShift = (hash3(x + 1, y, z) - 0.5) * 0.04;
+  // SPEC-111: Apply restoration factor to saturation
+  // Lower restoration = more muted/grey colors
+  const sat = 0.5 + restorationFactor * 0.5; // 0.7 at factor 0.4, 1.0 at factor 1.0
+  const grey = (baseColor[0] + baseColor[1] + baseColor[2]) / 3;
   return [
-    Math.max(0, Math.min(1, baseColor[0] + v + hueShift)),
-    Math.max(0, Math.min(1, baseColor[1] + v)),
-    Math.max(0, Math.min(1, baseColor[2] + v - hueShift)),
+    Math.max(0, Math.min(1, grey + (baseColor[0] + v + hueShift - grey) * sat)),
+    Math.max(0, Math.min(1, grey + (baseColor[1] + v - grey) * sat)),
+    Math.max(0, Math.min(1, grey + (baseColor[2] + v - hueShift - grey) * sat)),
   ];
 }
 

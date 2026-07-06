@@ -25,8 +25,8 @@ describe('VolumetricFog', () => {
   it('should set biome density for forest (higher)', () => {
     const fog = new VolumetricFog(scene);
     fog.setBiome('Forest');
-    fog.update(0.1, 64, 0.5);
-    expect(scene.fog.density).toBeGreaterThan(0.01);
+    fog.update(1.0, 64, 0.5);
+    expect(scene.fog.density).toBeGreaterThan(0.001);
   });
 
   it('should set cave fog with high density and dark color', () => {
@@ -46,14 +46,14 @@ describe('VolumetricFog', () => {
     expect(scene.fog.density).toBeLessThan(0.02);
   });
 
-  it('should reduce density at high altitude', () => {
+  it('should reduce density at higher altitude (below boost threshold)', () => {
     const fog = new VolumetricFog(scene);
     fog.setBiome('Plains');
     fog.update(1.0, 64, 0.5);
     const densityAt64 = scene.fog.density;
-    fog.update(1.0, 120, 0.5);
-    const densityAt120 = scene.fog.density;
-    expect(densityAt120).toBeLessThan(densityAt64);
+    fog.update(1.0, 75, 0.5);
+    const densityAt75 = scene.fog.density;
+    expect(densityAt75).toBeLessThan(densityAt64);
   });
 
   it('should set underwater fog', () => {

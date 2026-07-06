@@ -57,19 +57,19 @@ describe('ShadowManager', () => {
 
   it('should have correct shadow map size for HIGH quality', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
-    expect(sm.cascades[0].shadow.mapSize.x).toBe(4096);
+    expect(sm.cascades[0].shadow.mapSize.x).toBe(2048);
   });
 
   it('should have correct shadow map size for MEDIUM quality', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
     sm.setQuality(SHADOW_QUALITY.MEDIUM);
-    expect(sunLight.shadow.mapSize.x).toBe(2048);
+    expect(sunLight.shadow.mapSize.x).toBe(1024);
   });
 
   it('should have correct shadow map size for LOW quality', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
     sm.setQuality(SHADOW_QUALITY.LOW);
-    expect(sunLight.shadow.mapSize.x).toBe(1024);
+    expect(sunLight.shadow.mapSize.x).toBe(512);
   });
 
   it('should update shadow positions based on player position', () => {

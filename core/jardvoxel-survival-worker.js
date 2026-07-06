@@ -23,7 +23,7 @@ function applyTerrainSettings(settings) {
 self.onmessage = (e) => {
   if (e.data.type === 'init') {
     world = new WorldGenPipeline(e.data.seed);
-    if (e.data.useHierarchy) world.enableHierarchy();
+    if (e.data.useHierarchy) world.enableHierarchy({ archipelagoMode: e.data.archipelagoMode });
     if (e.data.patagonia) {
       const pat = new PatagoniaProfile(e.data.seed);
       applyPatagoniaToGenerator(world, pat);

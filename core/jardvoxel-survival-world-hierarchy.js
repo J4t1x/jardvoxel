@@ -6,6 +6,8 @@
 
 import { SimplexNoise, DomainWarper, NOISE_CONFIGS, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from './jardvoxel-survival-noise.js';
 import { HydrologySystem } from './jardvoxel-survival-hydrology.js';
+import { UniverseIdentity, ArchipelagoGenerator } from './jardvoxel-survival-archipelago.js';
+import { SceneComposer } from './jardvoxel-survival-scene-composer.js';
 
 // v7.0: Define constants locally to avoid circular dependency with jardvoxel-survival-engine.js
 // These are exported for other v7.0 modules to import from here instead of the engine
@@ -67,6 +69,9 @@ export class WorldIdentity {
     // PRNG for deterministic world properties
     const prng = new WorldPRNG(seed);
 
+    // SPEC-110: Archipelago mode flag
+    this._isArchipelago = !!options.archipelagoMode;
+
     // Global parameters (basados en la Tierra real)
     this.seaLevel = options.seaLevel ?? SEA_LEVEL;
     this.geologicalAge = options.geologicalAge ?? this._pickAge(prng);
@@ -74,11 +79,16 @@ export class WorldIdentity {
     // Temperatura global: variación realista ±2°C (vs actual +1.1°C desde pre-industrial)
     this.climateOffset = options.climateOffset ?? (prng.next() - 0.5) * 0.15;
     
-    // Cobertura oceánica: 71% (Tierra real) ±5%
-    this.oceanCoverage = options.oceanCoverage ?? 0.68 + prng.next() * 0.06;
-    
-    // Continentes: 7 (Tierra real) ±2
-    this.continentCount = options.continentCount ?? 5 + Math.floor(prng.next() * 5);
+    if (this._isArchipelago) {
+      // SPEC-110: Archipelago mode — increased ocean coverage, islands instead of continents
+      this.oceanCoverage = options.oceanCoverage ?? 0.85 + prng.next() * 0.08;
+      this.continentCount = options.islandCount ?? (8 + Math.floor(prng.next() * 8));
+    } else {
+      // Cobertura oceánica: 71% (Tierra real) ±5%
+      this.oceanCoverage = options.oceanCoverage ?? 0.68 + prng.next() * 0.06;
+      // Continentes: 7 (Tierra real) ±2
+      this.continentCount = options.continentCount ?? 5 + Math.floor(prng.next() * 5);
+    }
     
     // Rotación axial (inclinación): 23.5° (Tierra) ±3°
     this.axialTilt = options.axialTilt ?? 20.5 + prng.next() * 6;
@@ -126,7 +136,9 @@ export class WorldIdentity {
 
     // Continent threshold derived from ocean coverage
     // Higher oceanCoverage → higher threshold → more ocean
-    this.continentThreshold = (this.oceanCoverage - 0.5) * 1.6;
+    // SPEC-110: Archipelago mode uses higher multiplier for more ocean
+    const thresholdMult = this._isArchipelago ? 1.8 : 1.6;
+    this.continentThreshold = (this.oceanCoverage - 0.5) * thresholdMult;
 
     // Cache
     this._continentCache = new Map();
@@ -690,11 +702,21 @@ export class ZoneGenerator {
 // ═══════════════════════════════════════════════════════════
 
 export class HierarchicalChunkGenerator {
-  constructor(seed) {
-    this.world = new WorldIdentity(seed);
+  constructor(seed, options = {}) {
+    this.world = new WorldIdentity(seed, options);
     this.continentGen = new ContinentGenerator(this.world);
     this.regionGen = new RegionGenerator(this.continentGen);
     this.zoneGen = new ZoneGenerator(this.regionGen);
+
+    // SPEC-110: Archipelago mode
+    this._archipelago = null;
+    this._sceneComposer = null;
+    if (this.world._isArchipelago) {
+      this._universe = new UniverseIdentity(seed, options);
+      this._archipelago = new ArchipelagoGenerator(seed, this._universe);
+      // SPEC-111: SceneComposer for archipelago mode
+      this._sceneComposer = new SceneComposer(seed, this._archipelago);
+    }
 
     // Reuse existing noise for terrain height
     this.terrainNoise = new SimplexNoise(seed + 200);
@@ -728,6 +750,11 @@ export class HierarchicalChunkGenerator {
     const region = this.regionGen.getRegion(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
     const zone = this.zoneGen.getZone(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
 
+    // SPEC-114: Attach garden to centerProps for biome bias application
+    if (this._archipelago) {
+      centerProps.garden = this._archipelago.getIslandAt(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2);
+    }
+
     // Sample biome weights at center + corners
     const biomeWeights = this._computeBiomeWeights(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2, region, zone, centerProps);
 
@@ -760,6 +787,9 @@ export class HierarchicalChunkGenerator {
       vegetationBoost: this.world._appliedVegetation,
       oreAbundance: this.world._appliedOre,
       geologicalAge: this.world.geologicalAge,
+      // SPEC-110/111: Archipelago context (null in non-archipelago mode)
+      garden: this._archipelago ? this._archipelago.getIslandAt(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2) : null,
+      scene: this._sceneComposer ? this._sceneComposer.getSceneContext(cx, cz, region, zone, this._archipelago ? this._archipelago.getIslandAt(ox + CHUNK_SIZE / 2, oz + CHUNK_SIZE / 2) : null) : null,
     };
 
     if (this._contextCache.size >= this._maxCacheSize) {
@@ -782,13 +812,34 @@ export class HierarchicalChunkGenerator {
       weights.set(biome, (weights.get(biome) || 0) + 0.4);
     }
 
+    // SPEC-114: Apply GardenIdentity.biomeBias in archipelago mode
+    if (this._archipelago && continentProps.garden) {
+      const bias = continentProps.garden.biomeBias;
+      if (bias) {
+        // Common biomes get boosted weight
+        for (const biome of bias.common) {
+          weights.set(biome, (weights.get(biome) || 0) + 0.3);
+        }
+        // Rare biomes get suppressed
+        for (const biome of bias.rare) {
+          if (weights.has(biome)) {
+            weights.set(biome, weights.get(biome) * 0.1);
+          }
+        }
+        // Signature biome gets small guaranteed weight
+        if (bias.signature) {
+          weights.set(bias.signature, (weights.get(bias.signature) || 0) + 0.15);
+        }
+      }
+    }
+
     // Temperature/humidity based biomes
     if (temp < 0.2) weights.set(BIOMES.SNOWY_PLAINS, (weights.get(BIOMES.SNOWY_PLAINS) || 0) + 0.3);
     if (temp > 0.8 && humid < 0.3) weights.set(BIOMES.DESERT, (weights.get(BIOMES.DESERT) || 0) + 0.3);
     if (temp > 0.8 && humid > 0.7) weights.set(BIOMES.JUNGLE, (weights.get(BIOMES.JUNGLE) || 0) + 0.3);
     if (humid > 0.6 && temp > 0.3 && temp < 0.7) weights.set(BIOMES.FOREST, (weights.get(BIOMES.FOREST) || 0) + 0.2);
     if (height > this.world.effectiveSeaLevel + 100) weights.set(BIOMES.MOUNTAINS, (weights.get(BIOMES.MOUNTAINS) || 0) + 0.3);
-    if (continentProps.isOcean) {
+    if (continentProps.isOcean && !continentProps.garden) {
       weights.clear();
       weights.set(BIOMES.OCEAN, 0.7);
       if (height < this.world.effectiveSeaLevel - 15) weights.set(BIOMES.DEEP_OCEAN, 0.3);

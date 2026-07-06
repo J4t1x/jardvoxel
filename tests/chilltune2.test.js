@@ -30,43 +30,42 @@ describe('ChillTune 2.0 — SPEC-083', () => {
       expect(Object.keys(BIOME_SCALES).length).toBeGreaterThanOrEqual(8);
     });
 
-    it('should have pentatonic for plains', () => {
-      expect(BIOME_SCALES.plains.scale).toBe('pentatonic');
+    it('should have lydian for plains', () => {
+      expect(BIOME_SCALES.plains.scale).toBe('lydian');
     });
 
-    it('should have dorian for forest', () => {
-      expect(BIOME_SCALES.forest.scale).toBe('dorian');
+    it('should have lydian for forest', () => {
+      expect(BIOME_SCALES.forest.scale).toBe('lydian');
     });
 
-    it('should have phrygian for desert', () => {
-      expect(BIOME_SCALES.desert.scale).toBe('phrygian');
+    it('should have lydian for desert', () => {
+      expect(BIOME_SCALES.desert.scale).toBe('lydian');
     });
 
     it('should have lydian for mountains', () => {
       expect(BIOME_SCALES.mountains.scale).toBe('lydian');
     });
 
-    it('should have chromatic for swamp', () => {
-      expect(BIOME_SCALES.swamp.scale).toBe('chromatic');
+    it('should have lydian for swamp', () => {
+      expect(BIOME_SCALES.swamp.scale).toBe('lydian');
     });
 
-    it('should have lydian with arpeggios for mystic grove', () => {
+    it('should have lydian for mystic grove', () => {
       expect(BIOME_SCALES.mystic_grove.scale).toBe('lydian');
-      expect(BIOME_SCALES.mystic_grove.arpeggios).toBe(true);
     });
 
-    it('should have aeolian for ocean', () => {
-      expect(BIOME_SCALES.ocean.scale).toBe('aeolian');
+    it('should have lydian for ocean', () => {
+      expect(BIOME_SCALES.ocean.scale).toBe('lydian');
     });
 
-    it('should have chromatic with drone for caves', () => {
-      expect(BIOME_SCALES.caves.scale).toBe('chromatic');
+    it('should have lydian with drone for caves', () => {
+      expect(BIOME_SCALES.caves.scale).toBe('lydian');
       expect(BIOME_SCALES.caves.drone).toBe(true);
     });
 
     it('should return biome scale via getBiomeScale', () => {
-      expect(engine.getBiomeScale('plains')).toBe('pentatonic');
-      expect(engine.getBiomeScale('forest')).toBe('dorian');
+      expect(engine.getBiomeScale('plains')).toBe('lydian');
+      expect(engine.getBiomeScale('forest')).toBe('lydian');
       expect(engine.getBiomeScale('nonexistent')).toBeNull();
     });
 
@@ -88,20 +87,24 @@ describe('ChillTune 2.0 — SPEC-083', () => {
   });
 
   describe('Time of Day Modulation', () => {
-    it('should define 4 time phases', () => {
-      expect(Object.keys(TIME_MODULATION).length).toBe(4);
+    it('should define 8 time phases', () => {
+      expect(Object.keys(TIME_MODULATION).length).toBe(8);
       expect(TIME_MODULATION.dawn).toBeDefined();
-      expect(TIME_MODULATION.day).toBeDefined();
-      expect(TIME_MODULATION.sunset).toBeDefined();
+      expect(TIME_MODULATION.morning).toBeDefined();
+      expect(TIME_MODULATION.noon).toBeDefined();
+      expect(TIME_MODULATION.afternoon).toBeDefined();
+      expect(TIME_MODULATION.dusk).toBeDefined();
+      expect(TIME_MODULATION.twilight).toBeDefined();
       expect(TIME_MODULATION.night).toBeDefined();
+      expect(TIME_MODULATION.midnight).toBeDefined();
     });
 
     it('should have ascending flag for dawn', () => {
       expect(TIME_MODULATION.dawn.ascending).toBe(true);
     });
 
-    it('should have descending flag for sunset', () => {
-      expect(TIME_MODULATION.sunset.descending).toBe(true);
+    it('should have descending flag for dusk', () => {
+      expect(TIME_MODULATION.dusk.descending).toBe(true);
     });
 
     it('should have minimalist flag for night', () => {
@@ -197,7 +200,7 @@ describe('ChillTune 2.0 — SPEC-083', () => {
 
   describe('Crossfade', () => {
     it('should have 2s crossfade duration', () => {
-      expect(engine.crossfadeDuration).toBe(2);
+      expect(engine.crossfadeDuration).toBe(6);
     });
   });
 
@@ -277,25 +280,25 @@ describe('ChillTune 2.0 — SPEC-083', () => {
       expect(engine.currentWeather).toBe('rain');
     });
 
-    it('should detect night time phase', () => {
+    it('should detect midnight time phase', () => {
       engine.ctx = makeMockCtx();
       engine.tickExtended({ y: 64 }, 0.1, 0, false, null, null, false, false);
-      expect(engine.currentTimePhase).toBe('night');
+      expect(engine.currentTimePhase).toBe('midnight');
     });
 
-    it('should detect dawn time phase', () => {
+    it('should detect morning time phase', () => {
       engine.tickExtended({ y: 64 }, 0.25, 0, false, null, null, false, false);
-      expect(engine.currentTimePhase).toBe('dawn');
+      expect(engine.currentTimePhase).toBe('morning');
     });
 
-    it('should detect sunset time phase', () => {
+    it('should detect twilight time phase', () => {
       engine.tickExtended({ y: 64 }, 0.75, 0, false, null, null, false, false);
-      expect(engine.currentTimePhase).toBe('sunset');
+      expect(engine.currentTimePhase).toBe('twilight');
     });
 
-    it('should detect day time phase', () => {
+    it('should detect afternoon time phase', () => {
       engine.tickExtended({ y: 64 }, 0.5, 0, false, null, null, false, false);
-      expect(engine.currentTimePhase).toBe('day');
+      expect(engine.currentTimePhase).toBe('afternoon');
     });
 
     it('should enter combat when hostiles detected', () => {

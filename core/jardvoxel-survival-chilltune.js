@@ -82,6 +82,9 @@ const STATE_CONFIG = {
   idle:       { bpm: 26, scale: 'lydian',          layers: ['drone'],                        droneRoot: 0, filterFreq: 1800 },
   // SPEC-099: Contemplation mode — deep space stillness
   contemplation: { bpm: 24, scale: 'lydian', layers: ['drone'], droneRoot: 0, filterFreq: 1600 },
+  // SPEC-112: Ocean music states
+  calm_sea:   { bpm: 28, scale: 'lydian', layers: ['drone', 'melody'], droneRoot: 0, filterFreq: 1800 },
+  discovery:  { bpm: 34, scale: 'lydian', layers: ['drone', 'melody'], droneRoot: 0, filterFreq: 2400 },
 };
 
 // Pesos para seleccion de grado en la escala (grado 3 = quinta, mas probable)

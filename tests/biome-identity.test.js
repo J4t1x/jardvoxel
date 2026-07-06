@@ -17,7 +17,7 @@ describe('BiomeIdentityManager', () => {
 
   it('should have fingerprints for all 19 biomes', () => {
     const biomeCount = Object.keys(BIOME_FINGERPRINTS).length;
-    expect(biomeCount).toBe(19);
+    expect(biomeCount).toBe(22);
   });
 
   it('should have fingerprints for all BIOMES constants', () => {
@@ -162,7 +162,7 @@ describe('BiomeIdentityManager', () => {
 
   it('should list all biomes', () => {
     const all = manager.getAllBiomes();
-    expect(all.length).toBe(19);
+    expect(all.length).toBe(22);
     expect(all).toContain('mystic_grove');
     expect(all).toContain('autumn_forest');
   });

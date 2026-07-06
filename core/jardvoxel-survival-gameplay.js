@@ -44,11 +44,12 @@ function isBlockSolid(blockId) {
 // ═══════════════════════════════════════════════════════════
 
 export class SurvivalWorld {
-  constructor(scene, seed, renderDistance = 6, useHierarchy = false, usePatagonia = false) {
+  constructor(scene, seed, renderDistance = 6, useHierarchy = false, usePatagonia = false, archipelagoMode = false) {
     this.scene = scene;
     this.seed = seed;
+    this._archipelagoMode = archipelagoMode;
     this.generator = new WorldGenPipeline(seed);
-    if (useHierarchy) this.generator.enableHierarchy();
+    if (useHierarchy) this.generator.enableHierarchy({ archipelagoMode });
     this.renderDistance = renderDistance;
     this._adaptiveEnabled = true;
     this._targetRenderDist = renderDistance;
@@ -108,6 +109,7 @@ export class SurvivalWorld {
       const count = await this._workerPool.init({
         seed: this.seed,
         useHierarchy: this.generator._useHierarchy,
+        archipelagoMode: this._archipelagoMode,
         patagonia: this._usePatagonia,
         terrainSettings: this._pendingTerrainSettings || {},
       });
@@ -1610,12 +1612,20 @@ export class DistantTerrainRing {
     this._innerRadius = 0;
     this._outerRadius = 0;
     this._pendingRebuild = false;
+    // SPEC-114: Archipelago island silhouettes
+    this._archipelago = null;
+    this._islandSilhouettes = [];
     this._material = new THREE.MeshBasicMaterial({
       vertexColors: true,
       fog: true,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
+  }
+
+  // SPEC-114: Set archipelago for island silhouette rendering
+  setArchipelago(archipelago) {
+    this._archipelago = archipelago;
   }
 
   update(playerX, playerZ, renderDistance) {
@@ -1702,6 +1712,11 @@ export class DistantTerrainRing {
 
     if (positions.length === 0) return;
 
+    // SPEC-114: Add island silhouettes in archipelago mode
+    if (this._archipelago) {
+      this._addIslandSilhouettes(positions, colors, indices, playerX, playerZ, vertexCount);
+    }
+
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
@@ -1746,6 +1761,53 @@ export class DistantTerrainRing {
       g * (1 - fogBlend) + fogG * fogBlend,
       b * (1 - fogBlend) + fogB * fogBlend,
     ];
+  }
+
+  // SPEC-114: Render distant island silhouettes on the horizon
+  _addIslandSilhouettes(positions, colors, indices, playerX, playerZ, vertexCount) {
+    const islands = this._archipelago.getIslands();
+    const innerR = this._innerRadius;
+    const outerR = this._outerRadius;
+    let vc = vertexCount;
+
+    for (const island of islands) {
+      const dx = island.centerX - playerX;
+      const dz = island.centerZ - playerZ;
+      const distToIsland = Math.sqrt(dx * dx + dz * dz);
+
+      // Only render islands that are beyond render distance but within visible range
+      if (distToIsland < innerR) continue;
+      if (distToIsland > outerR + island.radius) continue;
+
+      // Render island as a dome-shaped silhouette
+      const segments = 16;
+      const angleOffset = Math.atan2(dz, dx);
+      const silhouetteRadius = Math.min(island.radius, 100); // Cap silhouette size
+
+      for (let s = 0; s < segments; s++) {
+        const a1 = (s / segments) * Math.PI * 2;
+        const a2 = ((s + 1) / segments) * Math.PI * 2;
+
+        const x1 = island.centerX + Math.cos(a1) * silhouetteRadius;
+        const z1 = island.centerZ + Math.sin(a1) * silhouetteRadius;
+        const x2 = island.centerX + Math.cos(a2) * silhouetteRadius;
+        const z2 = island.centerZ + Math.sin(a2) * silhouetteRadius;
+
+        const h1 = this._getHeight(x1, z1);
+        const h2 = this._getHeight(x2, z2);
+        const baseY = SEA_LEVEL;
+
+        // Distance-based fog factor
+        const distFactor = Math.min(1, distToIsland / outerR);
+        const c1 = this._getColor(h1, distFactor);
+        const c2 = this._getColor(h2, distFactor);
+
+        positions.push(x1, baseY, z1, x1, h1, z1, x2, h2, z2, x2, baseY, z2);
+        colors.push(...c1, ...c1, ...c2, ...c2);
+        indices.push(vc, vc + 1, vc + 2, vc, vc + 2, vc + 3);
+        vc += 4;
+      }
+    }
   }
 
   dispose() {
