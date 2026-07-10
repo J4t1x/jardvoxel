@@ -1,40 +1,32 @@
-# Specs Pendientes — JardVoxel Zen: Performance + Ghibli
+# Specs Pendientes — JardVoxel Zen
 
-## Estado: SPEC-116 a SPEC-121 ejecutadas, verificación completa el 2026-07-10
+## Historial: SPEC-116 a SPEC-123 (Performance + Ghibli) — ✅ resueltas y verificadas, subidas a GitHub
 
-Se verificó la implementación real (no solo `vitest`) con un smoke test en navegador headless (Playwright + Chromium real, sirviendo el juego con `no_cache_server.py`, cargando el mundo, generando chunks vía Worker real). Resultado:
+SPEC-116 a SPEC-121 se ejecutaron, se verificó con smoke test en navegador headless real (Playwright + Chromium + Worker real), se encontró un bug crítico (loop infinito en `setToonShading()`), se generaron SPEC-122 (fix) y SPEC-123 (evidencia/tests), se re-verificó el fix en vivo (confirmado: de >60s colgado a 280ms), y todo el conjunto se commiteó y pusheó a `origin/main` (commit `7f3d64a`) el 2026-07-10.
 
-| Spec | Resultado | Detalle |
-|------|-----------|---------|
-| SPEC-116 | ✅ Correcta | `chunkGenPriority()` implementada y testeada (8 tests) |
-| SPEC-117 | ✅ Correcta | Cola incremental + delta-ring scan, muy bien testeada (19 tests) |
-| SPEC-118 | ✅ Correcta | Features movidas al worker, sin dependencias cross-chunk ni DOM. Verificado en vivo: 11 chunks cargaron sin errores. Sin tests automatizados. |
-| SPEC-119 | ✅ Correcta | Detección de tier + defaults + label en HTML, respeta settings guardados. Sin tests automatizados. |
-| SPEC-120 | ✅ Correcta, bien ejecutada | Confirmé por grep independiente que `StreamingManager` nunca se instanció en producción — el riesgo de regresión que sospeché inicialmente (bias oceánico de archipiélago) resultó ser código ya muerto antes del cambio. Docs corregidas correctamente. |
-| SPEC-121 | ❌ **Bug crítico + incompleta** | `setToonShading()` tiene un **loop infinito** confirmado en vivo (cuelga el juego permanentemente al invocarlo — probado con solo 11 chunks, >60s sin responder). Además, la feature nunca se conectó a un toggle real en la UI — hoy es inalcanzable para un jugador, lo cual accidentalmente "protegía" de este bug. |
+| Spec | Resultado |
+|------|-----------|
+| SPEC-116 | ✅ Priorización de chunks por dirección de cámara |
+| SPEC-117 | ✅ Cola incremental de generación de chunks |
+| SPEC-118 | ✅ Generación de features movida al worker |
+| SPEC-119 | ✅ Detección de tier de dispositivo mobile |
+| SPEC-120 | ✅ StreamingManager confirmado como código muerto, eliminado |
+| SPEC-121 | ✅ Material toon-shading Ghibli (tras fix de SPEC-122) |
+| SPEC-122 | ✅ Fix del loop infinito en `setToonShading()`, verificado en vivo |
+| SPEC-123 | ✅ Tests de regresión + evidencia registrada en las 5 specs anteriores |
 
-**Hallazgo transversal:** las 6 specs se movieron a `completed/` con todos los checkboxes de Acceptance Criteria sin marcar y sin evidencia registrada de las verificaciones manuales que cada spec pedía (profiling, comparación con seed fija, QA visual). Eso es exactamente lo que dejó pasar el bug de SPEC-121 sin detectar.
+Detalle completo de la verificación en las conversaciones previas y en cada `docs/specs/completed/SPEC-11*.md` / `SPEC-12*.md`.
 
-## Specs nuevas generadas por esta verificación
+## Nueva: SPEC-124 — Fix race condition en tests de AI Server
 
-| ID | Título | Prioridad | Estimación | Depende de |
-|----|--------|-----------|------------|------------|
-| SPEC-122 | Fix Infinite Loop in setToonShading() + Wire Toon Shading to Settings UI | **critical** | 3h | — |
-| SPEC-123 | Close Verification Evidence Gap on SPEC-116/117/118/119/121 | medium | 4h | SPEC-122 |
+| ID | Título | Prioridad | Estimación | Depende de | PRD |
+|----|--------|-----------|------------|------------|-----|
+| SPEC-124 | Fix Race Condition in AI Server WebSocket Tests | medium | 2h | — | `docs/PRD-AI-SERVER-TEST-RACE-CONDITION.md` |
 
-**Total:** 7h
-
-## Orden recomendado
-
-1. **SPEC-122 primero** — es un bug de congelamiento total de página, aunque hoy inalcanzable por UI, cualquier futuro intento de conectar el toggle (incluyendo SPEC-123 al re-verificar) lo dispararía.
-2. **SPEC-123** — cierra la deuda de evidencia/tests una vez que 122 esté resuelto, para que la re-verificación de SPEC-121 sea contra código ya arreglado.
+**Diagnóstico confirmado (no especulativo):** los 6 tests que fallan en `tests/ai-server.test.js` (`describe('AIServer — SPEC-085')`) no reflejan un bug del servidor — es una condición de carrera en el propio archivo de test. Usan `ws.prependOnceListener('message', () => r(messages[messages.length - 1]))`, que se ejecuta *antes* de que el listener original de `connectAndCollect()` empuje el mensaje nuevo al array, así que siempre lee el mensaje anterior (`'ready'`) en vez del real. El archivo ya tiene el helper correcto (`waitForNth()`) pero solo se usa una vez. Verifiqué reescribiendo un test para usar `waitForNth()` — pasó al instante, sin tocar el servidor.
 
 ## Comando sugerido
 
 ```
-/engine-run SPEC-122
+/engine-run SPEC-124
 ```
-
-## Nota sobre hallazgos descartados
-
-Inicialmente sospeché que SPEC-120 había introducido una regresión real (eliminar el bias oceánico de `StreamingManager` usado en modo archipiélago, que está activo por defecto en Zen). Verifiqué con `git grep` que `_streamingManager`/`StreamingManager` nunca se instanció fuera de los tests — la llamada `setArchipelago()` en `zen-game.js` estaba guardada por un `if` que siempre era `false`. No era una regresión: era código ya muerto antes del cambio. Lo documento para que quede claro que se investigó y se descartó, no que se pasó por alto.
