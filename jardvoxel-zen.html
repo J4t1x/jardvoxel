@@ -250,6 +250,7 @@ canvas{display:block}
   </div>
   <div class="tab-content show" id="tab-graphics">
     <h3>Graficos</h3>
+    <div class="setting-row" style="pointer-events:none;opacity:0.7"><label>Device tier (auto)</label><span class="setting-value" id="device-tier-label" style="color:#a78bfa">--</span></div>
     <div class="setting-row"><label>Distancia de render</label><input type="range" id="setting-render-dist" min="2" max="32" step="1" value="8"><span class="setting-value" id="setting-render-dist-val">8</span></div>
     <div class="setting-row"><label>FOV</label><input type="range" id="setting-fov" min="60" max="110" step="5" value="75"><span class="setting-value" id="setting-fov-val">75</span></div>
     <div class="setting-toggle"><label>Nubes</label><div class="toggle-switch" id="setting-clouds"></div></div>
@@ -257,6 +258,7 @@ canvas{display:block}
     <div class="setting-toggle"><label>Sombras</label><div class="toggle-switch" id="setting-shadows"></div></div>
     <div class="setting-toggle"><label>Tone mapping</label><div class="toggle-switch" id="setting-tone-mapping"></div></div>
     <div class="setting-toggle"><label>Postprocessing</label><div class="toggle-switch" id="setting-postprocessing"></div></div>
+    <div class="setting-toggle"><label>Toon shading (Ghibli)</label><div class="toggle-switch" id="setting-toon-shading"></div></div>
   </div>
   <div class="tab-content" id="tab-audio">
     <h3>Audio</h3>

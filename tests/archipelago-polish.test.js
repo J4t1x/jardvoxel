@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { StreamingManager, STREAMING_TIERS, TIER_DISTANCES } from '../core/jardvoxel-survival-streaming.js';
 import { UniverseIdentity, ArchipelagoGenerator } from '../core/jardvoxel-survival-archipelago.js';
 import { WorldIdentity, HierarchicalChunkGenerator } from '../core/jardvoxel-survival-world-hierarchy.js';
 
@@ -9,74 +8,6 @@ function createArchipelagoWorld(seed = 12345) {
 }
 
 describe('SPEC-114: Archipelago Performance & Polish', () => {
-  describe('StreamingManager LOD bias', () => {
-    it('without archipelago, uses standard tier distances', () => {
-      const sm = new StreamingManager({}, {});
-      const tier = sm.getTierForChunk(5, 5, 0, 0);
-      expect(tier).toBe(STREAMING_TIERS.MEDIUM); // dist=5, MEDIUM range 3-8
-    });
-
-    it('with archipelago, ocean chunks get HORIZON tier beyond NEAR', () => {
-      const universe = new UniverseIdentity(12345);
-      const arch = new ArchipelagoGenerator(12345, universe);
-      const sm = new StreamingManager({}, {});
-      sm.setArchipelago(arch);
-
-      // Find an ocean position far from any island
-      const oceanX = 99999;
-      const oceanZ = 99999;
-      const cx = Math.floor(oceanX / 32);
-      const cz = Math.floor(oceanZ / 32);
-
-      // At distance 5 from player (should be MEDIUM in standard, HORIZON in archipelago)
-      const tier = sm.getTierForChunk(cx + 5, cz + 5, cx, cz);
-      expect(tier).toBe(STREAMING_TIERS.HORIZON);
-    });
-
-    it('with archipelago, island chunks get extended NEAR range', () => {
-      const universe = new UniverseIdentity(12345);
-      const arch = new ArchipelagoGenerator(12345, universe);
-      const sm = new StreamingManager({}, {});
-      sm.setArchipelago(arch);
-
-      const island = arch.islands[0];
-      const cx = Math.floor(island.centerX / 32);
-      const cz = Math.floor(island.centerZ / 32);
-
-      // At distance 4 (just beyond standard NEAR=3, but within extended NEAR+2=5)
-      const tier = sm.getTierForChunk(cx + 4, cz, cx, cz);
-      expect(tier).toBe(STREAMING_TIERS.NEAR);
-    });
-
-    it('with archipelago, ocean chunks at NEAR distance stay NEAR', () => {
-      const universe = new UniverseIdentity(12345);
-      const arch = new ArchipelagoGenerator(12345, universe);
-      const sm = new StreamingManager({}, {});
-      sm.setArchipelago(arch);
-
-      // Ocean position
-      const oceanX = 99999;
-      const oceanZ = 99999;
-      const cx = Math.floor(oceanX / 32);
-      const cz = Math.floor(oceanZ / 32);
-
-      // At distance 2 (within NEAR=3)
-      const tier = sm.getTierForChunk(cx + 2, cz, cx, cz);
-      expect(tier).toBe(STREAMING_TIERS.NEAR);
-    });
-
-    it('setArchipelago(null) disables archipelago mode', () => {
-      const universe = new UniverseIdentity(12345);
-      const arch = new ArchipelagoGenerator(12345, universe);
-      const sm = new StreamingManager({}, {});
-      sm.setArchipelago(arch);
-      sm.setArchipelago(null);
-
-      const tier = sm.getTierForChunk(5, 5, 0, 0);
-      expect(tier).toBe(STREAMING_TIERS.MEDIUM); // Standard behavior
-    });
-  });
-
   describe('GardenIdentity biome bias in chunk context', () => {
     it('chunk context includes garden with biomeBias', () => {
       const { gen, arch } = createArchipelagoWorld();

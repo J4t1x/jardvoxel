@@ -635,6 +635,10 @@ canvas{display:block}
       <label>Postprocessing (SSAO + Bloom)</label>
       <div class="toggle-switch" id="setting-postprocessing"></div>
     </div>
+    <div class="setting-toggle">
+      <label>Toon shading (Ghibli)</label>
+      <div class="toggle-switch" id="setting-toon-shading"></div>
+    </div>
   </div>
 
   <div class="tab-content" id="tab-audio">
@@ -1164,6 +1168,7 @@ class SurvivalGame {
       showFPS: true, showCoords: true, showMinimap: true,
       showClock: true, showControlsHint: true,
       ambientSoundEnabled: true,
+      toonShading: false,
     };
     try {
       const saved = JSON.parse(localStorage.getItem('jardvoxel-settings'));
@@ -2096,6 +2101,9 @@ class SurvivalGame {
     wireToggle('setting-postprocessing', 'postprocessing', (v) => {
       if (this.postprocessing) this.postprocessing.setEnabled(v);
     });
+    wireToggle('setting-toon-shading', 'toonShading', (v) => {
+      if (this.world) this.world.setToonShading(v);
+    });
 
     // === Audio tab ===
     const vol = document.getElementById('setting-volume');
@@ -2265,6 +2273,7 @@ class SurvivalGame {
     }
     if (this.shadowManager) this.shadowManager.setEnabled(this.settings.shadows);
     if (this.postprocessing) this.postprocessing.setEnabled(this.settings.postprocessing);
+    if (this.world && this.settings.toonShading) this.world.setToonShading(true);
 
     // Audio
     if (this.audio) {

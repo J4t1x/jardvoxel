@@ -36,10 +36,11 @@ PRD base: `docs/PRD-JARDVOXEL-7.0-HIERARCHICAL.md`
 | SPEC-104 | Hierarchical Chunk | ✅ Completado |
 | SPEC-105 | Microsectors | ✅ Completado |
 | SPEC-106 | Layer System | ✅ Completado |
-| SPEC-107 | Streaming System | ✅ Completado |
+| SPEC-107 | Streaming System | ⚠️ Superseded by SPEC-120 (dead code, removed) |
 | SPEC-108 | Landmarks Generator | ✅ Completado |
 | SPEC-109 | Ecosystems | ✅ Completado |
 | SPEC-110 | Contextual Generation | ✅ Completado |
+| SPEC-120 | StreamingManager Audit | ✅ Completado (dead code removed) |
 
 ## Noise Generation v6.0 (SPEC-091 to SPEC-098) — 8 specs
 

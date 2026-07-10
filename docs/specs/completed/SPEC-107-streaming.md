@@ -5,6 +5,8 @@
 **Depends on:** SPEC-104  
 **Blocked by:** SPEC-104
 
+**Status:** ⚠️ Superseded by SPEC-120 (StreamingManager was dead code — never integrated, removed)
+
 ## Description
 
 Replace current 5-level LOD with 4-tier streaming aligned with the v7.0 hierarchy and layer system.
@@ -39,6 +41,10 @@ Replace current 5-level LOD with 4-tier streaming aligned with the v7.0 hierarch
 - [ ] Tier transitions are smooth (no visible popping)
 - [ ] Distant chunks use less memory than v6.0
 - [ ] FPS impact is equal or better than v6.0
+
+## SPEC-120 Audit Result
+
+**Decision: Removed.** The `StreamingManager` class was built but never integrated into the live rendering pipeline. No core file imported it; the `_streamingManager` reference in `jardvoxel-zen-game.js` was a dead conditional (always falsy). The 5-level LOD in `jardvoxel-survival-gameplay.js` remained the live system. `core/jardvoxel-survival-streaming.js` was deleted, orphaned references cleaned up, and tests updated.
 
 ## Implementation Notes
 

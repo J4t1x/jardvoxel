@@ -10,6 +10,7 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      { find: 'ws', replacement: path.resolve(__dirname, 'ai-server/node_modules/ws/index.js') },
       { find: 'three/addons/postprocessing/EffectComposer.js', replacement: path.resolve(__dirname, 'tests/mocks/effect-composer.js') },
       { find: 'three/addons/postprocessing/RenderPass.js', replacement: path.resolve(__dirname, 'tests/mocks/render-pass.js') },
       { find: 'three/addons/postprocessing/SSAOPass.js', replacement: path.resolve(__dirname, 'tests/mocks/ssao-pass.js') },

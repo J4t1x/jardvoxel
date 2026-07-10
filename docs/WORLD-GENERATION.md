@@ -58,7 +58,6 @@ La generación procedural evoluciona hacia una arquitectura jerárquica inspirad
 | `core/jardvoxel-survival-world-hierarchy.js` | Niveles 1-5 (World, Continent, Region, Zone, Chunk) |
 | `core/jardvoxel-survival-microsectors.js` | Nivel 6 (Microsectores) |
 | `core/jardvoxel-survival-layers.js` | Sistema de 9 capas |
-| `core/jardvoxel-survival-streaming.js` | Streaming 4-tier |
 | `core/jardvoxel-survival-landmarks.js` | Landmarks |
 | `core/jardvoxel-survival-ecosystems.js` | Ecosistemas |
 | `core/jardvoxel-survival-contextual.js` | Generación contextual |

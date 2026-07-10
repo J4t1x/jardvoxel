@@ -25,6 +25,7 @@ import { ThirdPersonCamera } from './jardvoxel-survival-thirdperson.js';
 import { WaterMaterialManager, WATER_COLORS } from './jardvoxel-survival-water.js';
 import { InstancedFeatureRenderer } from './jardvoxel-survival-instanced.js';
 import { WorkerPool } from './jardvoxel-survival-worker-pool.js';
+import { createToonTerrainMaterial, disposeToonMaterial } from './jardvoxel-survival-toon-material.js';
 
 // Non-solid blocks that players and mobs can walk through
 const NON_SOLID_BLOCKS = new Set([
@@ -37,6 +38,21 @@ const NON_SOLID_BLOCKS = new Set([
 
 function isBlockSolid(blockId) {
   return !NON_SOLID_BLOCKS.has(blockId);
+}
+
+// SPEC-116: Pure function for view-direction-aware chunk generation priority.
+// Returns a composite sort key: lower = higher priority (generated first).
+// Uses continuous cosine-based weight to avoid hard pop-in at arc boundaries.
+// K controls how much the angular term influences ordering relative to distance.
+// At K=1.5, a front chunk at dist 3.5 ties with a rear chunk at dist 0.5 —
+// close rear chunks still win, but front chunks get a meaningful boost at equal distance.
+export function chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera, K = 1.5) {
+  if (!hasCamera || dist <= 1.5) return dist;
+  const chunkAngle = Math.atan2(dx, dz);
+  const angleDiff = Math.abs(chunkAngle - cameraYaw);
+  const wrapped = angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
+  const cosWeight = Math.cos(wrapped); // 1 = front, 0 = side, -1 = rear
+  return dist - cosWeight * K;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -81,6 +97,12 @@ export class SurvivalWorld {
     this._useWorkerPool = false;
     // Distant terrain ring — fake horizon to hide unloaded chunks
     this._distantTerrain = new DistantTerrainRing(scene, this);
+    // SPEC-117: Incremental chunk generation queue — replaces per-frame full-grid scan
+    this._chunkGenQueue = [];
+    this._queueReadIdx = 0;
+    this._lastQueuePCX = null;
+    this._lastQueuePCZ = null;
+    this._lastQueueRD = null;
     this._initWorker();
   }
 
@@ -92,9 +114,27 @@ export class SurvivalWorld {
   _initLodMaterials() {
     if (this._lodMaterials) return;
     this._lodMaterials = {
-      near: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0.0, flatShading: true, side: THREE.FrontSide }),
+      near: this._toonShading
+        ? createToonTerrainMaterial({ steps: 4 })
+        : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0.0, flatShading: true, side: THREE.FrontSide }),
       far: new THREE.MeshLambertMaterial({ vertexColors: true }),
     };
+  }
+
+  // SPEC-121: Toggle toon shading on/off and rebuild all chunk meshes.
+  // SPEC-122: Fixed infinite loop by snapshotting coordinates before iteration.
+  setToonShading(enabled) {
+    this._toonShading = !!enabled;
+    // Dispose existing near material (and its gradient map if toon)
+    if (this._lodMaterials) {
+      disposeToonMaterial(this._lodMaterials.near);
+      this._lodMaterials = null;
+    }
+    // Snapshot chunk coordinates before iterating (prevents infinite loop when _rebuildChunkMesh mutates this.meshes)
+    const targets = Array.from(this.meshes.values(), m => ({ cx: m.userData.cx, cz: m.userData.cz }));
+    for (const { cx, cz } of targets) {
+      this._rebuildChunkMesh(cx, cz, true);
+    }
   }
 
   async _initWorker() {
@@ -144,7 +184,8 @@ export class SurvivalWorld {
   }
 
   // Called when a worker finishes generating a chunk
-  _onWorkerChunkDone(cx, cz, blocks, minContentY, maxContentY) {
+  // SPEC-118: Worker now sends fully-generated chunks (terrain + features)
+  _onWorkerChunkDone(cx, cz, blocks, minContentY, maxContentY, narrativeStructures) {
     const chunk = this._getOrCreateChunk(cx, cz);
     const incoming = new Uint8Array(blocks);
     if (incoming.length <= chunk.blocks.length) {
@@ -157,7 +198,10 @@ export class SurvivalWorld {
       chunk.minContentY = minContentY;
       chunk.maxContentY = maxContentY;
     }
-    generateChunkWithFeatures(chunk, this);
+    // SPEC-118: Features already generated in worker — just attach narrative data if present
+    if (narrativeStructures) {
+      chunk.narrativeStructures = narrativeStructures;
+    }
     if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
     this.pendingChunks.delete(this._chunkKey(cx, cz));
     this._rebuildChunkMesh(cx, cz);
@@ -189,7 +233,7 @@ export class SurvivalWorld {
     return chunk;
   }
 
-  generateChunk(cx, cz) {
+  generateChunk(cx, cz, viewPriority) {
     const key = this._chunkKey(cx, cz);
     if (this.pendingChunks.has(key)) return;
     if (this.chunks.has(key) && this.chunks.get(key).generated) return;
@@ -198,12 +242,14 @@ export class SurvivalWorld {
     const chunk = this._getOrCreateChunk(cx, cz);
 
     if (this._useWorkerPool && this._workerPool) {
-      // PRD P-04: Dispatch to worker pool with distance-based priority
-      const priority = this._playerChunkX !== undefined
-        ? Math.sqrt((cx - this._playerChunkX) ** 2 + (cz - this._playerChunkZ) ** 2)
-        : 0;
+      // SPEC-116: Use view-direction-adjusted priority if provided, else fall back to distance
+      const priority = viewPriority !== undefined
+        ? viewPriority
+        : (this._playerChunkX !== undefined
+          ? Math.sqrt((cx - this._playerChunkX) ** 2 + (cz - this._playerChunkZ) ** 2)
+          : 0);
       this._workerPool.generateChunk(cx, cz, priority).then(data => {
-        this._onWorkerChunkDone(data.cx, data.cz, data.blocks, data.minContentY, data.maxContentY);
+        this._onWorkerChunkDone(data.cx, data.cz, data.blocks, data.minContentY, data.maxContentY, data.narrativeStructures);
       }).catch(err => {
         console.warn(`WorkerPool chunk generation failed for (${cx},${cz}), falling back to sync:`, err);
         chunk.generate();
@@ -424,6 +470,104 @@ export class SurvivalWorld {
     return hm.topBlocks[lx + lz * CHUNK_SIZE];
   }
 
+  // SPEC-117: Full chunk scan — rebuilds the generation queue from scratch.
+  // Used on first frame, render-distance change, or large player jump.
+  _fullChunkScan(pcx, pcz, rd, cameraYaw, hasCamera) {
+    this._chunkGenQueue = [];
+    for (let dx = -rd; dx <= rd; dx++) {
+      for (let dz = -rd; dz <= rd; dz++) {
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist > rd) continue;
+        this._tryAddChunkCandidate(pcx + dx, pcz + dz, pcx, pcz, rd, cameraYaw, hasCamera);
+      }
+    }
+    this._chunkGenQueue.sort((a, b) => a.priority - b.priority);
+    this._queueReadIdx = 0;
+  }
+
+  // SPEC-117: Delta-ring chunk scan — only scans newly-exposed chunks when the
+  // player crosses a chunk boundary. Much cheaper than a full (2·rd+1)² scan.
+  _deltaRingChunkScan(pcx, pcz, oldPcx, oldPcz, rd, cameraYaw, hasCamera) {
+    const ddx = pcx - oldPcx;
+    const ddz = pcz - oldPcz;
+
+    // If the player jumped more than rd chunks (teleport), fall back to full scan
+    if (Math.abs(ddx) > rd || Math.abs(ddz) > rd) {
+      this._fullChunkScan(pcx, pcz, rd, cameraYaw, hasCamera);
+      return;
+    }
+
+    // Compact the existing queue: drop already-dispatched and stale entries
+    this._compactChunkQueue();
+
+    // Scan newly-exposed columns (leading edge in x)
+    if (ddx > 0) {
+      for (let x = oldPcx + rd + 1; x <= pcx + rd; x++) {
+        for (let dz = -rd; dz <= rd; dz++) {
+          this._tryAddChunkCandidate(x, pcz + dz, pcx, pcz, rd, cameraYaw, hasCamera);
+        }
+      }
+    } else if (ddx < 0) {
+      for (let x = pcx - rd; x <= oldPcx - rd - 1; x++) {
+        for (let dz = -rd; dz <= rd; dz++) {
+          this._tryAddChunkCandidate(x, pcz + dz, pcx, pcz, rd, cameraYaw, hasCamera);
+        }
+      }
+    }
+
+    // Scan newly-exposed rows (leading edge in z), excluding corners already
+    // covered by the column scan above
+    const xOverlapStart = Math.max(pcx - rd, oldPcx - rd);
+    const xOverlapEnd = Math.min(pcx + rd, oldPcx + rd);
+    if (ddz > 0) {
+      for (let z = oldPcz + rd + 1; z <= pcz + rd; z++) {
+        for (let x = xOverlapStart; x <= xOverlapEnd; x++) {
+          this._tryAddChunkCandidate(x, z, pcx, pcz, rd, cameraYaw, hasCamera);
+        }
+      }
+    } else if (ddz < 0) {
+      for (let z = pcz - rd; z <= oldPcz - rd - 1; z++) {
+        for (let x = xOverlapStart; x <= xOverlapEnd; x++) {
+          this._tryAddChunkCandidate(x, z, pcx, pcz, rd, cameraYaw, hasCamera);
+        }
+      }
+    }
+
+    this._chunkGenQueue.sort((a, b) => a.priority - b.priority);
+    this._queueReadIdx = 0;
+  }
+
+  // SPEC-117: Add a single chunk candidate to the queue if it needs generation
+  _tryAddChunkCandidate(cx, cz, pcx, pcz, rd, cameraYaw, hasCamera) {
+    const dx = cx - pcx, dz = cz - pcz;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > rd) return;
+    const key = this._chunkKey(cx, cz);
+    if (this.chunks.has(key) && this.chunks.get(key).generated) return;
+    if (this.pendingChunks.has(key)) return;
+    const priority = chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera);
+    this._chunkGenQueue.push({ cx, cz, dist, priority });
+  }
+
+  // SPEC-117: Compact the queue — remove already-dispatched and stale entries
+  _compactChunkQueue() {
+    if (this._queueReadIdx >= this._chunkGenQueue.length) {
+      this._chunkGenQueue = [];
+      this._queueReadIdx = 0;
+      return;
+    }
+    const compacted = [];
+    for (let i = this._queueReadIdx; i < this._chunkGenQueue.length; i++) {
+      const c = this._chunkGenQueue[i];
+      const key = this._chunkKey(c.cx, c.cz);
+      if (this.chunks.has(key) && this.chunks.get(key).generated) continue;
+      if (this.pendingChunks.has(key)) continue;
+      compacted.push(c);
+    }
+    this._chunkGenQueue = compacted;
+    this._queueReadIdx = 0;
+  }
+
   update(playerX, playerZ, fps = 60, camera = null, dt = 0.016) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
@@ -450,35 +594,40 @@ export class SurvivalWorld {
     
     const rd = this.renderDistance + altitudeBoost;
 
-    // SPEC-CHUNK-OPT: Camera direction for view-direction loading
+    // SPEC-116: Camera direction for view-direction chunk prioritization
     let cameraYaw = 0;
-    if (camera) {
+    const hasCamera = !!camera;
+    if (hasCamera) {
       if (!this._tmpCamDir) this._tmpCamDir = new THREE.Vector3();
       camera.getWorldDirection(this._tmpCamDir);
       cameraYaw = Math.atan2(this._tmpCamDir.x, this._tmpCamDir.z);
     }
-    const PI = Math.PI;
-    const frontArc = PI / 3;
-    const sideArc = PI * 0.6;
 
-    // SPEC-CHUNK-OPT: Priority queue — distance-based (simplified to avoid blocking)
-    // Load all chunks within render distance, prioritizing closest to player
-    const toGen = [];
-    
-    for (let dx = -rd; dx <= rd; dx++) {
-      for (let dz = -rd; dz <= rd; dz++) {
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist > rd) continue;
-        const cx = pcx + dx, cz = pcz + dz;
-        const key = this._chunkKey(cx, cz);
-        if (this.chunks.has(key) && this.chunks.get(key).generated) continue;
-        if (this.pendingChunks.has(key)) continue;
+    // SPEC-117: Incremental chunk queue — only rescan when something changed:
+    //   1. First frame (no previous chunk coords)
+    //   2. Player crossed a chunk boundary → delta-ring scan
+    //   3. Render distance changed (adaptive or altitude boost) → full rescan
+    //   4. Queue emptied and needs repopulation after a boundary crossing
+    // In steady state (player standing still, rd unchanged, queue non-empty or
+    // fully drained), NO grid scan happens — zero iterations, zero allocations.
+    const chunkChanged = this._lastQueuePCX !== pcx || this._lastQueuePCZ !== pcz;
+    const rdChanged = this._lastQueueRD !== rd;
 
-        toGen.push({ cx, cz, dist });
-      }
+    if (this._lastQueuePCX === null || rdChanged) {
+      // Full scan on first frame or render-distance change
+      this._fullChunkScan(pcx, pcz, rd, cameraYaw, hasCamera);
+    } else if (chunkChanged) {
+      // Delta-ring scan on chunk-boundary crossing
+      this._deltaRingChunkScan(pcx, pcz, this._lastQueuePCX, this._lastQueuePCZ, rd, cameraYaw, hasCamera);
+    } else if (this._queueReadIdx >= this._chunkGenQueue.length) {
+      // Queue drained — compact and check if there's anything left to do.
+      // If still empty, no rescan needed until chunk boundary or rd changes.
+      this._compactChunkQueue();
     }
-    // Sort by distance only - simplest and most reliable
-    toGen.sort((a, b) => a.dist - b.dist);
+
+    this._lastQueuePCX = pcx;
+    this._lastQueuePCZ = pcz;
+    this._lastQueueRD = rd;
 
     // SPEC-CHUNK-OPT: Generate up to N per frame (budget-conscious)
     // Surface-first: fewer chunks per frame = smoother FPS, terrain appears faster
@@ -486,8 +635,15 @@ export class SurvivalWorld {
     const burstActive = this._initialLoadBurst > 0;
     const maxPerFrame = burstActive ? 2 : (fps < 45 ? 1 : 2);
     if (burstActive) this._initialLoadBurst--;
-    for (let i = 0; i < Math.min(maxPerFrame, toGen.length); i++) {
-      this.generateChunk(toGen[i].cx, toGen[i].cz);
+    let dispatched = 0;
+    while (this._queueReadIdx < this._chunkGenQueue.length && dispatched < maxPerFrame) {
+      const candidate = this._chunkGenQueue[this._queueReadIdx++];
+      // Skip stale entries (chunk may have been generated/pending since scan)
+      const key = this._chunkKey(candidate.cx, candidate.cz);
+      if (this.chunks.has(key) && this.chunks.get(key).generated) continue;
+      if (this.pendingChunks.has(key)) continue;
+      this.generateChunk(candidate.cx, candidate.cz, candidate.priority);
+      dispatched++;
     }
 
     // Process pending neighbor rebuilds after burst loading

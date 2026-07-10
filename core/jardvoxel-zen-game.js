@@ -67,11 +67,31 @@ export class ZenGame {
       voronoiBiomes: true, ridgedNoise: true, poissonVeg: true,
       hydrology: true, proceduralClimate: true, instancedRender: true,
       multiWorker: true, cellularNoise: true,
+      // SPEC-119: pixelRatio set by device tier on first run
+      pixelRatio: Math.min(window.devicePixelRatio, 1.5),
+      // SPEC-122: Ghibli-style toon shading toggle (opt-in)
+      toonShading: false,
     };
+
+    // SPEC-119: Detect device tier once at boot (cheap, no blocking)
+    this.deviceTier = this._detectDeviceTier();
+
+    // SPEC-119: Apply tier-based defaults only when no saved settings exist (first run)
+    let _hasSavedSettings = false;
     try {
-      const saved = JSON.parse(localStorage.getItem('jardvoxel-zen-settings'));
-      if (saved) Object.assign(this.settings, saved);
+      const raw = localStorage.getItem('jardvoxel-zen-settings');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved) {
+          Object.assign(this.settings, saved);
+          _hasSavedSettings = true;
+        }
+      }
     } catch (e) {}
+    if (!_hasSavedSettings) {
+      this._applyTierDefaults();
+    }
+
     this.settings.renderDistance = Math.min(this.settings.renderDistance, 32);
 
     this.discoveredBiomes = new Set();
@@ -158,7 +178,7 @@ export class ZenGame {
     this.camera = new THREE.PerspectiveCamera(this.settings.fov, window.innerWidth / window.innerHeight, 0.1, 4000);
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(this.settings.pixelRatio);
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = this.settings.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -238,10 +258,6 @@ export class ZenGame {
       const arch = this.world.generator.hierarchy._archipelago;
       this.oceanSystem = new OceanSystem(arch);
       this.restorationSystem = new RestorationSystem(arch);
-      // Wire archipelago LOD bias into streaming manager if available
-      if (this.world.generator.hierarchy._streamingManager) {
-        this.world.generator.hierarchy._streamingManager.setArchipelago(arch);
-      }
       // Wire archipelago into distant terrain ring
       if (this.world._distantTerrain) {
         this.world._distantTerrain.setArchipelago(arch);
@@ -485,6 +501,9 @@ export class ZenGame {
   }
 
   _initSettings() {
+    const tierEl = document.getElementById('device-tier-label');
+    if (tierEl) tierEl.textContent = this.deviceTier;
+
     const wireSlider = (id, key, fmt, cb) => {
       const el = document.getElementById(id);
       const val = document.getElementById(id + '-val');
@@ -543,6 +562,7 @@ export class ZenGame {
       this.renderer.toneMapping = v ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
     });
     wireToggle('setting-postprocessing', 'postprocessing', (v) => { if (this.postprocessing) this.postprocessing.setEnabled(v); });
+    wireToggle('setting-toon-shading', 'toonShading', (v) => { if (this.world && this.world.setToonShading) this.world.setToonShading(v); });
     wireToggle('setting-music-enabled', 'musicEnabled', (v) => { if (v) { this._initAudio(); this.chilltune.start(); } else this.chilltune.stop(); });
     wireToggle('setting-ambient-sound', 'ambientSoundEnabled', (v) => {
       if (this.ambientSoundManager) { this.ambientSoundManager.setEnabled(v); }
@@ -619,6 +639,8 @@ export class ZenGame {
     }
     if (this.shadowManager) this.shadowManager.setEnabled(this.settings.shadows);
     if (this.postprocessing) this.postprocessing.setEnabled(this.settings.postprocessing);
+    // SPEC-122: Apply toon shading setting
+    if (this.world && this.world.setToonShading) this.world.setToonShading(this.settings.toonShading);
     if (this.audio) { this.audio.setVolume(this.settings.volume); this.audio.sfxVolume = this.settings.sfxVolume; }
     if (this.chilltune) this.chilltune.setVolume(this.settings.musicVolume);
     if (this.ambientSoundManager) { this.ambientSoundManager.setVolume(this.settings.ambientVolume); this.ambientSoundManager.setEnabled(this.settings.ambientSoundEnabled); }
@@ -681,6 +703,31 @@ export class ZenGame {
 
   _saveSettings() {
     try { localStorage.setItem('jardvoxel-zen-settings', JSON.stringify(this.settings)); } catch (e) {}
+  }
+
+  _detectDeviceTier() {
+    const isTouchPrimary = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    const cores = navigator.hardwareConcurrency || 0;
+    const mem = navigator.deviceMemory || 0; // Not available on iOS Safari — treat as unknown
+    if (isTouchPrimary && (cores <= 4 || (mem > 0 && mem <= 4))) {
+      return 'LOW';
+    }
+    if (!isTouchPrimary && cores >= 8) {
+      return 'HIGH';
+    }
+    return 'MEDIUM';
+  }
+
+  _applyTierDefaults() {
+    if (this.deviceTier === 'LOW') {
+      this.settings.renderDistance = 5;
+      this.settings.pixelRatio = Math.min(window.devicePixelRatio, 1.0);
+      // shadows and postprocessing already false by default
+    } else if (this.deviceTier === 'MEDIUM') {
+      this.settings.renderDistance = 8;
+      this.settings.pixelRatio = Math.min(window.devicePixelRatio, 1.25);
+    }
+    // HIGH: keep current defaults — zero regression for desktop
   }
 
   _initSave() { /* replaced by async _initSave above */ }

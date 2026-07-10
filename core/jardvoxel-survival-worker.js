@@ -1,7 +1,9 @@
 // JardVoxel Survival Worker — chunk generation offloading
+// SPEC-118: Feature generation (trees/structures/vegetation) now runs in worker
 import { WorldGenPipeline, VoxelChunk } from './jardvoxel-survival-engine.js';
 import { NetherGenerator } from './jardvoxel-survival-nether.js';
 import { PatagoniaProfile, applyPatagoniaToGenerator } from './jardvoxel-patagonia.js';
+import { generateChunkWithFeatures } from './jardvoxel-survival-features.js';
 
 let world = null;
 let netherGen = null;
@@ -29,6 +31,9 @@ self.onmessage = (e) => {
       applyPatagoniaToGenerator(world, pat);
     }
     netherGen = new NetherGenerator();
+    // SPEC-118: Feature functions expect world.generator (the WorldGenPipeline) and world.dimension
+    world.generator = world;
+    world.dimension = dimension;
     // Apply terrain settings from init message
     applyTerrainSettings(e.data.terrainSettings || {});
     return;
@@ -46,6 +51,7 @@ self.onmessage = (e) => {
   }
   if (e.data.type === 'setDimension') {
     dimension = e.data.dimension;
+    if (world) world.dimension = dimension;
     return;
   }
   const { cx, cz } = e.data;
@@ -67,10 +73,16 @@ self.onmessage = (e) => {
   } else {
     chunk.generate();
   }
+  // SPEC-118: Run feature generation (ores, trees, decoration, structures, hydrology) in worker
+  // For nether chunks, generateChunkWithFeatures detects world.dimension === 'nether' and skips
+  // (chunk is already generated). For overworld, chunk.generate() is a no-op since already done,
+  // then features are applied to the blocks typed array.
+  generateChunkWithFeatures(chunk, world);
   self.postMessage({
     cx, cz,
     blocks: chunk.blocks.buffer,
     minContentY: chunk.minContentY ?? 0,
     maxContentY: chunk.maxContentY ?? 0,
+    narrativeStructures: chunk.narrativeStructures || null,
   }, [chunk.blocks.buffer]);
 };

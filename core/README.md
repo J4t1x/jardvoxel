@@ -74,7 +74,6 @@ Motor modular de JardVoxel. Todos los archivos `.js` estan centralizados aqui pa
 - **jardvoxel-survival-poisson.js** - PoissonVegetation (distribucion Poisson)
 - **jardvoxel-survival-instanced.js** - InstancedRenderer (renderizado instanciado)
 - **jardvoxel-survival-microsectors.js** - MicrosectorSystem (detalle fino)
-- **jardvoxel-survival-streaming.js** - StreamingSystem (carga/descarga dinamica)
 - **jardvoxel-survival-worker-pool.js** - WorkerPool (multi-worker chunk generation)
 - **jardvoxel-survival-landmarks.js** - LandmarkGenerator (hitos naturales)
 - **jardvoxel-survival-ecosystems.js** - EcosystemSystem (flora/fauna interconectada)

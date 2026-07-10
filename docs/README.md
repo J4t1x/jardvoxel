@@ -71,7 +71,6 @@ jardvoxel/
 │   ├── jardvoxel-survival-poisson.js # PoissonVegetation
 │   ├── jardvoxel-survival-instanced.js # InstancedRenderer
 │   ├── jardvoxel-survival-microsectors.js # MicrosectorSystem
-│   ├── jardvoxel-survival-streaming.js # StreamingSystem
 │   ├── jardvoxel-survival-worker-pool.js # WorkerPool (multi-worker)
 │   ├── jardvoxel-survival-worker.js # Web Worker survival
 │   ├── jardvoxel-survival-world-hierarchy.js # WorldHierarchy (continent/region/zone)

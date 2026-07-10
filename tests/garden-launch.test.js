@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { RestorationSystem } from '../core/jardvoxel-survival-restoration.js';
 import { OceanSystem } from '../core/jardvoxel-survival-ocean.js';
 import { UniverseIdentity, ArchipelagoGenerator } from '../core/jardvoxel-survival-archipelago.js';
-import { StreamingManager, STREAMING_TIERS } from '../core/jardvoxel-survival-streaming.js';
 import { ExplorationJournal, ENTRY_TYPES } from '../core/jardvoxel-survival-journal.js';
 
 function createArchipelago(seed = 12345) {
@@ -27,14 +26,6 @@ describe('SPEC-115: Garden Launch Integration', () => {
       expect(restoration.getOverallProgress()).toBe(0);
     });
 
-    it('StreamingManager accepts archipelago for LOD bias', () => {
-      const { arch } = createArchipelago();
-      const sm = new StreamingManager({}, {});
-      sm.setArchipelago(arch);
-      // Ocean chunk at distance 5 should get HORIZON
-      const tier = sm.getTierForChunk(99999, 99999, 0, 0);
-      expect(tier).toBe(STREAMING_TIERS.HORIZON);
-    });
   });
 
   describe('Garden discovery', () => {
@@ -217,11 +208,5 @@ describe('SPEC-115: Garden Launch Integration', () => {
       expect(restorationSystem).toBeNull();
     });
 
-    it('StreamingManager without archipelago uses standard tiers', () => {
-      const sm = new StreamingManager({}, {});
-      // No setArchipelago call — standard behavior
-      const tier = sm.getTierForChunk(5, 5, 0, 0);
-      expect(tier).toBe(STREAMING_TIERS.MEDIUM);
-    });
   });
 });

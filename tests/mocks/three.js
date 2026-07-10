@@ -237,7 +237,45 @@ export class Matrix4 {
 }
 
 export const DoubleSide = 2;
+export const FrontSide = 1;
 export const HalfFloatType = 1016;
 export const LinearFilter = 1006;
+export const NearestFilter = 1003;
 export const RGBAFormat = 1023;
+export const RedFormat = 1028;
 export const ACESFilmicToneMapping = 4;
+
+export class DataTexture {
+  constructor(data, width, height, format) {
+    this.image = { data, width, height };
+    this.format = format;
+    this.magFilter = LinearFilter;
+    this.minFilter = LinearFilter;
+    this.generateMipmaps = true;
+    this.needsUpdate = false;
+    this.disposed = false;
+  }
+  dispose() { this.disposed = true; }
+}
+
+export class MeshStandardMaterial {
+  constructor(opts = {}) {
+    this.vertexColors = opts.vertexColors || false;
+    this.roughness = opts.roughness ?? 1;
+    this.metalness = opts.metalness ?? 0;
+    this.flatShading = opts.flatShading || false;
+    this.side = opts.side ?? FrontSide;
+    this.disposed = false;
+  }
+  dispose() { this.disposed = true; }
+}
+
+export class MeshToonMaterial {
+  constructor(opts = {}) {
+    this.vertexColors = opts.vertexColors || false;
+    this.gradientMap = opts.gradientMap || null;
+    this.side = opts.side ?? FrontSide;
+    this.disposed = false;
+  }
+  dispose() { this.disposed = true; }
+}
