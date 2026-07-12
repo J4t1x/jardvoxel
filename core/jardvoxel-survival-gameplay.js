@@ -60,11 +60,13 @@ export function chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera, K = 1.5) {
 // ═══════════════════════════════════════════════════════════
 
 export class SurvivalWorld {
-  constructor(scene, seed, renderDistance = 6, useHierarchy = false, usePatagonia = false, archipelagoMode = false) {
+  constructor(scene, seed, renderDistance = 6, useHierarchy = false, usePatagonia = false, archipelagoMode = false, worldMode = 'survival') {
     this.scene = scene;
     this.seed = seed;
     this._archipelagoMode = archipelagoMode;
+    this._worldMode = worldMode === 'zen2' ? 'zen2' : 'survival';
     this.generator = new WorldGenPipeline(seed);
+    this.generator.setWorldMode(this._worldMode);
     if (useHierarchy) this.generator.enableHierarchy({ archipelagoMode });
     this.renderDistance = renderDistance;
     this._adaptiveEnabled = true;
@@ -90,7 +92,8 @@ export class SurvivalWorld {
     // Shared materials by LOD level (avoid per-chunk allocation)
     this._lodMaterials = null;
     // PRD G-05: Instanced feature renderer for vegetation
-    this._instancedRenderer = new InstancedFeatureRenderer(scene);
+    // Zen2 gets gentle wind sway on grass/flowers (shared capability, opt-in via worldMode)
+    this._instancedRenderer = new InstancedFeatureRenderer(scene, { windSway: this._worldMode === 'zen2' });
     this._poissonEnabled = true;
     // PRD P-04: Multi-worker pool (replaces single worker)
     this._workerPool = null;
@@ -140,8 +143,12 @@ export class SurvivalWorld {
   async _initWorker() {
     if (!this.workerSupported) return;
     try {
-      // PRD P-04: Use WorkerPool with up to 2 workers (mobile-friendly)
-      const numWorkers = Math.min(2, navigator.hardwareConcurrency || 2);
+      // PRD P-04: Use WorkerPool with up to 2 workers (mobile-friendly).
+      // Zen2 chunks are cheaper to generate (no caves/ores), so more workers
+      // can run in parallel without starving the main thread.
+      const numWorkers = this._worldMode === 'zen2'
+        ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1))
+        : Math.min(2, navigator.hardwareConcurrency || 2);
       this._workerPool = new WorkerPool(
         new URL('./jardvoxel-survival-worker.js', import.meta.url),
         numWorkers
@@ -152,6 +159,7 @@ export class SurvivalWorld {
         archipelagoMode: this._archipelagoMode,
         patagonia: this._usePatagonia,
         terrainSettings: this._pendingTerrainSettings || {},
+        worldMode: this._worldMode,
       });
       if (count > 0) {
         this._useWorkerPool = true;
@@ -575,6 +583,8 @@ export class SurvivalWorld {
     this._playerChunkZ = pcz;
     this._camera = camera;
 
+    if (this._instancedRenderer) this._instancedRenderer.update(dt);
+
     // Adaptive render distance
     if (this._adaptiveEnabled) {
       if (fps < 35 && this.renderDistance > this._minRenderDist) {
@@ -633,7 +643,11 @@ export class SurvivalWorld {
     // Surface-first: fewer chunks per frame = smoother FPS, terrain appears faster
     // because each chunk generates surface band only (not full 384 depth)
     const burstActive = this._initialLoadBurst > 0;
-    const maxPerFrame = burstActive ? 2 : (fps < 45 ? 1 : 2);
+    // Zen2 chunks skip cave/ore generation and compress height, so meshing is
+    // cheaper (fewer surface transitions -> larger greedy-merged quads). Raise
+    // the per-frame ceiling for that mode while keeping the FPS-based backoff.
+    const isFlat = this._worldMode === 'zen2';
+    const maxPerFrame = burstActive ? (isFlat ? 4 : 2) : (fps < 45 ? 1 : (isFlat ? 3 : 2));
     if (burstActive) this._initialLoadBurst--;
     let dispatched = 0;
     while (this._queueReadIdx < this._chunkGenQueue.length && dispatched < maxPerFrame) {
@@ -873,6 +887,14 @@ export class PlayerController {
     this.characterSeed = 0;
     this._mining = false;
     this.thirdPersonCamera = new ThirdPersonCamera();
+    // Zen2: optional free-orbit "vista" camera mode, injected externally
+    // (e.g. Zen2OrbitalCamera). Off by default — survival/zen keep the
+    // existing first/third toggle untouched.
+    this.enableVistaCamera = false;
+    this.smoothViewTransitions = false;
+    this.vistaCamera = null;
+    this._viewTransitionFrom = null;
+    this._viewTransitionT = 1;
     // Pre-allocated temp vectors to avoid GC pressure in hot paths
     this._tmpForward = new THREE.Vector3();
     this._tmpRight = new THREE.Vector3();
@@ -880,6 +902,8 @@ export class PlayerController {
     this._tmpOrigin = new THREE.Vector3();
     this._tmpDir = new THREE.Vector3();
     this._tmpPos = new THREE.Vector3();
+    this._tmpTransitionPos = new THREE.Vector3();
+    this._tmpTransitionQuat = new THREE.Quaternion();
   }
 
   spawn() {
@@ -956,13 +980,28 @@ export class PlayerController {
     this._moveAxis('z', this.velocity.z * dt);
     this._moveAxis('y', this.velocity.y * dt);
 
-    if (this.viewMode === 'third' && this.thirdPersonCamera) {
+    if (this.viewMode === 'vista' && this.vistaCamera) {
+      this.vistaCamera.update(this.camera, this, this.world, dt);
+    } else if (this.viewMode === 'third' && this.thirdPersonCamera) {
       this.thirdPersonCamera.update(this.camera, this, this.world);
     } else {
       this.camera.position.copy(this.position);
       this.camera.rotation.order = 'YXZ';
       this.camera.rotation.y = this.yaw;
       this.camera.rotation.x = this.pitch;
+    }
+
+    // Zen2: smoothly blend from the pre-switch camera pose into the new mode's
+    // pose over a short window instead of an instant cut.
+    if (this.smoothViewTransitions && this._viewTransitionFrom && this._viewTransitionT < 1) {
+      const targetPos = this._tmpTransitionPos.copy(this.camera.position);
+      const targetQuat = this._tmpTransitionQuat.copy(this.camera.quaternion);
+      this._viewTransitionT = Math.min(1, this._viewTransitionT + dt / 0.45);
+      const t = this._viewTransitionT;
+      const ease = t * t * (3 - 2 * t); // smoothstep
+      this.camera.position.lerpVectors(this._viewTransitionFrom.position, targetPos, ease);
+      this.camera.quaternion.slerpQuaternions(this._viewTransitionFrom.quaternion, targetQuat, ease);
+      if (this._viewTransitionT >= 1) this._viewTransitionFrom = null;
     }
 
     if (this.animator && this.body) {
@@ -979,7 +1018,21 @@ export class PlayerController {
   }
 
   toggleView() {
-    this.viewMode = this.viewMode === 'first' ? 'third' : 'first';
+    const modes = this.enableVistaCamera ? ['first', 'third', 'vista'] : ['first', 'third'];
+    const idx = modes.indexOf(this.viewMode);
+    const nextMode = modes[idx === -1 ? 0 : (idx + 1) % modes.length];
+    this.setViewMode(nextMode);
+  }
+
+  setViewMode(mode) {
+    if (this.smoothViewTransitions && this.camera && this.viewMode !== mode) {
+      this._viewTransitionFrom = {
+        position: this.camera.position.clone(),
+        quaternion: this.camera.quaternion.clone(),
+      };
+      this._viewTransitionT = 0;
+    }
+    this.viewMode = mode;
     this._updateBodyVisibility();
   }
 

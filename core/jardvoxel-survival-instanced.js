@@ -78,7 +78,7 @@ function _getFeatureColor(blockId) {
 }
 
 export class InstancedFeatureRenderer {
-  constructor(scene) {
+  constructor(scene, options = {}) {
     this.scene = scene;
     this._enabled = true;
     // Map: chunkKey -> Map: blockId -> InstancedMesh
@@ -86,6 +86,54 @@ export class InstancedFeatureRenderer {
     this._maxInstancesPerType = 256;
     // Shared materials per block type (vertex-colored)
     this._materials = new Map();
+    // Gentle GPU-only wind sway on grass/flowers — opt-in, off by default so
+    // survival's current vegetation look is unchanged unless requested.
+    this._windSway = !!options.windSway;
+    this._windUniforms = {
+      uTime: { value: 0 },
+      uWindDir: { value: new THREE.Vector2(1, 0.35).normalize() },
+      uWindStrength: { value: 0.09 },
+    };
+  }
+
+  // Advance the shared wind-sway clock. One update per frame regardless of
+  // instance/chunk count — the sway itself runs entirely in the vertex shader.
+  update(dt) {
+    if (this._windSway) this._windUniforms.uTime.value += dt;
+  }
+
+  // Inject a cheap per-vertex wind displacement into the feature material via
+  // onBeforeCompile, preserving MeshLambertMaterial's lighting response.
+  // Root of the cross-quad (local y=0) stays pinned, tip (y=1) sways — the
+  // standard grass-shader trick, no extra geometry/attributes needed.
+  _applyWindSway(material) {
+    const uniforms = this._windUniforms;
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = uniforms.uTime;
+      shader.uniforms.uWindDir = uniforms.uWindDir;
+      shader.uniforms.uWindStrength = uniforms.uWindStrength;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `
+          #include <common>
+          uniform float uTime;
+          uniform vec2 uWindDir;
+          uniform float uWindStrength;
+        `)
+        .replace('#include <begin_vertex>', `
+          #include <begin_vertex>
+          #ifdef USE_INSTANCING
+          float swayWeight = position.y; // 0 at root, 1 at tip
+          vec3 instWorldPos = instanceMatrix[3].xyz;
+          float swayPhase = dot(instWorldPos.xz, uWindDir) * 0.35 + uTime * 1.6;
+          float sway = sin(swayPhase) * uWindStrength * swayWeight;
+          transformed.x += sway * uWindDir.x;
+          transformed.z += sway * uWindDir.y;
+          #endif
+        `);
+    };
+    // Distinct cache key so wind-enabled vs plain materials don't collide in
+    // Three's shader-program cache.
+    material.customProgramCacheKey = () => 'jardvoxel-windsway-v1';
   }
 
   setEnabled(enabled) {
@@ -110,6 +158,7 @@ export class InstancedFeatureRenderer {
       alphaTest: 0.5,
       side: THREE.DoubleSide,
     });
+    if (this._windSway) this._applyWindSway(mat);
     this._materials.set(blockId, mat);
     return mat;
   }

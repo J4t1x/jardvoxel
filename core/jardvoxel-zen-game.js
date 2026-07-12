@@ -44,12 +44,21 @@ import {
 import { TouchControls } from './jardvoxel-zen-touch.js';
 import { OceanSystem } from './jardvoxel-survival-ocean.js';
 import { RestorationSystem } from './jardvoxel-survival-restoration.js';
+import { Zen2OrbitalCamera } from './jardvoxel-zen2-camera.js';
 
 const BIOME_NAMES = PATAGONIA_BIOME_NAMES;
 const AMBIENT_BIOME_MAP = PATAGONIA_AMBIENT_MAP;
 
 export class ZenGame {
-  constructor() {
+  // options.variant: 'zen' (default, unchanged behavior) or 'zen2' (flat/relaxed
+  // terrain, wind-swaying grass, toon shading on by default, vista camera).
+  constructor(options = {}) {
+    this.variant = options.variant === 'zen2' ? 'zen2' : 'zen';
+    this._isZen2 = this.variant === 'zen2';
+    // Namespaced storage so zen2 never reads/overwrites the original zen's save.
+    this._settingsKey = `jardvoxel-${this.variant}-settings`;
+    this._saveKey = `jardvoxel-${this.variant}-save`;
+
     this.patagonia = new PatagoniaProfile(PATAGONIA.SEED);
     this.seed = PATAGONIA.SEED;
     this.settings = {
@@ -69,8 +78,8 @@ export class ZenGame {
       multiWorker: true, cellularNoise: true,
       // SPEC-119: pixelRatio set by device tier on first run
       pixelRatio: Math.min(window.devicePixelRatio, 1.5),
-      // SPEC-122: Ghibli-style toon shading toggle (opt-in)
-      toonShading: false,
+      // SPEC-122: Ghibli-style toon shading toggle (on by default for zen2)
+      toonShading: this._isZen2,
     };
 
     // SPEC-119: Detect device tier once at boot (cheap, no blocking)
@@ -79,7 +88,7 @@ export class ZenGame {
     // SPEC-119: Apply tier-based defaults only when no saved settings exist (first run)
     let _hasSavedSettings = false;
     try {
-      const raw = localStorage.getItem('jardvoxel-zen-settings');
+      const raw = localStorage.getItem(this._settingsKey);
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved) {
@@ -97,7 +106,7 @@ export class ZenGame {
     this.discoveredBiomes = new Set();
     this.blockModifications = new Map();
     this.chunkModifications = new Map();
-    this.saveManager = new SaveManager();
+    this.saveManager = new SaveManager(this._isZen2 ? 'zen2' : '');
     this.saveLoaded = false;
     this.gameStarted = false;
     this.pointerLocked = false;
@@ -164,7 +173,7 @@ export class ZenGame {
 
   _loadFromLocalStorage() {
     try {
-      const data = localStorage.getItem('jardvoxel-zen-save');
+      const data = localStorage.getItem(this._saveKey);
       if (data) {
         const parsed = JSON.parse(data);
         this._loadFromSaveData(parsed);
@@ -201,7 +210,7 @@ export class ZenGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true, this.archipelagoMode);
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true, this.archipelagoMode, this._isZen2 ? 'zen2' : 'survival');
 
     // ── Adaptive render distance ──
     this.world._adaptiveEnabled = true;
@@ -268,6 +277,11 @@ export class ZenGame {
   initPlayer() {
     this.player = new PlayerController(this.camera, this.world);
     this.player.flying = true;
+    if (this._isZen2) {
+      this.player.enableVistaCamera = true;
+      this.player.smoothViewTransitions = true;
+      this.player.vistaCamera = new Zen2OrbitalCamera();
+    }
 
     // ── Override spawn to use Patagonia coordinates ────────
     // In archipelago mode, spawn on the first island center
@@ -397,7 +411,7 @@ export class ZenGame {
     menuBtn.onclick = () => {
       if (!confirm('¿Eliminar el mundo y volver al menú?')) return;
       this._dispose();
-      try { localStorage.removeItem('jardvoxel-zen-save'); } catch(e) {}
+      try { localStorage.removeItem(this._saveKey); } catch(e) {}
       if (this.saveManager) this.saveManager.clearAll();
       location.reload();
     };
@@ -702,7 +716,7 @@ export class ZenGame {
   }
 
   _saveSettings() {
-    try { localStorage.setItem('jardvoxel-zen-settings', JSON.stringify(this.settings)); } catch (e) {}
+    try { localStorage.setItem(this._settingsKey, JSON.stringify(this.settings)); } catch (e) {}
   }
 
   _detectDeviceTier() {
@@ -755,7 +769,7 @@ export class ZenGame {
       if (this.saveManager && this.saveManager.hasSave()) {
         await this.saveManager.saveWorld(data);
       }
-      localStorage.setItem('jardvoxel-zen-save', JSON.stringify(data));
+      localStorage.setItem(this._saveKey, JSON.stringify(data));
     } catch (e) { console.warn('[Zen] Save failed:', e); }
   }
 
@@ -812,7 +826,11 @@ export class ZenGame {
       }
       if (e.code === 'KeyF') { this.player.flying = !this.player.flying; this.player.velocity.set(0, 0, 0); }
       if (e.code === 'KeyJ') { this._toggleJournal(); }
-      if (e.code === 'KeyV') { this.player.toggleView(); }
+      if (e.code === 'KeyV') {
+        this.player.toggleView();
+        if (this.player.viewMode === 'vista' && this.player.vistaCamera) this.player.vistaCamera.enter(this.player);
+        this._showViewModeToast();
+      }
       if (e.code === 'KeyE') { this._toggleInventory(); }
       if (e.code === 'Escape') {
         if (this.inventoryOpen) { this._toggleInventory(); return; }
@@ -850,11 +868,23 @@ export class ZenGame {
       if (!this.pointerLocked) return;
       this._revealUI();
       const sens = this.settings ? this.settings.sensitivity * 0.001 : 0.002;
-      this.player.yaw -= e.movementX * sens;
       const invertY = this.settings && this.settings.invertY ? 1 : -1;
+      if (this.player.viewMode === 'vista' && this.player.vistaCamera) {
+        this.player.vistaCamera.applyOrbitDelta(e.movementX * sens, e.movementY * sens * invertY);
+        return;
+      }
+      this.player.yaw -= e.movementX * sens;
       this.player.pitch += e.movementY * sens * invertY;
       this.player.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.player.pitch));
     });
+
+    document.addEventListener('wheel', (e) => {
+      if (!this.pointerLocked) return;
+      if (this.player.viewMode === 'vista' && this.player.vistaCamera) {
+        this.player.vistaCamera.zoom(e.deltaY * 0.01);
+        e.preventDefault();
+      }
+    }, { passive: false });
   }
 
   _toggleInventory() {
@@ -1059,6 +1089,17 @@ export class ZenGame {
     } else {
       this._revealUI();
     }
+  }
+
+  _showViewModeToast() {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const labels = { first: 'Primera persona', third: 'Tercera persona', vista: 'Vista panorámica' };
+    const el = document.createElement('div');
+    el.className = 'toast info show';
+    el.textContent = 'Cámara: ' + (labels[this.player.viewMode] || this.player.viewMode);
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
   }
 
   _showMeditationOverlay() {

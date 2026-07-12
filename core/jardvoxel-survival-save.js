@@ -9,15 +9,19 @@ const STORE_WORLD = 'world';
 const STORE_CHUNKS = 'chunks';
 
 export class SaveManager {
-  constructor() {
+  // namespace: keeps a game variant's save in its own IndexedDB database.
+  // Default '' preserves the original shared 'jardvoxel-survival' DB used by
+  // jardvoxel-survival.html and jardvoxel-zen.html today.
+  constructor(namespace = '') {
     this.db = null;
     this.autoSaveInterval = null;
     this.lastSaveTime = 0;
+    this._dbName = namespace ? `${DB_NAME}-${namespace}` : DB_NAME;
   }
 
   async init() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      const req = indexedDB.open(this._dbName, DB_VERSION);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(STORE_WORLD)) {

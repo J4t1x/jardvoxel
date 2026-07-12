@@ -3,6 +3,18 @@
 export class Vector2 {
   constructor(x = 0, y = 0) { this.x = x; this.y = y; }
   set(x, y) { this.x = x; this.y = y; return this; }
+  normalize() {
+    const len = Math.sqrt(this.x * this.x + this.y * this.y);
+    if (len > 0) { this.x /= len; this.y /= len; }
+    return this;
+  }
+}
+
+export class Quaternion {
+  constructor(x = 0, y = 0, z = 0, w = 1) { this.x = x; this.y = y; this.z = z; this.w = w; }
+  copy(q) { this.x = q.x; this.y = q.y; this.z = q.z; this.w = q.w; return this; }
+  clone() { return new Quaternion(this.x, this.y, this.z, this.w); }
+  slerpQuaternions(qa, qb, t) { this.x = qa.x + (qb.x - qa.x) * t; this.y = qa.y + (qb.y - qa.y) * t; this.z = qa.z + (qb.z - qa.z) * t; this.w = qa.w + (qb.w - qa.w) * t; return this; }
 }
 
 export class Vector3 {

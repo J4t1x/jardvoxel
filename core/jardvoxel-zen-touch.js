@@ -109,6 +109,7 @@ export class TouchControls {
     const btnNextBlock = document.getElementById('touch-btn-next-block');
     const btnPrevBlock = document.getElementById('touch-btn-prev-block');
     const btnJournal = document.getElementById('touch-btn-journal');
+    const btnView = document.getElementById('touch-btn-view'); // zen2-only, absent elsewhere
 
     if (btnJump) {
       btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.keys.space = true; }, opts);
@@ -157,6 +158,16 @@ export class TouchControls {
       btnJournal.addEventListener('touchstart', (e) => {
         e.preventDefault();
         this.game._toggleJournal();
+      }, opts);
+    }
+    if (btnView) {
+      btnView.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.game.player.toggleView();
+        if (this.game.player.viewMode === 'vista' && this.game.player.vistaCamera) {
+          this.game.player.vistaCamera.enter(this.game.player);
+        }
+        if (this.game._showViewModeToast) this.game._showViewModeToast();
       }, opts);
     }
   }

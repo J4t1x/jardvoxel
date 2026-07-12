@@ -192,6 +192,13 @@ export const SEA_LEVEL = 63;
 export const CHUNK_SIZE = 32;
 export const CHUNK_HEIGHT = 384;
 
+// Zen2: flat/relaxed terrain profile — compresses elevation variance so the
+// ground reads as gentle rolling meadow instead of mountains, without touching
+// CHUNK_HEIGHT (which must stay a single full-height column to avoid the
+// vertical-seam face-culling bugs the 32x384x32 chunk shape was chosen to avoid).
+export const ZEN2_HEIGHT_SCALE = 0.4;
+export const ZEN2_MAX_ELEVATION = 36;
+
 export const BIOMES = {
   OCEAN: 'ocean',
   DEEP_OCEAN: 'deep_ocean',
@@ -306,6 +313,10 @@ export class WorldGenPipeline {
     this.hierarchy = null;
     this._useHierarchy = false;
 
+    // Zen2: flat/relaxed generation mode — 'survival' (default) keeps every
+    // existing world exactly as-is; 'zen2' compresses height and skips caves/ores.
+    this._worldMode = 'survival';
+
     // v7.1: Voronoi biome map for coherent biome regions
     this._voronoiBiomes = new VoronoiBiomeMap(seed);
     this._useVoronoiBiomes = true;
@@ -333,6 +344,24 @@ export class WorldGenPipeline {
   // v7.0: Disable hierarchical generation (fallback to v6.0)
   disableHierarchy() {
     this._useHierarchy = false;
+  }
+
+  // Zen2: switch between 'survival' (unchanged) and 'zen2' (flat, calm ground)
+  setWorldMode(mode) {
+    this._worldMode = mode === 'zen2' ? 'zen2' : 'survival';
+  }
+
+  isFlatMode() {
+    return this._worldMode === 'zen2';
+  }
+
+  // Zen2: compress elevation toward sea level and cap peak height, so terrain
+  // reads as gentle meadow. Biome selection (which reads getBaseHeight/getBiome)
+  // naturally shifts toward lowland biomes as a side effect — desired for a calm,
+  // walkable world rather than towering mountains.
+  _compressHeightForZen2(height) {
+    const compressed = SEA_LEVEL + (height - SEA_LEVEL) * ZEN2_HEIGHT_SCALE;
+    return Math.min(compressed, SEA_LEVEL + ZEN2_MAX_ELEVATION);
   }
 
   // v7.0: Get hierarchical chunk context (delegates to HierarchicalChunkGenerator)
@@ -468,7 +497,9 @@ export class WorldGenPipeline {
       const cz = Math.floor(z / CHUNK_SIZE);
       const lx = x - cx * CHUNK_SIZE;
       const lz = z - cz * CHUNK_SIZE;
-      return this.hierarchy.getHeightAt(cx, cz, lx, lz);
+      let hHeight = this.hierarchy.getHeightAt(cx, cz, lx, lz);
+      if (this._worldMode === 'zen2') hHeight = this._compressHeightForZen2(hHeight);
+      return hHeight;
     }
     const ix = Math.floor(x) & 0x1FFFFF;
     const iz = Math.floor(z) & 0x1FFFFF;
@@ -498,7 +529,9 @@ export class WorldGenPipeline {
     if (pv < -0.5 && cont > -0.2 && cont < 0.5) {
       baseHeight = Math.min(baseHeight, SEA_LEVEL - 2);
     }
-    
+
+    if (this._worldMode === 'zen2') baseHeight = this._compressHeightForZen2(baseHeight);
+
     if (!this._heightCache) this._heightCache = new Map();
     if (this._heightCache.size > 50000) {
       const firstKey = this._heightCache.keys().next().value;
@@ -543,6 +576,8 @@ export class WorldGenPipeline {
   
   // Step 7: Apply noise caves (cheese, spaghetti, noodle)
   applyCaves(x, y, z, density) {
+    // Zen2: no cave carving — calm solid ground, no cave mouths/sinkholes
+    if (this._worldMode === 'zen2') return density;
     // Only carve caves underground
     if (y > SEA_LEVEL + 20 || y < WORLD_MIN_Y + 5) return density;
     

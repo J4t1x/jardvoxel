@@ -27,6 +27,8 @@ const ORE_CONFIG = {
 };
 
 export function generateOres(chunk, world) {
+  // Zen2: no ore veins — nothing underground to mine toward, keeps digging calm/plain
+  if (world.generator && world.generator._worldMode === 'zen2') return;
   const ox = chunk.cx * CHUNK_SIZE;
   const oz = chunk.cz * CHUNK_SIZE;
   const rng = new PRNG(chunk.cx * 73856093 ^ chunk.cz * 19349663);
