@@ -21,7 +21,7 @@ Detalle completo de la verificación en las conversaciones previas y en cada `do
 
 | ID | Título | Prioridad | Estimación | Depende de | PRD |
 |----|--------|-----------|------------|------------|-----|
-| SPEC-124 | Fix Race Condition in AI Server WebSocket Tests | medium | 2h | — | `docs/PRD-AI-SERVER-TEST-RACE-CONDITION.md` |
+| SPEC-124 | Fix Race Condition in AI Server WebSocket Tests | medium | 2h | — | `docs/prd/PRD-AI-SERVER-TEST-RACE-CONDITION.md` |
 
 **Diagnóstico confirmado (no especulativo):** los 6 tests que fallan en `tests/ai-server.test.js` (`describe('AIServer — SPEC-085')`) no reflejan un bug del servidor — es una condición de carrera en el propio archivo de test. Usan `ws.prependOnceListener('message', () => r(messages[messages.length - 1]))`, que se ejecuta *antes* de que el listener original de `connectAndCollect()` empuje el mensaje nuevo al array, así que siempre lee el mensaje anterior (`'ready'`) en vez del real. El archivo ya tiene el helper correcto (`waitForNth()`) pero solo se usa una vez. Verifiqué reescribiendo un test para usar `waitForNth()` — pasó al instante, sin tocar el servidor.
 

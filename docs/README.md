@@ -97,38 +97,46 @@ jardvoxel/
 ├── vercel.json                    # Deploy config (COOP/COEP headers)
 └── docs/
     ├── README.md                  # Este archivo (indice de documentacion)
-    ├── ARCHITECTURE.md            # Arquitectura tecnica del motor
-    ├── WORLD-GENERATION.md        # Generacion procedural v6.0
-    ├── WORLD-IDENTITY-REALISM.md  # World identity basado en Tierra real
-    ├── BLOCKS.md                  # Catalogo de bloques (157 tipos)
-    ├── CONTROLS.md                # Controles y mecanicas
-    ├── CHANGELOG.md               # Historial de versiones (v1.0.0 a v8.0.0)
-    ├── BUGS-FOUND.md              # Audit de bugs (10 resueltos)
-    ├── IMPROVEMENTS-ROADMAP.md    # Roadmap (SPEC-025 a SPEC-066)
-    ├── TESTING.md                 # Suite de tests
-    ├── NOISE-SYSTEM-6.0.md        # Documentacion del sistema de ruido v6.0
-    ├── ZEN-IMPLEMENTATION-STATUS.md # Estado implementacion Zen
-    ├── PRD-JARDVOXEL-ZEN-UNIFIED.md # PRD: Zen Unified v8.0.0
-    ├── PRD-JARDVOXEL-5.0.md       # PRD: Living World v5.0
-    ├── PRD-JARDVOXEL-5.0-INTEGRATION.md # PRD: Integracion v5.0
-    ├── PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md # PRD: Gaps de integracion
-    ├── PRD-JARDVOXEL-7.0-HIERARCHICAL.md # PRD: World Hierarchy v7.0
-    ├── PRD-JARDVOXEL-ORGANIC-TERRAIN.md # PRD: Terreno organico
-    ├── PRD-NOISE-GENERATION-6.0.md # PRD: Noise Generation v6.0
-    ├── PRD-CHILLTUNE-MUSIC.md     # PRD: Musica 8-bit dinamica
-    ├── PRD-TOUCH-JOYSTICK.md      # PRD: Joysticks touch
-    ├── PRD-MOBILE-MENU.md         # PRD: Menu + opciones
-    ├── PRD-PROCEDURAL-BODY.md     # PRD: Cuerpo procedural + 3ra persona
-    ├── PRD-LLM-HARNESS.md         # PRD: LLM Testing Harness
-    ├── PRD-CHUNK-OPTIMIZATION.md  # PRD: Optimizacion de chunks
-    ├── PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md # PRD: Optimizacion survival
-    ├── SPEC-099-WELLNESS-SYSTEM.md # SPEC: Sistema Bienestar v7.0
-    ├── SPEC-BIOME-OVERHAUL.md     # SPEC: Biome Overhaul
-    ├── WELLNESS-IMPLEMENTATION-PLAN.md # Plan wellness 24h
-    ├── WELLNESS-EXECUTIVE-SUMMARY.md # Resumen ejecutivo wellness
+    ├── prd/                       # Product Requirements Documents (16 PRDs)
+    │   ├── PRD-JARDVOXEL-5.0.md
+    │   ├── PRD-JARDVOXEL-5.0-INTEGRATION.md
+    │   ├── PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md
+    │   ├── PRD-JARDVOXEL-7.0-HIERARCHICAL.md
+    │   ├── PRD-JARDVOXEL-ORGANIC-TERRAIN.md
+    │   ├── PRD-JARDVOXEL-ZEN-UNIFIED.md
+    │   ├── PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md
+    │   ├── PRD-NOISE-GENERATION-6.0.md
+    │   ├── PRD-CHILLTUNE-MUSIC.md
+    │   ├── PRD-TOUCH-JOYSTICK.md
+    │   ├── PRD-MOBILE-MENU.md
+    │   ├── PRD-PROCEDURAL-BODY.md
+    │   ├── PRD-LLM-HARNESS.md
+    │   ├── PRD-CHUNK-OPTIMIZATION.md
+    │   ├── PRD-PERFORMANCE-OPTIMIZATION.md
+    │   └── PRD-AI-SERVER-TEST-RACE-CONDITION.md
+    ├── technical/                 # Documentacion tecnica (19 docs)
+    │   ├── ARCHITECTURE.md
+    │   ├── WORLD-GENERATION.md
+    │   ├── WORLD-IDENTITY-REALISM.md
+    │   ├── BLOCKS.md
+    │   ├── CONTROLS.md
+    │   ├── CHANGELOG.md
+    │   ├── BUGS-FOUND.md
+    │   ├── BUGFIX-WATER-MANAGER.md
+    │   ├── BUGFIXES-COMPLETE.md
+    │   ├── REFACTOR-CORE.md
+    │   ├── REFACTOR-SUMMARY.md
+    │   ├── IMPROVEMENTS-ROADMAP.md
+    │   ├── TESTING.md
+    │   ├── NOISE-SYSTEM-6.0.md
+    │   ├── ZEN-IMPLEMENTATION-STATUS.md
+    │   ├── SPEC-099-WELLNESS-SYSTEM.md
+    │   ├── SPEC-BIOME-OVERHAUL.md
+    │   ├── WELLNESS-IMPLEMENTATION-PLAN.md
+    │   └── WELLNESS-EXECUTIVE-SUMMARY.md
     └── specs/
-        ├── completed/             # 22 specs completadas
-        └── pending/               # (vacio)
+        ├── completed/             # 29 specs completadas
+        └── pending/               # 1 spec pendiente (SPEC-124)
 ```
 
 ## Documentos
@@ -136,47 +144,53 @@ jardvoxel/
 ### Core Documentation
 | Documento | Descripcion |
 |-----------|-------------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Arquitectura del motor, clases, pipeline de renderizado |
-| [WORLD-GENERATION.md](./WORLD-GENERATION.md) | Generacion procedural v6.0: Simplex, biomas, cuevas, rios |
-| [WORLD-IDENTITY-REALISM.md](./WORLD-IDENTITY-REALISM.md) | World identity basado en Tierra real (geologia, clima) |
-| [BLOCKS.md](./BLOCKS.md) | Catalogo completo de bloques (157 tipos), colores y nombres |
-| [CONTROLS.md](./CONTROLS.md) | Controles de teclado/mouse/touch y mecanicas |
-| [CHANGELOG.md](./CHANGELOG.md) | Historial de versiones (v1.0.0 a v8.0.0) |
-| [TESTING.md](./TESTING.md) | Suite de tests del core con Vitest |
+| [ARCHITECTURE.md](./technical/ARCHITECTURE.md) | Arquitectura del motor, clases, pipeline de renderizado |
+| [WORLD-GENERATION.md](./technical/WORLD-GENERATION.md) | Generacion procedural v6.0: Simplex, biomas, cuevas, rios |
+| [WORLD-IDENTITY-REALISM.md](./technical/WORLD-IDENTITY-REALISM.md) | World identity basado en Tierra real (geologia, clima) |
+| [BLOCKS.md](./technical/BLOCKS.md) | Catalogo completo de bloques (157 tipos), colores y nombres |
+| [CONTROLS.md](./technical/CONTROLS.md) | Controles de teclado/mouse/touch y mecanicas |
+| [CHANGELOG.md](./technical/CHANGELOG.md) | Historial de versiones (v1.0.0 a v8.0.0) |
+| [TESTING.md](./technical/TESTING.md) | Suite de tests del core con Vitest |
 
 ### Wellness & Zen
 | Documento | Descripcion |
 |-----------|-------------|
-| [ZEN-IMPLEMENTATION-STATUS.md](./ZEN-IMPLEMENTATION-STATUS.md) | Estado de implementacion Zen v8.0.0 (13 fixes aplicados) |
-| [PRD-JARDVOXEL-ZEN-UNIFIED.md](./PRD-JARDVOXEL-ZEN-UNIFIED.md) | PRD: Zen Unified v8.0.0 — experiencia wellness pura |
-| [SPEC-099-WELLNESS-SYSTEM.md](./SPEC-099-WELLNESS-SYSTEM.md) | SPEC: Sistema de Bienestar y Relajacion v7.0 |
-| [WELLNESS-IMPLEMENTATION-PLAN.md](./WELLNESS-IMPLEMENTATION-PLAN.md) | Plan ejecutable wellness 24h (3 dias) |
-| [WELLNESS-EXECUTIVE-SUMMARY.md](./WELLNESS-EXECUTIVE-SUMMARY.md) | Resumen ejecutivo wellness |
-| [NOISE-SYSTEM-6.0.md](./NOISE-SYSTEM-6.0.md) | Documentacion tecnica del sistema de ruido v6.0 |
+| [ZEN-IMPLEMENTATION-STATUS.md](./technical/ZEN-IMPLEMENTATION-STATUS.md) | Estado de implementacion Zen v8.0.0 (13 fixes aplicados) |
+| [PRD-JARDVOXEL-ZEN-UNIFIED.md](./prd/PRD-JARDVOXEL-ZEN-UNIFIED.md) | PRD: Zen Unified v8.0.0 — experiencia wellness pura |
+| [SPEC-099-WELLNESS-SYSTEM.md](./technical/SPEC-099-WELLNESS-SYSTEM.md) | SPEC: Sistema de Bienestar y Relajacion v7.0 |
+| [WELLNESS-IMPLEMENTATION-PLAN.md](./technical/WELLNESS-IMPLEMENTATION-PLAN.md) | Plan ejecutable wellness 24h (3 dias) |
+| [WELLNESS-EXECUTIVE-SUMMARY.md](./technical/WELLNESS-EXECUTIVE-SUMMARY.md) | Resumen ejecutivo wellness |
+| [NOISE-SYSTEM-6.0.md](./technical/NOISE-SYSTEM-6.0.md) | Documentacion tecnica del sistema de ruido v6.0 |
 
 ### PRDs
 | Documento | Descripcion |
 |-----------|-------------|
-| [PRD-JARDVOXEL-5.0.md](./PRD-JARDVOXEL-5.0.md) | PRD: Living World v5.0 (21 specs) |
-| [PRD-JARDVOXEL-5.0-INTEGRATION.md](./PRD-JARDVOXEL-5.0-INTEGRATION.md) | PRD: Integracion v5.0 (8 specs) |
-| [PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md](./PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md) | PRD: Gaps de integracion v5.0 |
-| [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](./PRD-JARDVOXEL-7.0-HIERARCHICAL.md) | PRD: World Hierarchy v7.0 (continent/region/zone) |
-| [PRD-JARDVOXEL-ORGANIC-TERRAIN.md](./PRD-JARDVOXEL-ORGANIC-TERRAIN.md) | PRD: Terreno organico (Voronoi, Poisson, hydrology) |
-| [PRD-NOISE-GENERATION-6.0.md](./PRD-NOISE-GENERATION-6.0.md) | PRD: Noise Generation v6.0 (8 specs) |
-| [PRD-CHILLTUNE-MUSIC.md](./PRD-CHILLTUNE-MUSIC.md) | PRD: Musica procedural 8-bit dinamica |
-| [PRD-TOUCH-JOYSTICK.md](./PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles |
-| [PRD-MOBILE-MENU.md](./PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones |
-| [PRD-PROCEDURAL-BODY.md](./PRD-PROCEDURAL-BODY.md) | PRD: Cuerpo procedural + 3ra persona |
-| [PRD-LLM-HARNESS.md](./PRD-LLM-HARNESS.md) | PRD: LLM Testing Harness (5 specs) |
-| [PRD-CHUNK-OPTIMIZATION.md](./PRD-CHUNK-OPTIMIZATION.md) | PRD: Optimizacion de chunks |
-| [PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md](./PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md) | PRD: Optimizacion survival |
+| [PRD-JARDVOXEL-5.0.md](./prd/PRD-JARDVOXEL-5.0.md) | PRD: Living World v5.0 (21 specs) |
+| [PRD-JARDVOXEL-5.0-INTEGRATION.md](./prd/PRD-JARDVOXEL-5.0-INTEGRATION.md) | PRD: Integracion v5.0 (8 specs) |
+| [PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md](./prd/PRD-JARDVOXEL-5.0-INTEGRATION-GAPS.md) | PRD: Gaps de integracion v5.0 |
+| [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](./prd/PRD-JARDVOXEL-7.0-HIERARCHICAL.md) | PRD: World Hierarchy v7.0 (continent/region/zone) |
+| [PRD-JARDVOXEL-ORGANIC-TERRAIN.md](./prd/PRD-JARDVOXEL-ORGANIC-TERRAIN.md) | PRD: Terreno organico (Voronoi, Poisson, hydrology) |
+| [PRD-NOISE-GENERATION-6.0.md](./prd/PRD-NOISE-GENERATION-6.0.md) | PRD: Noise Generation v6.0 (8 specs) |
+| [PRD-CHILLTUNE-MUSIC.md](./prd/PRD-CHILLTUNE-MUSIC.md) | PRD: Musica procedural 8-bit dinamica |
+| [PRD-TOUCH-JOYSTICK.md](./prd/PRD-TOUCH-JOYSTICK.md) | PRD: Joysticks touch para moviles |
+| [PRD-MOBILE-MENU.md](./prd/PRD-MOBILE-MENU.md) | PRD: Menu de juego + opciones |
+| [PRD-PROCEDURAL-BODY.md](./prd/PRD-PROCEDURAL-BODY.md) | PRD: Cuerpo procedural + 3ra persona |
+| [PRD-LLM-HARNESS.md](./prd/PRD-LLM-HARNESS.md) | PRD: LLM Testing Harness (5 specs) |
+| [PRD-CHUNK-OPTIMIZATION.md](./prd/PRD-CHUNK-OPTIMIZATION.md) | PRD: Optimizacion de chunks |
+| [PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md](./prd/PRD-JARDVOXEL-SURVIVAL-OPTIMIZATION.md) | PRD: Optimizacion survival |
+| [PRD-PERFORMANCE-OPTIMIZATION.md](./prd/PRD-PERFORMANCE-OPTIMIZATION.md) | PRD: Optimizacion performance Zen |
+| [PRD-AI-SERVER-TEST-RACE-CONDITION.md](./prd/PRD-AI-SERVER-TEST-RACE-CONDITION.md) | PRD: Fix race condition tests AI server |
 
-### Bug Audit & Roadmap
+### Bug Audit & Refactor
 | Documento | Descripcion |
 |-----------|-------------|
-| [BUGS-FOUND.md](./BUGS-FOUND.md) | Audit de bugs: 10 bugs encontrados y resueltos |
-| [IMPROVEMENTS-ROADMAP.md](./IMPROVEMENTS-ROADMAP.md) | Roadmap de mejoras (SPEC-025 a SPEC-066) |
-| [SPEC-BIOME-OVERHAUL.md](./SPEC-BIOME-OVERHAUL.md) | SPEC: Biome Overhaul |
+| [BUGS-FOUND.md](./technical/BUGS-FOUND.md) | Audit de bugs: 10 bugs encontrados y resueltos |
+| [BUGFIX-WATER-MANAGER.md](./technical/BUGFIX-WATER-MANAGER.md) | Bugfix water manager |
+| [BUGFIXES-COMPLETE.md](./technical/BUGFIXES-COMPLETE.md) | Bugfixes completos |
+| [REFACTOR-CORE.md](./technical/REFACTOR-CORE.md) | Refactor del core |
+| [REFACTOR-SUMMARY.md](./technical/REFACTOR-SUMMARY.md) | Resumen del refactor |
+| [IMPROVEMENTS-ROADMAP.md](./technical/IMPROVEMENTS-ROADMAP.md) | Roadmap de mejoras (SPEC-025 a SPEC-066) |
+| [SPEC-BIOME-OVERHAUL.md](./technical/SPEC-BIOME-OVERHAUL.md) | SPEC: Biome Overhaul |
 
 ## Stack Tecnologico
 

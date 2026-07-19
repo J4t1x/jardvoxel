@@ -1,5 +1,68 @@
 # JardVoxel — Changelog
 
+## v7.0.2 — Hierarchical 7.0 Streaming + Integration ✅ (19 Julio 2026)
+
+### SPEC-084: Hierarchical Streaming + 9 Layers ✅
+- **HierarchicalStreaming** (nuevo, `core/jardvoxel-survival-streaming.js`):
+  - `prewarm(pcx, pcz, radius)` — pre-calienta caches región/zona (radio clamp [1,32], LRU eviction, max 2048)
+  - `setPlayerChunk(cx, cz)` — captura contexto jerárquico del jugador (continentId, regionType, zoneType)
+  - `priorityBoost(cx, cz)` — descuento negativo para chunks que comparten contexto: SAME_CONTINENT=0.2, SAME_REGION=0.6, SAME_ZONE=0.4 (máx -1.2)
+  - Integrado en `SurvivalWorld._tryAddChunkCandidate()` y bucle de update (refresh + prewarm en chunk-boundary crossing)
+- **LayerSystem** (verificado, `core/jardvoxel-survival-layers.js`): 9 capas (terrain, micro_relief, surface_rocks, major_vegetation, minor_vegetation, natural_decoration, fauna, ambient_audio, dynamic_events), 4 tiers LOAD_PRIORITY, API generateAll/generateUpTo/generateLayer/setLayerEnabled/getLayersByPriority/getLayerInfo
+- **Tests**: 27 tests en `tests/hierarchical-streaming.test.js`
+
+### SPEC-085: Integration, Migration & Verification ✅
+- **Migración HTML**:
+  - `jardvoxel-survival.html` — `settings.hierarchicalGeneration: true` + `useHierarchy` pasado a `SurvivalWorld`
+  - `jardvoxel-zen.html` — ya migrado (ZenGame activa jerarquía en zen classic)
+  - `jardvoxel-zen2.html` — intencionalmente flat (zen2 mode, por diseño)
+- **Backward compatibility**: v6.0 chunks cargan, toggle on/off, re-enable funciona
+- **Performance**: chunk gen < 50ms, prewarm < 200ms, priorityBoost < 0.1ms/call
+- **Tests**: 16 tests en `tests/hierarchical-integration.test.js`
+- **PRD 7.0**: ✅ Completado (11/11 specs)
+
+### Métricas finales v7.0
+- **+90 tests nuevos** (986 → 1076 passing) en 3 archivos:
+  - `tests/world-hierarchy.test.js` — 47 tests (niveles 1-6)
+  - `tests/hierarchical-streaming.test.js` — 27 tests (streaming + layers)
+  - `tests/hierarchical-integration.test.js` — 16 tests (integración e2e)
+- **Sin regresiones**: 6 fallos pre-existentes en `ai-server.test.js` (SPEC-072, no relacionados)
+- **Suite total**: 1076/1082 pasando (47/48 archivos)
+- **PRD-JARDVOXEL-7.0-HIERARCHICAL.md**: ✅ Completado
+
+---
+
+## v7.0.1 — Hierarchical 7.0 Tests + Microsector Integration (19 Julio 2026)
+
+### SPEC-081: Hierarchical Level 1-2 (World + Continent) ✅
+- **Tests** en `tests/world-hierarchy.test.js` (16 tests):
+  - WorldIdentity: determinismo, campos requeridos, effectiveSeaLevel, getContinentValue/Id, isOcean, archipelago mode, gradiente latitudinal, getInfo, performance < 1ms
+  - ContinentGenerator: propiedades únicas por continente, determinismo, ocean/land props, coherencia (75% vecinos mismo id), bordes orgánicos (blendFactor), integración con HierarchicalChunkGenerator
+- Implementación pre-existente (SPEC-100/101) verificada, no modificada.
+
+### SPEC-082: Hierarchical Level 3-4 (Region + Zone) ✅
+- **Tests** en `tests/world-hierarchy.test.js` (15 tests):
+  - RegionGenerator: tipos válidos (REGION_TYPES), ocean/land, coherencia (40%+ vecinos), cache determinista, performance < 0.5ms
+  - ZoneGenerator: tipos válidos (ZONE_TYPES), validez por región (ZONE_VALIDITY), heightAdjustment acotado [-30, 30], cache, performance < 0.5ms
+- Implementación pre-existente (SPEC-102/103) verificada, no modificada.
+
+### SPEC-083: Hierarchical Level 5-6 (Chunk + Microsector) ✅
+- **Integración Level 6 al pipeline jerárquico**:
+  - `HierarchicalChunkGenerator` ahora instancia `MicrosectorGenerator` como `this.microsectorGen`
+  - `generateChunkHierarchical()` en `features.js` invoca `microsectorGen.generateMicrosectors()` después de `generateStructures()`, colocando flores/hongos/rocas/musgo/bambú usando `findSurfaceY()` existente
+- **Refactor de `microsectors.js`**: `BIOME_DECORATION`, `ZONE_DECORATION_MULT` y `SECTORS_PER_SIDE` convertidos a lazy getters (`getBiomeDecoration()`, `getZoneDecorationMult()`, `sectorsPerSide()`) para resolver dependencia circular (TDZ) con `world-hierarchy.js`
+- **Tests** en `tests/world-hierarchy.test.js` (16 tests):
+  - HierarchicalChunkGenerator: construcción 6 niveles, contexto completo, heightMap acotado [1, 380], determinismo (cache), getHeightAt, clearCache, compatibilidad con `WorldGenPipeline.enableHierarchy/disableHierarchy`, performance < 50ms
+  - MicrosectorGenerator: construcción, getMicroElevation ±2 enteros, placements válidos (12 block types) y dentro del chunk, determinismo, integración end-to-end con `generateChunkHierarchical`, fallback cuando context=null
+- **Patrón detectado**: `circular-dep-tdz` — documentado en wiki.
+
+### Métricas
+- **+47 tests nuevos** (986 → 1033 passing)
+- **Sin regresiones**: 6 fallos pre-existentes en `ai-server.test.js` (SPEC-072, no relacionados)
+- **Suite total**: 1033/1039 pasando (45/46 archivos)
+
+---
+
 ## v8.0.0 — Zen Unified (29 Junio 2026)
 
 ### SPEC-099: Sistema de Bienestar y Relajacion v7.0 ✅

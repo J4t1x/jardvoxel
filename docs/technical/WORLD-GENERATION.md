@@ -3,7 +3,7 @@
 **Versión:** 7.0 — Hierarchical World Generation  
 **Fecha:** 29 Junio 2026  
 **Specs:** SPEC-091 through SPEC-098 (v6.0), SPEC-100 through SPEC-110 (v7.0)  
-**PRD:** [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](./PRD-JARDVOXEL-7.0-HIERARCHICAL.md)
+**PRD:** [PRD-JARDVOXEL-7.0-HIERARCHICAL.md](../prd/PRD-JARDVOXEL-7.0-HIERARCHICAL.md)
 
 ---
 

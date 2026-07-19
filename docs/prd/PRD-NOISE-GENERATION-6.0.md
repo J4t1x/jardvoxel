@@ -4,7 +4,7 @@
 **Versión:** 6.0.0  
 **Proyecto:** jard-games/jardvoxel  
 **Prioridad:** 🔴 CRÍTICA — Major version upgrade  
-**Estado:** 📋 Pending  
+**Estado:** ✅ Completado — SimplexNoise, DomainWarper, BiomeBlender, FastNoiseLite, TerrainSplines, BiomeTerrainModulator, FeaturePlacer todos implementados en `jardvoxel-survival-noise.js` y usados por `WorldGenPipeline` en `jardvoxel-survival-engine.js`.
 **Versión anterior:** v5.0.0 (21 specs completadas, sistema de ruido Perlin básico)
 
 ---

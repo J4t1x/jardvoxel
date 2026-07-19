@@ -2,8 +2,33 @@
 
 **Versión:** 7.0 — Hierarchical World Generation  
 **Fecha:** 29 Junio 2026  
-**Specs:** SPEC-100 through SPEC-110  
+**Actualizado:** 19 Julio 2026  
+**Estado:** ✅ **Completado** (SPEC-081..085, 2026-07-19)  
+**Specs:** SPEC-100 through SPEC-110 (consolidadas en SPEC-081..SPEC-085)  
 **Predecessor:** v6.0 (SPEC-091 through SPEC-098) — Simplex Noise + Domain Warping + Coherent Biomes
+
+## Estado de Implementación
+
+| Nivel | Spec Original | Spec Consolidada | Estado |
+|-------|---------------|------------------|--------|
+| 1 — WorldIdentity | SPEC-100 | SPEC-081 | ✅ Completado (2026-07-19) |
+| 2 — ContinentGenerator | SPEC-101 | SPEC-081 | ✅ Completado (2026-07-19) |
+| 3 — RegionGenerator | SPEC-102 | SPEC-082 | ✅ Completado (2026-07-19) |
+| 4 — ZoneGenerator | SPEC-103 | SPEC-082 | ✅ Completado (2026-07-19) |
+| 5 — HierarchicalChunkGenerator | SPEC-104 | SPEC-083 | ✅ Completado (2026-07-19) |
+| 6 — MicrosectorGenerator | SPEC-105 | SPEC-083 | ✅ Completado (2026-07-19) |
+| 9 capas (WorldLayers) | SPEC-106 | SPEC-084 | ✅ Completado (2026-07-19) |
+| HierarchicalStreaming | SPEC-107 | SPEC-084 | ✅ Completado (2026-07-19) |
+| Landmarks | SPEC-108 | SPEC-085 | ✅ Completado (2026-07-19) |
+| Ecosystems | SPEC-109 | SPEC-085 | ✅ Completado (2026-07-19) |
+| Contextual Gen | SPEC-110 | SPEC-085 | ✅ Completado (2026-07-19) |
+
+**Tests:** 90 tests en 3 archivos (`world-hierarchy.test.js` 47, `hierarchical-streaming.test.js` 27, `hierarchical-integration.test.js` 16). Suite total: 1076/1082 pasando (6 fallos pre-existentes en `ai-server.test.js` — SPEC-072, no relacionados).
+
+**Migración HTML:**
+- `jardvoxel-survival.html` — ✅ migrado (`hierarchicalGeneration: true` toggle)
+- `jardvoxel-zen.html` — ✅ ya migrado (`ZenGame` activa jerarquía en zen classic)
+- `jardvoxel-zen2.html` — ✅ intencionalmente flat (zen2 mode, por diseño)
 
 ---
 
@@ -295,13 +320,23 @@ Cada región cuenta una historia mediante su relieve, vegetación y clima, refor
 
 ## Fases de Implementación
 
-| Fase | Specs | Tiempo Est. |
-|------|-------|-------------|
-| 1 — Core Hierarchy | SPEC-100 to SPEC-103 | 4h |
-| 2 — Chunk Refactor | SPEC-104 to SPEC-105 | 3h |
-| 3 — Layer System | SPEC-106 | 3h |
-| 4 — Streaming | SPEC-107 | 2h |
-| 5 — Landmarks + Ecosystems | SPEC-108 to SPEC-109 | 3h |
-| 6 — Contextual Gen | SPEC-110 | 2h |
-| 7 — Integration + Docs | — | 2h |
-| **Total** | **11 specs** | **~19h** |
+| Fase | Specs | Tiempo Est. | Estado |
+|------|-------|-------------|--------|
+| 1 — Core Hierarchy | SPEC-100 to SPEC-103 | 4h | ✅ Completado (SPEC-081 + SPEC-082, 2026-07-19) |
+| 2 — Chunk Refactor | SPEC-104 to SPEC-105 | 3h | ✅ Completado (SPEC-083, 2026-07-19) |
+| 3 — Layer System | SPEC-106 | 3h | ✅ Completado (SPEC-084, 2026-07-19) |
+| 4 — Streaming | SPEC-107 | 2h | ✅ Completado (SPEC-084, 2026-07-19) |
+| 5 — Landmarks + Ecosystems | SPEC-108 to SPEC-109 | 3h | ✅ Completado (SPEC-085, 2026-07-19) |
+| 6 — Contextual Gen | SPEC-110 | 2h | ✅ Completado (SPEC-085, 2026-07-19) |
+| 7 — Integration + Docs | — | 2h | ✅ Completado (SPEC-085, 2026-07-19) |
+| **Total** | **11 specs** | **~19h** | **✅ 11/11 specs completadas** |
+
+### Notas de Implementación (2026-07-19)
+
+- **SPEC-081/082/083** se enfocaron en verificación + tests de código pre-existente (niveles 1-6 ya implementados en SPEC-100..105 originales).
+- **SPEC-083** añadió integración faltante: `MicrosectorGenerator` ahora es instanciado por `HierarchicalChunkGenerator` e invocado desde `generateChunkHierarchical()` en `features.js`.
+- **SPEC-084** implementó `HierarchicalStreaming` (nuevo módulo `jardvoxel-survival-streaming.js`): pre-warm de caches región/zona + priorityBoost por contexto compartido. Integrado en `SurvivalWorld._tryAddChunkCandidate()` y bucle de update. `LayerSystem` (9 capas) verificado con tests.
+- **SPEC-085** migró `jardvoxel-survival.html` (toggle `hierarchicalGeneration`), verificó backward compatibility (v6.0 chunks cargan, toggle on/off, re-enable), performance (< 50ms chunk gen, < 200ms prewarm, < 0.1ms priorityBoost), y coherencia (3x3 grid → 1-5 regiones).
+- **Patrón detectado**: `circular-dep-tdz` — resuelto con lazy getters en `microsectors.js` (`getBiomeDecoration()`, `getZoneDecorationMult()`, `sectorsPerSide()`).
+- **Deuda restante**: 6 fallos en `ai-server.test.js` (SPEC-072, no relacionados con jerarquía).
+- **PRD 7.0**: ✅ Completado.

@@ -4,7 +4,7 @@
 **Estimated effort**: 2h
 **Files affected**: `tests/ai-server.test.js` (test-only, no production code changes)
 **Depends on**: none
-**PRD**: `docs/PRD-AI-SERVER-TEST-RACE-CONDITION.md`
+**PRD**: `docs/prd/PRD-AI-SERVER-TEST-RACE-CONDITION.md`
 
 ## Problem
 
@@ -20,7 +20,7 @@ ws.prependOnceListener('message', () => r(messages[messages.length - 1]));
 
 The file already has the correct helper for this, `waitForNth()` (`tests/ai-server.test.js:521-531`), which uses plain `.on()` (preserving registration order — runs *after* the push-handler) and re-checks array length inside the handler. It's used once in the file; the 6 failing tests use the buggy inline pattern instead. Verified fix: rewriting the `'should respond to ping with pong'` test to use `collector.ready` + `waitForNth(collector, 1)` makes it pass immediately with zero server-side changes.
 
-Full diagnosis, code-level detail, and the exact before/after diff pattern: see `docs/PRD-AI-SERVER-TEST-RACE-CONDITION.md`.
+Full diagnosis, code-level detail, and the exact before/after diff pattern: see `docs/prd/PRD-AI-SERVER-TEST-RACE-CONDITION.md`.
 
 ## Solution
 
