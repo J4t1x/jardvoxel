@@ -49,7 +49,11 @@ export class SaveManager {
       const store = tx.objectStore(STORE_WORLD);
       store.put({ id: 'main', ...worldData, savedAt: Date.now() });
       tx.oncomplete = () => { this.lastSaveTime = Date.now(); resolve(true); };
-      tx.onerror = () => resolve(false);
+      tx.onerror = (e) => {
+        // SPEC-074 Bug #14: Handle QuotaExceededError gracefully
+        this._handleQuotaError(e, 'saveWorld');
+        resolve(false);
+      };
     });
   }
 
@@ -71,7 +75,11 @@ export class SaveManager {
       const store = tx.objectStore(STORE_CHUNKS);
       store.put({ key, modifications });
       tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
+      tx.onerror = (e) => {
+        // SPEC-074 Bug #14: Handle QuotaExceededError gracefully
+        this._handleQuotaError(e, 'saveChunk');
+        resolve(false);
+      };
     });
   }
 
@@ -106,6 +114,30 @@ export class SaveManager {
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
     });
+  }
+
+  // SPEC-074 Bug #14: Handle QuotaExceededError — clear old chunk saves
+  // to make space, and warn the user if storage is critically low.
+  _handleQuotaError(event, operation) {
+    const err = event.target && event.target.error;
+    const isQuota = err && (err.name === 'QuotaExceededError' || err.code === 0);
+    if (!isQuota) return;
+    console.warn(`SaveManager: QuotaExceededError during ${operation}. Attempting to free space...`);
+    // Try clearing old chunk saves to free space
+    if (this.db) {
+      try {
+        const tx = this.db.transaction([STORE_CHUNKS], 'readwrite');
+        tx.objectStore(STORE_CHUNKS).clear();
+        tx.oncomplete = () => console.warn('SaveManager: Cleared chunk saves to free space.');
+        tx.onerror = () => console.warn('SaveManager: Failed to clear chunk saves.');
+      } catch (e) {
+        console.warn('SaveManager: Could not clear chunk saves:', e);
+      }
+    }
+    // Notify the user (if in browser context)
+    if (typeof document !== 'undefined') {
+      console.warn('SaveManager: Storage quota exceeded. Old chunk data cleared. World save may fail.');
+    }
   }
 
   startAutoSave(getSaveDataFn, intervalMs = 30000) {

@@ -49,6 +49,9 @@ export class KomorebiSystem {
     this._ambientSound = null;
     this._particleTimer = null;
     this._currentBiome = null;
+    // SPEC-073 Gap 7: Visual feedback — light ray intensity for dappled light
+    this._lightIntensity = 0;
+    this._targetLightIntensity = 0;
   }
 
   // Inject dependencies
@@ -113,6 +116,8 @@ export class KomorebiSystem {
 
   _activate() {
     this._active = true;
+    // SPEC-073 Gap 7: Set target light intensity for visual dappled light feedback
+    this._targetLightIntensity = 0.6 + this._canopyDensity * 0.4;
     if (this._chilltune) {
       this._chilltune.setKomorebi(true);
     }
@@ -124,12 +129,29 @@ export class KomorebiSystem {
 
   _deactivate() {
     this._active = false;
+    // SPEC-073 Gap 7: Fade out light intensity
+    this._targetLightIntensity = 0;
     if (this._chilltune) {
       this._chilltune.setKomorebi(false);
     }
     if (this._particleTimer) {
       clearTimeout(this._particleTimer);
       this._particleTimer = null;
+    }
+  }
+
+  // SPEC-073 Gap 7: Get current visual light intensity (for renderer to use)
+  getLightIntensity() {
+    return this._lightIntensity;
+  }
+
+  // SPEC-073 Gap 7: Update light intensity interpolation (call from game loop)
+  updateLightIntensity(dt) {
+    const speed = 2.0; // fade speed
+    if (this._lightIntensity < this._targetLightIntensity) {
+      this._lightIntensity = Math.min(this._targetLightIntensity, this._lightIntensity + speed * dt);
+    } else if (this._lightIntensity > this._targetLightIntensity) {
+      this._lightIntensity = Math.max(this._targetLightIntensity, this._lightIntensity - speed * dt);
     }
   }
 

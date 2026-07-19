@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-06-29
 **Autor**: ja
-**Estado**: 🟡 Pendiente
+**Estado**: ✅ Completado (v7.1.0 — SPEC-073, 19 Julio 2026)
 **Versión objetivo**: v5.0.0-RC4
 **Documento base**: `PRD-JARDVOXEL-5.0.md`, `PRD-JARDVOXEL-5.0-INTEGRATION.md`
 **Aplicación**: `jardvoxel-survival.html` + `core/jardvoxel-survival-*.js`

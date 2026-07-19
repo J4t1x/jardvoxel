@@ -8,6 +8,12 @@ import { SimplexNoise, DomainWarper, NOISE_CONFIGS, FastNoiseLite, FN_NOISE_TYPE
 import { HydrologySystem } from './jardvoxel-survival-hydrology.js';
 import { UniverseIdentity, ArchipelagoGenerator } from './jardvoxel-survival-archipelago.js';
 import { SceneComposer } from './jardvoxel-survival-scene-composer.js';
+// SPEC-105: MicrosectorGenerator for fine-grained decoration (Level 6).
+// microsectors.js imports BIOMES/ZONE_TYPES/CHUNK_SIZE from this file, but all
+// its module-level references to those constants are deferred behind lazy
+// getters, so the circular import resolves cleanly.
+import { MicrosectorGenerator } from './jardvoxel-survival-microsectors.js';
+import { HierarchicalStreaming } from './jardvoxel-survival-streaming.js';
 
 // v7.0: Define constants locally to avoid circular dependency with jardvoxel-survival-engine.js
 // These are exported for other v7.0 modules to import from here instead of the engine
@@ -725,6 +731,11 @@ export class HierarchicalChunkGenerator {
 
     // PRD P-02: Hydrology system for rivers, lakes, valleys
     this.hydrology = new HydrologySystem(seed);
+    // SPEC-105: Microsector generator for fine-grained decoration (Level 6)
+    this.microsectorGen = new MicrosectorGenerator(seed);
+    // SPEC-107: Hierarchical streaming — pre-warms region/zone caches and
+    // boosts chunk priority based on shared hierarchy context with the player.
+    this.streaming = new HierarchicalStreaming(this);
     this._useRidgedNoise = true;
     // PRD G-03: Cellular noise for organic terrain patterns
     this._cellularNoise = new FastNoiseLite(seed + 12345);

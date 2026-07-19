@@ -89,6 +89,8 @@ export class ExplorationJournal {
   incrementStat(stat, amount = 1) {
     if (this._stats[stat] !== undefined) {
       this._stats[stat] += amount;
+      // SPEC-073 Gap 8: Auto-detect milestones when stats cross thresholds
+      this._checkMilestones(stat);
     }
   }
 
@@ -98,6 +100,34 @@ export class ExplorationJournal {
         this._stats[stat] = Math.max(this._stats[stat], value);
       } else {
         this._stats[stat] = value;
+      }
+      // SPEC-073 Gap 8: Auto-detect milestones
+      this._checkMilestones(stat);
+    }
+  }
+
+  // SPEC-073 Gap 8: Automatic milestone detection based on stat thresholds
+  _checkMilestones(stat) {
+    if (!this._milestoneThresholds) {
+      this._milestoneThresholds = {
+        blocksPlaced: [10, 50, 100, 500, 1000],
+        blocksMined: [10, 50, 100, 500, 1000],
+        treesPlanted: [1, 5, 10, 25, 50],
+        distanceTraveled: [100, 500, 1000, 5000, 10000],
+        highestResonance: [10, 25, 50, 100],
+        timePlayed: [60, 300, 600, 1800, 3600], // 1m, 5m, 10m, 30m, 1h
+      };
+      this._milestonesReached = new Set();
+    }
+    const thresholds = this._milestoneThresholds[stat];
+    if (!thresholds) return;
+    const value = this._stats[stat];
+    for (const threshold of thresholds) {
+      const key = `${stat}_${threshold}`;
+      if (value >= threshold && !this._milestonesReached.has(key)) {
+        this._milestonesReached.add(key);
+        this.addEntry('milestone', `Milestone: ${stat} ${threshold}`, 
+          `Reached ${threshold} ${stat}!`, { stat, threshold });
       }
     }
   }

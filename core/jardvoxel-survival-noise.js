@@ -407,9 +407,13 @@ export const NOISE_CONFIGS = {
     octaves: 6,
     persistence: 0.5,
     lacunarity: 2.0,
-    scale: 0.0003,
-    warpStrength: 80,
-    warpScale: 0.003,
+    // Wavelength ~1/scale in blocks. Was 0.0003 (~3300 block landmasses) —
+    // at renderDistance ~14-20 chunks (448-640 blocks) that's only ~15-20%
+    // of one land/ocean cycle, so most spawns land near a coastline and the
+    // world reads as a small island. Halved to double landmass size.
+    scale: 0.00015,
+    warpStrength: 160, // SPEC-078: increased 2x for visible organic warping
+    warpScale: 0.0015, // halved alongside scale to keep coastline wobble proportional
     warpOctaves: 3,
   },
   erosion: {
@@ -417,7 +421,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.55,
     lacunarity: 2.2,
     scale: 0.0008,
-    warpStrength: 40,
+    warpStrength: 80, // SPEC-078: increased 2x
     warpScale: 0.005,
     warpOctaves: 2,
   },
@@ -426,7 +430,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.6,
     lacunarity: 2.5,
     scale: 0.0012,
-    warpStrength: 30,
+    warpStrength: 60, // SPEC-078: increased 2x
     warpScale: 0.004,
     warpOctaves: 3,
   },
@@ -435,7 +439,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.5,
     lacunarity: 2.0,
     scale: 0.0015,
-    warpStrength: 20,
+    warpStrength: 40, // SPEC-078: increased 2x
     warpScale: 0.006,
     warpOctaves: 2,
   },
@@ -444,7 +448,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.5,
     lacunarity: 2.0,
     scale: 0.0005,
-    warpStrength: 60,
+    warpStrength: 120, // SPEC-078: increased 2x
     warpScale: 0.003,
     warpOctaves: 4,
   },
@@ -453,7 +457,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.5,
     lacunarity: 2.0,
     scale: 0.0005,
-    warpStrength: 60,
+    warpStrength: 120, // SPEC-078: increased 2x
     warpScale: 0.003,
     warpOctaves: 4,
   },
@@ -462,7 +466,7 @@ export const NOISE_CONFIGS = {
     persistence: 0.5,
     lacunarity: 2.0,
     scale: 0.008,
-    warpStrength: 15,
+    warpStrength: 30, // SPEC-078: increased 2x
     warpScale: 0.01,
     warpOctaves: 2,
   },
@@ -534,7 +538,8 @@ export class TerrainSplines {
 export class BiomeBlender {
   constructor(worldGen) {
     this.worldGen = worldGen;
-    this.blendRadius = 8;
+    // SPEC-078: Increased from 8 to 16 for smoother 4-8 block transitions
+    this.blendRadius = 16;
   }
 
   getBlendedBiome(x, z) {
@@ -723,6 +728,9 @@ export class FeaturePlacer {
     this.featureNoise = new SimplexNoise(seed + 7000);
     this.densityNoise = new SimplexNoise(seed + 7001);
     this.clusterNoise = new SimplexNoise(seed + 7002);
+    // SPEC-078: Collision tracking — records placed features to prevent overlap
+    this._placedFeatures = new Map(); // key: "cx,cz" → { x, z, radius }
+    this._collisionRadius = 4; // minimum distance between tree trunks
   }
 
   shouldPlaceTree(x, z, biome) {
@@ -737,7 +745,51 @@ export class FeaturePlacer {
 
     const feature = this.featureNoise.noise2D(x * 0.1, z * 0.1);
 
-    return feature > (1 - adjustedDensity);
+    if (feature <= (1 - adjustedDensity)) return false;
+
+    // SPEC-078: Collision detection — check no existing feature within radius
+    if (this._hasNearbyFeature(x, z)) return false;
+
+    return true;
+  }
+
+  // SPEC-078: Register a placed feature so future placements avoid it
+  registerFeature(x, z, radius = this._collisionRadius) {
+    const key = `${Math.floor(x / 16)},${Math.floor(z / 16)}`;
+    if (!this._placedFeatures.has(key)) {
+      this._placedFeatures.set(key, []);
+    }
+    this._placedFeatures.get(key).push({ x, z, radius });
+  }
+
+  // SPEC-078: Check if any registered feature is within collision radius
+  _hasNearbyFeature(x, z) {
+    const cx = Math.floor(x / 16);
+    const cz = Math.floor(z / 16);
+    // Check 3x3 grid of cells around the target
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const key = `${cx + dx},${cz + dz}`;
+        const features = this._placedFeatures.get(key);
+        if (!features) continue;
+        for (const f of features) {
+          const distSq = (f.x - x) ** 2 + (f.z - z) ** 2;
+          const minDist = f.radius + this._collisionRadius;
+          if (distSq < minDist * minDist) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // SPEC-078: Clear collision cache for a chunk (on chunk unload)
+  clearChunk(cx, cz) {
+    this._placedFeatures.delete(`${cx},${cz}`);
+  }
+
+  // SPEC-078: Clear all (on world dispose)
+  clearAll() {
+    this._placedFeatures.clear();
   }
 
   getTreeType(x, z, biome) {

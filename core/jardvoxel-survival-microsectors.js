@@ -7,7 +7,9 @@ import { SimplexNoise, FastNoiseLite, FN_NOISE_TYPE, FN_CELLULAR_RETURN } from '
 import { BIOMES, ZONE_TYPES, CHUNK_SIZE } from './jardvoxel-survival-world-hierarchy.js';
 
 const SECTOR_SIZE = 4; // 4x4 blocks per sector
-const SECTORS_PER_SIDE = CHUNK_SIZE / SECTOR_SIZE; // sectors per chunk side
+// SECTORS_PER_SIDE derived lazily from CHUNK_SIZE to avoid circular-dep TDZ
+// (world-hierarchy.js imports this module before CHUNK_SIZE is initialized).
+function sectorsPerSide() { return CHUNK_SIZE / SECTOR_SIZE; }
 
 // Decoration types mapped to block IDs
 const DECORATION_BLOCKS = {
@@ -44,39 +46,53 @@ const DECORATION_BLOCKS = {
 };
 
 // Biome → decoration type mapping
-const BIOME_DECORATION = {
-  [BIOMES.PLAINS]: { primary: 'flowers', secondary: 'bushes', density: 0.08 },
-  [BIOMES.FOREST]: { primary: 'mushrooms', secondary: 'moss', density: 0.15 },
-  [BIOMES.JUNGLE]: { primary: 'bushes', secondary: 'bamboo', density: 0.20 },
-  [BIOMES.TAIGA]: { primary: 'moss', secondary: 'mushrooms', density: 0.10 },
-  [BIOMES.SWAMP]: { primary: 'mushrooms', secondary: 'moss', density: 0.18 },
-  [BIOMES.DESERT]: { primary: 'dead_bush', secondary: 'rocks', density: 0.04 },
-  [BIOMES.SAVANNA]: { primary: 'dead_bush', secondary: 'bushes', density: 0.06 },
-  [BIOMES.MEADOW]: { primary: 'flowers', secondary: 'flowers', density: 0.25 },
-  [BIOMES.CHERRY_GROVE]: { primary: 'flowers', secondary: 'fallen_leaves', density: 0.20 },
-  [BIOMES.AUTUMN_FOREST]: { primary: 'fallen_leaves', secondary: 'mushrooms', density: 0.18 },
-  [BIOMES.SNOWY_PLAINS]: { primary: 'none', secondary: 'none', density: 0.01 },
-  [BIOMES.MOUNTAINS]: { primary: 'rocks', secondary: 'none', density: 0.05 },
-  [BIOMES.STONY_PEAKS]: { primary: 'rocks', secondary: 'none', density: 0.08 },
-  [BIOMES.BEACH]: { primary: 'none', secondary: 'rocks', density: 0.02 },
-  [BIOMES.ZEN_GARDEN]: { primary: 'moss', secondary: 'rocks', density: 0.12 },
-  [BIOMES.BAMBOO_GROVE]: { primary: 'bamboo', secondary: 'bushes', density: 0.22 },
-  [BIOMES.AURORA_TUNDRA]: { primary: 'none', secondary: 'moss', density: 0.03 },
-  [BIOMES.MYSTIC_GROVE]: { primary: 'mushrooms', secondary: 'flowers', density: 0.15 },
-};
+// Built lazily on first use to avoid circular-dependency evaluation order
+// (world-hierarchy.js imports this module before its BIOMES const is initialized).
+let _BIOME_DECORATION = null;
+function getBiomeDecoration() {
+  if (!_BIOME_DECORATION) {
+    _BIOME_DECORATION = {
+      [BIOMES.PLAINS]: { primary: 'flowers', secondary: 'bushes', density: 0.08 },
+      [BIOMES.FOREST]: { primary: 'mushrooms', secondary: 'moss', density: 0.15 },
+      [BIOMES.JUNGLE]: { primary: 'bushes', secondary: 'bamboo', density: 0.20 },
+      [BIOMES.TAIGA]: { primary: 'moss', secondary: 'mushrooms', density: 0.10 },
+      [BIOMES.SWAMP]: { primary: 'mushrooms', secondary: 'moss', density: 0.18 },
+      [BIOMES.DESERT]: { primary: 'dead_bush', secondary: 'rocks', density: 0.04 },
+      [BIOMES.SAVANNA]: { primary: 'dead_bush', secondary: 'bushes', density: 0.06 },
+      [BIOMES.MEADOW]: { primary: 'flowers', secondary: 'flowers', density: 0.25 },
+      [BIOMES.CHERRY_GROVE]: { primary: 'flowers', secondary: 'fallen_leaves', density: 0.20 },
+      [BIOMES.AUTUMN_FOREST]: { primary: 'fallen_leaves', secondary: 'mushrooms', density: 0.18 },
+      [BIOMES.SNOWY_PLAINS]: { primary: 'none', secondary: 'none', density: 0.01 },
+      [BIOMES.MOUNTAINS]: { primary: 'rocks', secondary: 'none', density: 0.05 },
+      [BIOMES.STONY_PEAKS]: { primary: 'rocks', secondary: 'none', density: 0.08 },
+      [BIOMES.BEACH]: { primary: 'none', secondary: 'rocks', density: 0.02 },
+      [BIOMES.ZEN_GARDEN]: { primary: 'moss', secondary: 'rocks', density: 0.12 },
+      [BIOMES.BAMBOO_GROVE]: { primary: 'bamboo', secondary: 'bushes', density: 0.22 },
+      [BIOMES.AURORA_TUNDRA]: { primary: 'none', secondary: 'moss', density: 0.03 },
+      [BIOMES.MYSTIC_GROVE]: { primary: 'mushrooms', secondary: 'flowers', density: 0.15 },
+    };
+  }
+  return _BIOME_DECORATION;
+}
 
-// Zone decoration multipliers
-const ZONE_DECORATION_MULT = {
-  [ZONE_TYPES.CLEARING]: 2.0,
-  [ZONE_TYPES.MEADOW]: 2.5,
-  [ZONE_TYPES.DENSE_FOREST]: 1.5,
-  [ZONE_TYPES.GROVE]: 1.8,
-  [ZONE_TYPES.LAKE]: 0.3,
-  [ZONE_TYPES.CLIFFS]: 0.2,
-  [ZONE_TYPES.GORGE]: 0.1,
-  [ZONE_TYPES.WETLANDS]: 1.3,
-  [ZONE_TYPES.DEFAULT]: 1.0,
-};
+// Zone decoration multipliers (lazy for same circular-dep reason)
+let _ZONE_DECORATION_MULT = null;
+function getZoneDecorationMult() {
+  if (!_ZONE_DECORATION_MULT) {
+    _ZONE_DECORATION_MULT = {
+      [ZONE_TYPES.CLEARING]: 2.0,
+      [ZONE_TYPES.MEADOW]: 2.5,
+      [ZONE_TYPES.DENSE_FOREST]: 1.5,
+      [ZONE_TYPES.GROVE]: 1.8,
+      [ZONE_TYPES.LAKE]: 0.3,
+      [ZONE_TYPES.CLIFFS]: 0.2,
+      [ZONE_TYPES.GORGE]: 0.1,
+      [ZONE_TYPES.WETLANDS]: 1.3,
+      [ZONE_TYPES.DEFAULT]: 1.0,
+    };
+  }
+  return _ZONE_DECORATION_MULT;
+}
 
 export class MicrosectorGenerator {
   constructor(seed) {
@@ -92,11 +108,12 @@ export class MicrosectorGenerator {
   generateMicrosectors(chunk, context, placeBlockFn) {
     const { biomeWeights, zone, ox, oz } = context;
     const primaryBiome = this._getPrimaryBiome(biomeWeights);
-    const biomeDeco = BIOME_DECORATION[primaryBiome] || BIOME_DECORATION[BIOMES.PLAINS];
-    const zoneMult = ZONE_DECORATION_MULT[zone.type] || 1.0;
+    const biomeDeco = getBiomeDecoration()[primaryBiome] || getBiomeDecoration()[BIOMES.PLAINS];
+    const zoneMult = getZoneDecorationMult()[zone.type] || 1.0;
     const baseDensity = biomeDeco.density * zoneMult * (context.vegetationBoost || 1.0);
 
     // Dead code above kept for reference — correct loop below
+    const SECTORS_PER_SIDE = sectorsPerSide();
     for (let sx = 0; sx < SECTORS_PER_SIDE; sx++) {
       for (let sz = 0; sz < SECTORS_PER_SIDE; sz++) {
         // G-03: Use cellular F1 for organic clearing boundaries

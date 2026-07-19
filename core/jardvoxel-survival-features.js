@@ -117,6 +117,10 @@ export function generateTrees(chunk, world, densityMod = 1.0) {
     const surfaceBlock = chunk.getBlock(x, surfaceY, z);
     if (surfaceBlock !== BLOCK.GRASS && surfaceBlock !== BLOCK.DIRT && surfaceBlock !== BLOCK.MUD) continue;
 
+    // SPEC-078: Register placed tree for collision detection
+    if (world.generator && world.generator.featurePlacer) {
+      world.generator.featurePlacer.registerFeature(worldX, worldZ);
+    }
     generateTree(chunk, x, surfaceY + 1, z, treeType, worldX, worldZ, rng);
   }
 }
@@ -666,6 +670,26 @@ export function generateChunkHierarchical(chunk, world, context) {
 
   // Structures: use contextual placement rules
   generateStructures(chunk, world);
+
+  // SPEC-105: Microsector fine-grained decoration (Level 6)
+  // Places small flowers, mushrooms, rocks, moss, bushes using 4x4 sectors
+  // within the chunk, biased by biome + zone multiplier.
+  const microsectorGen = world.generator?.hierarchy?.microsectorGen;
+  if (microsectorGen) {
+    const placeBlockFn = (wx, wz, blockType) => {
+      const lx = wx - chunk.cx * CHUNK_SIZE;
+      const lz = wz - chunk.cz * CHUNK_SIZE;
+      if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE) return;
+      const surfaceY = findSurfaceY(chunk, world, lx, lz);
+      if (surfaceY < 0 || surfaceY >= CHUNK_HEIGHT - 1) return;
+      const blockId = chunk.blockTypeToId(blockType);
+      if (blockId) {
+        chunk.setBlock(lx, surfaceY + 1, lz, blockId);
+      }
+    };
+    microsectorGen.generateMicrosectors(chunk, context, placeBlockFn);
+  }
+
   _updateContentYRange(chunk);
 }
 

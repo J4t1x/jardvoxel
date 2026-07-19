@@ -63,6 +63,10 @@ export class TouchJoystick {
     document.removeEventListener('mousemove', this._mouseMoveBound);
     document.removeEventListener('mouseup', this._mouseEndBound);
   }
+  // SPEC-075 Bug #3: Haptic feedback for touch controls
+  _haptic(ms = 20) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (_) {} }
+  }
   _showVisuals(x, y) {
     this.baseEl.style.left = x + 'px'; this.baseEl.style.top = y + 'px'; this.baseEl.style.opacity = '1';
     this.knobEl.style.left = x + 'px'; this.knobEl.style.top = y + 'px'; this.knobEl.style.opacity = '1';
@@ -112,22 +116,22 @@ export class TouchControls {
     const btnView = document.getElementById('touch-btn-view'); // zen2-only, absent elsewhere
 
     if (btnJump) {
-      btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.keys.space = true; }, opts);
+      btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); this._haptic(20); this.game.keys.space = true; }, opts);
       btnJump.addEventListener('touchend', (e) => { e.preventDefault(); this.game.keys.space = false; }, opts);
     }
     if (btnBreak) {
-      btnBreak.addEventListener('touchstart', (e) => { e.preventDefault(); this.breaking = true; this.game.mouseLeftDown = true; this.game._breakBlock(); }, opts);
+      btnBreak.addEventListener('touchstart', (e) => { e.preventDefault(); this._haptic(30); this.breaking = true; this.game.mouseLeftDown = true; this.game._breakBlock(); }, opts);
       btnBreak.addEventListener('touchend', (e) => { e.preventDefault(); this.breaking = false; this.game.mouseLeftDown = false; }, opts);
     }
     if (btnPlace) {
-      btnPlace.addEventListener('touchstart', (e) => { e.preventDefault(); this.game._placeBlock(); }, opts);
+      btnPlace.addEventListener('touchstart', (e) => { e.preventDefault(); this._haptic(30); this.game._placeBlock(); }, opts);
     }
     if (btnSprint) {
-      btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.keys.shift = true; }, opts);
+      btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); this._haptic(15); this.game.keys.shift = true; }, opts);
       btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); this.game.keys.shift = false; }, opts);
     }
     if (btnInv) {
-      btnInv.addEventListener('touchstart', (e) => { e.preventDefault(); this._toggleInventory(); }, opts);
+      btnInv.addEventListener('touchstart', (e) => { e.preventDefault(); this._haptic(20); this._toggleInventory(); }, opts);
     }
     if (btnFly) {
       btnFly.addEventListener('touchstart', (e) => {

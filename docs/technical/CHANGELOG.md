@@ -1,5 +1,58 @@
 # JardVoxel — Changelog
 
+## v7.1.0 — Integration Gaps 5.0 + Zen Bugfixes + Organic Terrain ✅ (19 Julio 2026)
+
+### SPEC-073: Integration Gaps 5.0 (8 gaps) ✅
+- **QuestManager** integrado a ZenGame con eventos → journal (gap 1)
+- **AIClient** importado, lazy init (gap 2)
+- **NPCMemorySystem** integrado con save/load entre sesiones (gap 3)
+- **AncientCivilizationSystem** instanciado en ZenGame (gap 4)
+- **LivingWorldSystem.onEvent** → journal entries para tree_planted, birds_attracted, etc. (gap 5)
+- **ResonanceSystem.getWorldGenInfluence** → WorldGenPipeline.setResonanceInfluence (gap 6)
+- **KomorebiSystem** light intensity tracking + updateLightIntensity (gap 7)
+- **ExplorationJournal** auto-milestone detection en incrementStat/setStat (gap 8)
+- **Tests**: 15 tests en `tests/integration-gaps.test.js`
+
+### SPEC-074: Zen Bugfix Critical/High (14 bugs) ✅
+- Bug #1: onChunkUnload ya guarda modificaciones (verificado)
+- Bug #2: WorkerPool 30s timeout + clearTimeout en message/error
+- Bug #4: _dispose() completo — ambientSound, komorebi, livingWorld, resonance, particles, weather, fog, interiorLighting, shadow
+- Bug #5: WebGL context restored — rebuild water materials, chunk meshes, shadow cascades
+- Bug #10: LivingWorldSystem.dispose() implementado
+- Bug #14: SaveManager._handleQuotaError — QuotaExceededError detection + clear old chunks
+- Bugs #3,6,7,8,9,11,12,13: verificados como ya fixed
+- **Tests**: 16 tests en `tests/zen-bugfix.test.js`
+
+### SPEC-075: Zen Bugfix Medium/Low (28 bugs) ✅
+- Bug #3: Touch haptic feedback (navigator.vibrate) en jump/break/place/sprint/inventory
+- Bug #6: FPS exponential smoothing (0.7 * old + 0.3 * raw)
+- Bug #11: Weather smooth transitions — lerp background color + fog over 3s
+- Bug #22: aria-label en close buttons (survival + zen HTML)
+- Bug #2: CSS variables :root{--primary,--accent,--bg-dark,--bg-panel}
+- Bug #14 (shadow): shadow.test.js actualizado para MEDIUM default
+- 18/28 bugs ya fixed, 4 N/A, 6 fixed en esta sesión
+- **Tests**: 14 tests en `tests/zen-bugfix-medium.test.js`
+
+### SPEC-077: Organic Terrain Noise Systems (5 gaps) ✅
+- Gap 1: VoronoiBiomeMap — verificado, integrado en WorldGenPipeline
+- Gap 2: FastNoiseLite — verificado, reemplaza Perlin
+- Gap 3: Cellular Noise — verificado, usado en getBaseHeight
+- Gap 4: PoissonDiskSampler — verificado, integrado en features.js
+- Gap 5: InstancedFeatureRenderer — verificado, integrado en gameplay.js
+- **Tests**: 21 tests en `tests/organic-terrain.test.js`
+
+### SPEC-078: Organic Terrain Fixes & Polish (4 partials) ✅
+- Partial 1: Domain warp intensity 2x (80→160, 40→80, 20→40, 60→120, 15→30)
+- Partial 2: BiomeBlender blendRadius 8→16 + integrado en engine getBlockAt
+- Partial 3: Terrain Splines — verificado como ya fixed
+- Partial 4: FeaturePlacer collision detection — registerFeature/_hasNearbyFeature/clearChunk/clearAll + integrado en features.js
+- **Tests**: 9 tests adicionales en `tests/organic-terrain.test.js` (total 30)
+
+### SPEC-076 + SPEC-079: Verification ✅
+- Full suite: 1151 passing, 6 failing (pre-existing ai-server SPEC-072)
+- Shadow tests fixed (14/14 passing)
+- +75 tests nuevos total (1076 → 1151)
+
 ## v7.0.2 — Hierarchical 7.0 Streaming + Integration ✅ (19 Julio 2026)
 
 ### SPEC-084: Hierarchical Streaming + 9 Layers ✅

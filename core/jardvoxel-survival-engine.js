@@ -254,6 +254,8 @@ export const BIOME_COLORS = {
 export class WorldGenPipeline {
   constructor(seed) {
     this.seed = seed;
+    // SPEC-073 Gap 6: Resonance influence hook (set by ZenGame)
+    this._resonanceInfluence = null;
     
     // v6.0: Simplex Noise replaces PerlinNoise3D
     this.densityNoise = new SimplexNoise(seed);
@@ -353,6 +355,15 @@ export class WorldGenPipeline {
 
   isFlatMode() {
     return this._worldMode === 'zen2';
+  }
+
+  // SPEC-073 Gap 6: Allow ZenGame to push resonance influence into world gen
+  setResonanceInfluence(influence) {
+    this._resonanceInfluence = influence;
+  }
+
+  getResonanceInfluence() {
+    return this._resonanceInfluence;
   }
 
   // Zen2: compress elevation toward sea level and cap peak height, so terrain
@@ -634,10 +645,18 @@ export class WorldGenPipeline {
       const biome = this.getBiome(x, z);
       // Use fast check: if y+1 > baseHeight + 15, it's definitely air
       if (y + 1 > baseHeight + 15) {
+        // SPEC-078: Use blended surface block for smooth biome transitions
+        if (this.biomeBlender) {
+          return this.biomeBlender.getBlendedSurfaceBlock(x, y, z);
+        }
         return this.getSurfaceBlock(biome, y);
       }
       const densityAbove = this.getDensity(x, y + 1, z);
       if (densityAbove <= 0) {
+        // SPEC-078: Use blended surface block for smooth biome transitions
+        if (this.biomeBlender) {
+          return this.biomeBlender.getBlendedSurfaceBlock(x, y, z);
+        }
         return this.getSurfaceBlock(biome, y);
       }
       // SPEC-BIOME-OVERHAUL: Use subsurface blocks for layers near surface

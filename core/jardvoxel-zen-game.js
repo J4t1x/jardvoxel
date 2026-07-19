@@ -16,7 +16,7 @@ import {
 } from './blocks-registry.js';
 import {
   BIOMES, BIOME_COLORS, WORLD_MIN_Y, SEA_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
-  WorldGenPipeline,
+  WorldGenPipeline, PRNG,
 } from './jardvoxel-survival-engine.js';
 import { SaveManager } from './jardvoxel-survival-save.js';
 import { ParticleSystem } from './jardvoxel-survival-particles.js';
@@ -38,6 +38,11 @@ import { ResonanceSystem } from './jardvoxel-survival-resonance.js';
 import { MeditationSpaceGenerator } from './jardvoxel-survival-meditation-spaces.js';
 import { LivingWorldSystem } from './jardvoxel-survival-living-world.js';
 import { ExplorationJournal, ENTRY_TYPES } from './jardvoxel-survival-journal.js';
+// SPEC-073 Gaps 1-4: Wire previously unintegrated systems
+import { QuestManager } from './jardvoxel-survival-quests.js';
+import { AIClient } from './jardvoxel-survival-ai-client.js';
+import { NPCMemorySystem } from './jardvoxel-survival-npc-memory.js';
+import { AncientCivilizationSystem } from './jardvoxel-survival-civilizations.js';
 import {
   PatagoniaProfile, PATAGONIA, PATAGONIA_BIOME_NAMES, PATAGONIA_AMBIENT_MAP,
   applyPatagoniaToGenerator,
@@ -77,13 +82,13 @@ export class ZenGame {
     this.seed = savedSeed !== null ? savedSeed : Math.floor(Math.random() * 1_000_000_000);
     this.patagonia = new PatagoniaProfile(this.seed);
     this.settings = {
-      renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
+      renderDistance: 20, fov: 75, clouds: true, fog: true, shadows: false,
       toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
       joystickSize: 120, autoSaveInterval: 60,
       showFPS: true, showCoords: true, showMinimap: true,
-      showClock: true, showControlsHint: true,
+      showClock: true, showControlsHint: false,
       ambientSoundEnabled: true,
       komorebiEnabled: true, meditationEnabled: true, livingWorldEnabled: true,
       autoHideUI: true,
@@ -123,6 +128,11 @@ export class ZenGame {
     this.chunkModifications = new Map();
     this.saveManager = new SaveManager(this._isZen2 ? 'zen2' : '');
     this.saveLoaded = false;
+    // Guards against the beforeunload/pagehide auto-save (below) racing an
+    // intentional "reset experience" — without it, unloading the page after
+    // clearing the save re-writes localStorage with the old seed/save data
+    // right before the reload, undoing the reset (menuBtn.onclick sets this).
+    this._skipAutoSave = false;
     this.gameStarted = false;
     this.pointerLocked = false;
     // Set when the browser rejects Pointer Lock (see 'pointerlockerror' below) —
@@ -191,6 +201,10 @@ export class ZenGame {
     if (data.blockMods) this._applyChunkModifications(data.blockMods);
     if (data.resonance) this.resonanceSystem.deserialize(data.resonance);
     if (data.journal) this.journal.deserialize(data.journal);
+    // SPEC-073 Gap 3: Restore NPC memory
+    if (data.npcMemory && this.npcMemorySystem) this.npcMemorySystem.deserializeAll(data.npcMemory);
+    // SPEC-073 Gap 1: Restore quest state
+    if (data.quests && this.questManager) this.questManager.deserialize(data.quests);
     if (data.discoveredBiomes) this.discoveredBiomes = new Set(data.discoveredBiomes);
     // SPEC-115: Load archipelago state
     if (data.archipelago) {
@@ -324,6 +338,19 @@ export class ZenGame {
     if (this.archipelagoMode && this.world.generator?.hierarchy?._archipelago?.islands?.length > 0) {
       const island = this.world.generator.hierarchy._archipelago.islands[0];
       spawn = { x: island.centerX, y: SEA_LEVEL + 20, z: island.centerZ };
+    } else if (this._isZen2) {
+      // this.patagonia.getSpawnPoint() is a fixed world coordinate (x:200,
+      // z:-400) — independent of the seed, so randomizing the seed alone
+      // still always dropped the player at the same spot on the map (only
+      // the terrain generated *at* that spot changed). Derive the anchor
+      // from the seed instead so different worlds start in different places;
+      // the flat-land search below still finds solid ground near it.
+      const spawnPrng = new PRNG(this.seed ^ 0x5A17E5);
+      spawn = {
+        x: Math.floor((spawnPrng.next() - 0.5) * 2000),
+        y: SEA_LEVEL + 20,
+        z: Math.floor((spawnPrng.next() - 0.5) * 2000),
+      };
     } else {
       spawn = this.patagonia.getSpawnPoint();
     }
@@ -431,9 +458,32 @@ export class ZenGame {
     };
 
     this.livingWorldSystem = new LivingWorldSystem(this.scene);
+    // SPEC-073 Gap 5: Wire living world events to journal
+    this.livingWorldSystem.onEvent((type, data) => {
+      if (this.journal) {
+        this.journal.addEntry({
+          type: 'discovery',
+          title: `Living World: ${type}`,
+          text: `${type} at (${Math.floor(data.x || 0)}, ${Math.floor(data.z || 0)})`,
+          timestamp: Date.now(),
+        });
+      }
+    });
 
     this.journal = new ExplorationJournal();
     this.journal.setStat('highestResonance', 0);
+
+    // SPEC-073 Gaps 1-4: Instantiate previously unintegrated systems
+    this.questManager = new QuestManager(this.seed);
+    this.questManager.on('quest_completed', (quest) => {
+      if (this.journal) {
+        this.journal.addEntry('milestone', `Quest Complete: ${quest.title}`, quest.description || '', { questId: quest.id });
+      }
+    });
+    this.npcMemorySystem = new NPCMemorySystem(this.seed);
+    this.civilizationSystem = new AncientCivilizationSystem(this.seed);
+    // AI Client is optional (requires server) — instantiate lazily
+    this._aiClient = null;
 
     this._generateSpawnChunkAsync();
   }
@@ -477,6 +527,21 @@ export class ZenGame {
     this._initJournalTabs();
     this._applySettings();
 
+    // Controls hint is hidden by default (see settings.showControlsHint) —
+    // this icon lets the player pop it open on demand instead of digging
+    // through the settings menu.
+    const controlsHintEl = document.getElementById('controls-hint');
+    const controlsHintToggle = document.getElementById('controls-hint-toggle');
+    if (controlsHintToggle && controlsHintEl) {
+      controlsHintToggle.onclick = () => {
+        this.settings.showControlsHint = !this.settings.showControlsHint;
+        controlsHintEl.style.display = this.settings.showControlsHint ? 'block' : 'none';
+        const settingToggle = document.getElementById('setting-show-controls-hint');
+        if (settingToggle) settingToggle.classList.toggle('on', this.settings.showControlsHint);
+        this._saveSettings();
+      };
+    }
+
     const resumeBtn = document.getElementById('resume-btn');
     const fullscreenBtn = document.getElementById('pause-fullscreen-btn');
     const journalBtn = document.getElementById('journal-btn');
@@ -501,6 +566,11 @@ export class ZenGame {
     };
     menuBtn.onclick = () => {
       if (!confirm('¿Eliminar el mundo y volver al menú?')) return;
+      // Must come before _dispose()/removeItem — otherwise the beforeunload/
+      // pagehide auto-save listeners fire during the reload navigation and
+      // re-write the just-cleared save (with the old seed) before the new
+      // page even loads, making the reset silently no-op.
+      this._skipAutoSave = true;
       this._dispose();
       try { localStorage.removeItem(this._saveKey); } catch(e) {}
       if (this.saveManager) this.saveManager.clearAll();
@@ -576,6 +646,28 @@ export class ZenGame {
     }, false);
 
     this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      // SPEC-074 Bug #5: Full state restoration after WebGL context loss
+      // Rebuild all WebGL resources that were lost
+      if (this.world && this.world.initWaterMaterialManager) {
+        try { this.world.initWaterMaterialManager(this.renderer, this.camera); } catch(e) {}
+      }
+      if (this.world && this.world._lodMaterials) {
+        // Force LOD materials to be rebuilt on next mesh
+        this.world._lodMaterials = null;
+      }
+      // Rebuild all chunk meshes (geometry + materials were lost)
+      if (this.world) {
+        try {
+          for (const [key, chunk] of this.world.chunks) {
+            if (chunk.generated) {
+              this.world._rebuildChunkMesh(chunk.cx, chunk.cz);
+            }
+          }
+        } catch(e) {}
+      }
+      if (this.shadowManager) {
+        try { this.shadowManager.addToScene(this.scene); } catch(e) {}
+      }
       this._paused = false;
       this.lastTime = performance.now();
       const overlay = document.getElementById('loading-overlay');
@@ -895,6 +987,10 @@ export class ZenGame {
       blockMods: Array.from(this.blockModifications.entries()),
       resonance: this.resonanceSystem.serialize(),
       journal: this.journal.serialize(),
+      // SPEC-073 Gap 3: Persist NPC memory between sessions
+      npcMemory: this.npcMemorySystem ? this.npcMemorySystem.serializeAll() : null,
+      // SPEC-073 Gap 1: Persist quest state
+      quests: this.questManager ? this.questManager.serialize() : null,
       discoveredBiomes: Array.from(this.discoveredBiomes),
     };
     // SPEC-115: Save archipelago state
@@ -907,6 +1003,7 @@ export class ZenGame {
   }
 
   async _saveNow() {
+    if (this._skipAutoSave) return;
     const data = this._getSaveData();
     try {
       if (this.saveManager && this.saveManager.hasSave()) {
@@ -1443,6 +1540,16 @@ export class ZenGame {
     if (this.meditationActive) this._endMeditation();
     if (this.chilltune) { try { this.chilltune.destroy(); } catch(e) {} }
     if (this.audio) { try { this.audio.dispose(); } catch(e) {} }
+    // SPEC-074 Bug #4: Dispose all subsystems to prevent memory leaks
+    if (this.ambientSoundManager) { try { this.ambientSoundManager.destroy(); } catch(e) {} }
+    if (this.komorebiSystem) { try { this.komorebiSystem.destroy(); } catch(e) {} }
+    if (this.livingWorldSystem) { try { this.livingWorldSystem.dispose(); } catch(e) {} }
+    if (this.resonanceSystem) { try { this.resonanceSystem.dispose(); } catch(e) {} }
+    if (this.particles) { try { this.particles.dispose(); } catch(e) {} }
+    if (this.weatherManager) { try { this.weatherManager.dispose(); } catch(e) {} }
+    if (this.fogManager) { try { this.fogManager.dispose(); } catch(e) {} }
+    if (this.interiorLighting) { try { this.interiorLighting.dispose(); } catch(e) {} }
+    if (this.shadowManager) { try { this.shadowManager.dispose(); } catch(e) {} }
     if (this.world) { try { this.world.dispose(); } catch(e) {} }
     if (this.dayNight) { try { this.dayNight.dispose(); } catch(e) {} }
     if (this.player && this.player.body) {
@@ -1456,6 +1563,10 @@ export class ZenGame {
     if (this.character) { try { this.character.dispose(); } catch(e) {} }
     if (this.saveManager) { try { this.saveManager.stopAutoSave(); } catch(e) {} }
     if (this.renderer) { try { this.renderer.dispose(); } catch(e) {} }
+    // SPEC-078: Clear feature placer collision cache
+    if (this.world && this.world.generator && this.world.generator.featurePlacer) {
+      try { this.world.generator.featurePlacer.clearAll(); } catch(e) {}
+    }
     this.blockModifications.clear();
     this.chunkModifications.clear();
     this._lightSources.clear();
@@ -1714,7 +1825,9 @@ export class ZenGame {
 
     this.fpsFrames++;
     if (now - this.fpsTime > 500) {
-      this.fps = Math.round(this.fpsFrames * 1000 / (now - this.fpsTime));
+      // SPEC-075 Bug #6: Exponential smoothing for stable FPS display
+      const rawFps = Math.round(this.fpsFrames * 1000 / (now - this.fpsTime));
+      this.fps = this.fps > 0 ? Math.round(this.fps * 0.7 + rawFps * 0.3) : rawFps;
       this.fpsFrames = 0; this.fpsTime = now;
     }
 
@@ -2002,6 +2115,12 @@ export class ZenGame {
       // Resonance
       this.resonanceSystem.update(dt);
       if (this.journal) this.journal.setStat('highestResonance', this.resonanceSystem.score);
+      // SPEC-073 Gap 6: Push resonance influence to world generator
+      if (this.world && this.world.generator && this.resonanceSystem.getWorldGenInfluence) {
+        try {
+          this.world.generator.setResonanceInfluence(this.resonanceSystem.getWorldGenInfluence());
+        } catch (e) {}
+      }
 
       // Sunrise/sunset journal
       if (this.chilltune) {

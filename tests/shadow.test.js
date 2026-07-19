@@ -11,9 +11,9 @@ describe('ShadowManager', () => {
     camera = new THREE.PerspectiveCamera(75, 1, 0.1, 500);
   });
 
-  it('should initialize with HIGH quality by default', () => {
+  it('should initialize with MEDIUM quality by default (SPEC-075: performance)', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
-    expect(sm.quality).toBe(SHADOW_QUALITY.HIGH);
+    expect(sm.quality).toBe(SHADOW_QUALITY.MEDIUM);
   });
 
   it('should set PCFSoftShadowMap type', () => {
@@ -23,6 +23,7 @@ describe('ShadowManager', () => {
 
   it('should create 3 cascades for HIGH quality', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
+    sm.setQuality(SHADOW_QUALITY.HIGH);
     expect(sm.cascades.length).toBe(3);
   });
 
@@ -57,6 +58,7 @@ describe('ShadowManager', () => {
 
   it('should have correct shadow map size for HIGH quality', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
+    sm.setQuality(SHADOW_QUALITY.HIGH);
     expect(sm.cascades[0].shadow.mapSize.x).toBe(2048);
   });
 
@@ -84,6 +86,7 @@ describe('ShadowManager', () => {
 
   it('should add cascades to scene', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
+    sm.setQuality(SHADOW_QUALITY.HIGH);
     const scene = new THREE.Scene();
     sm.addToScene(scene);
     expect(scene.children.length).toBeGreaterThanOrEqual(6);
@@ -91,6 +94,7 @@ describe('ShadowManager', () => {
 
   it('should remove cascades from scene', () => {
     const sm = new ShadowManager(renderer, sunLight, camera);
+    sm.setQuality(SHADOW_QUALITY.HIGH);
     const scene = new THREE.Scene();
     sm.addToScene(scene);
     const countBefore = scene.children.length;

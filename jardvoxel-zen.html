@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>JardVoxel Patagonia — Explora el Sur</title>
 <style>
+:root{--primary:#7C3AED;--accent:#00ff88;--bg-dark:#1a1a2e;--bg-panel:rgba(20,20,40,0.9)}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0e1a 0%,#1a1428 50%,#0f1a1e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e8e8f0}
 canvas{display:block}
@@ -222,7 +223,7 @@ canvas{display:block}
 <div id="meditation-overlay"></div>
 
 <div id="journal-panel">
-  <span id="journal-close">x</span>
+  <span id="journal-close" role="button" aria-label="Cerrar diario">x</span>
   <h3>Diario de Exploracion</h3>
   <div class="journal-tabs">
     <button class="journal-tab active" data-jtab="wellness">Wellness</button>
@@ -233,7 +234,7 @@ canvas{display:block}
 </div>
 
 <div id="inventory-panel">
-  <button id="inv-close-btn">x</button>
+  <button id="inv-close-btn" aria-label="Cerrar inventario">x</button>
   <h3>Inventario Creativo</h3>
   <div id="inventory-grid"></div>
   <p id="inventory-hint">Toca un bloque para asignarlo al slot seleccionado · E para cerrar</p>

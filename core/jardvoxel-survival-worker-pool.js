@@ -46,6 +46,8 @@ export class WorkerPool {
     const req = this._inFlight.get(key);
     if (req) {
       this._inFlight.delete(key);
+      // SPEC-074 Bug #2: Clear the timeout since the worker responded
+      if (req._timeout) clearTimeout(req._timeout);
       if (!req._cancelled) {
         req.resolve(e.data);
       }
@@ -62,6 +64,8 @@ export class WorkerPool {
     for (const [key, req] of this._inFlight) {
       if (req._workerIdx === workerIdx) {
         this._inFlight.delete(key);
+        // SPEC-074 Bug #2: Clear the timeout
+        if (req._timeout) clearTimeout(req._timeout);
         req.reject(new Error(err.message || 'Worker error'));
       }
     }
@@ -83,9 +87,22 @@ export class WorkerPool {
     if (!req) return;
 
     req._workerIdx = freeIdx;
-    this._inFlight.set((req.cx + 32768) * 65536 + (req.cz + 32768), req);
+    const reqKey = (req.cx + 32768) * 65536 + (req.cz + 32768);
+    this._inFlight.set(reqKey, req);
     this.busy[freeIdx] = true;
     this.workers[freeIdx].postMessage({ cx: req.cx, cz: req.cz });
+
+    // SPEC-074 Bug #2: Worker timeout — prevents permanent deadlock if a worker
+    // hangs silently (no error, no message). 30s is generous for chunk gen.
+    req._timeout = setTimeout(() => {
+      if (this._inFlight.has(reqKey)) {
+        this._inFlight.delete(reqKey);
+        this.busy[freeIdx] = false;
+        req.reject(new Error(`Worker timeout for chunk ${req.cx},${req.cz}`));
+        this._dispatchNext();
+      }
+    }, 30000);
+    req._timeoutKey = reqKey;
   }
 
   // Request chunk generation. Returns a promise that resolves with chunk data.

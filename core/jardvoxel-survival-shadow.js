@@ -29,7 +29,7 @@ export class ShadowManager {
     this.renderer = renderer;
     this.sunLight = sunLight;
     this.camera = camera;
-    this.quality = SHADOW_QUALITY.HIGH;
+    this.quality = SHADOW_QUALITY.MEDIUM;
     this.cascades = [];
     this._enabled = true;
     this._tmpOffset = new THREE.Vector3();

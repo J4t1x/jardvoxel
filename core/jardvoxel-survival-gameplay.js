@@ -55,6 +55,21 @@ export function chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera, K = 1.5) {
   return dist - cosWeight * K;
 }
 
+// SPEC-HORIZON-FIX: 5-level LOD thresholds with hysteresis to prevent flicker.
+// A chunk sitting exactly on a boundary (e.g. dist ~12) would otherwise flip
+// LOD every 0.3s re-check as tiny movement crosses the threshold back and
+// forth, causing visible mesh rebuild "pop". Widen the band around whatever
+// LOD the chunk is already at so leaving it requires a clearer distance change.
+const LOD_THRESHOLDS = [6, 12, 20, 32];
+const LOD_HYSTERESIS = 1.5;
+export function lodForDistance(dist, currentLod = 0) {
+  for (let i = 0; i < LOD_THRESHOLDS.length; i++) {
+    const bias = currentLod <= i ? LOD_HYSTERESIS : -LOD_HYSTERESIS;
+    if (dist <= LOD_THRESHOLDS[i] + bias) return i;
+  }
+  return LOD_THRESHOLDS.length;
+}
+
 // ═══════════════════════════════════════════════════════════
 // World — manages chunks, block access, meshing
 // ═══════════════════════════════════════════════════════════
@@ -337,7 +352,8 @@ export class SurvivalWorld {
     const chunk = this.chunks.get(key);
     if (!chunk || !chunk.generated) return;
 
-    // Remove old mesh
+    // Remove old mesh (capture its LOD first for hysteresis)
+    const previousLod = this.meshes.has(key) ? (this.meshes.get(key).userData.lod ?? 0) : 0;
     if (this.meshes.has(key)) {
       const old = this.meshes.get(key);
       this.scene.remove(old);
@@ -357,11 +373,7 @@ export class SurvivalWorld {
       const dx = cx - this._playerChunkX;
       const dz = cz - this._playerChunkZ;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= 6) lod = 0;
-      else if (dist <= 12) lod = 1;
-      else if (dist <= 20) lod = 2;
-      else if (dist <= 32) lod = 3;
-      else lod = 4;
+      lod = lodForDistance(dist, previousLod);
     }
 
     // SPEC-CHUNK-OPT: Build heightmap for occlusion culling
@@ -376,10 +388,12 @@ export class SurvivalWorld {
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(meshData.colors, 3));
     geometry.setIndex(meshData.indices);
     
-    // Skip vertex normals for LOD 2+ to save performance
-    if (lod < 2) {
-      geometry.computeVertexNormals();
-    }
+    // SPEC-HORIZON-FIX: normals are required for all LODs — the far material
+    // (MeshLambertMaterial) is lit, and without a normal attribute N·L is 0,
+    // so distant chunks rendered nearly unlit/flat regardless of the sun.
+    // The LOD 2+ mesh is already heavily merged (2-8 blocks/quad), so this is
+    // computing normals over far fewer vertices than a full LOD 0 chunk — cheap.
+    geometry.computeVertexNormals();
 
     // Low-poly look: flatShading for near chunks (LOD 0-1), Lambert for distant
     this._initLodMaterials();
@@ -604,7 +618,11 @@ export class SurvivalWorld {
     const key = this._chunkKey(cx, cz);
     if (this.chunks.has(key) && this.chunks.get(key).generated) return;
     if (this.pendingChunks.has(key)) return;
-    const priority = chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera);
+    let priority = chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera);
+    // SPEC-107: Hierarchical streaming — discount chunks sharing the
+    // player's region/zone so coherent terrain appears first.
+    const stream = this.generator?.hierarchy?.streaming;
+    if (stream) priority += stream.priorityBoost(cx, cz);
     this._chunkGenQueue.push({ cx, cz, dist, priority });
   }
 
@@ -637,11 +655,18 @@ export class SurvivalWorld {
     if (this._instancedRenderer) this._instancedRenderer.update(dt);
 
     // Adaptive render distance
-    if (this._adaptiveEnabled) {
+    // SPEC-HORIZON-FIX: cooldown between changes prevents renderDistance from
+    // flapping frame-to-frame when fps hovers near a threshold (35/50), which
+    // was forcing chunk unload/reload thrash and DistantTerrainRing rebuilds
+    // right at the horizon on every flap.
+    this._adaptiveCooldown = (this._adaptiveCooldown || 0) - dt;
+    if (this._adaptiveEnabled && this._adaptiveCooldown <= 0) {
       if (fps < 35 && this.renderDistance > this._minRenderDist) {
         this.renderDistance = Math.max(this._minRenderDist, this.renderDistance - 1);
+        this._adaptiveCooldown = 1.5;
       } else if (fps > 50 && this.renderDistance < this._targetRenderDist) {
         this.renderDistance = Math.min(this._targetRenderDist, this.renderDistance + 1);
+        this._adaptiveCooldown = 1.5;
       }
     }
     
@@ -684,6 +709,16 @@ export class SurvivalWorld {
       // Queue drained — compact and check if there's anything left to do.
       // If still empty, no rescan needed until chunk boundary or rd changes.
       this._compactChunkQueue();
+    }
+
+    // SPEC-107: Hierarchical streaming — refresh player context + pre-warm
+    // region/zone caches ahead of chunk generation on chunk-boundary crossings.
+    const stream = this.generator?.hierarchy?.streaming;
+    if (stream && (chunkChanged || this._lastQueuePCX === null)) {
+      stream.setPlayerChunk(pcx, pcz);
+      // Pre-warm one ring beyond render distance so the next delta-ring scan
+      // finds region/zone data already cached (cheap, bounded).
+      stream.prewarm(pcx, pcz, Math.min(rd + 1, 16));
     }
 
     this._lastQueuePCX = pcx;
@@ -751,13 +786,8 @@ export class SurvivalWorld {
       const cz = mesh.userData.cz;
       const dx = cx - pcx, dz = cz - pcz;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      let targetLod;
-      if (dist <= 6) targetLod = 0;
-      else if (dist <= 12) targetLod = 1;
-      else if (dist <= 20) targetLod = 2;
-      else if (dist <= 32) targetLod = 3;
-      else targetLod = 4;
       const currentLod = mesh.userData.lod ?? 0;
+      const targetLod = lodForDistance(dist, currentLod);
       if (targetLod < currentLod && lodUpgrades < maxUpgrades) {
         this._rebuildChunkMesh(cx, cz, true);
         lodUpgrades++;
@@ -867,6 +897,10 @@ export class SurvivalWorld {
   }
 
   _removeChunk(key) {
+    // SPEC-074 Bug #1: Allow game to save block modifications before chunk is evicted
+    if (this.onChunkUnload) {
+      try { this.onChunkUnload(key); } catch (_) {}
+    }
     if (this.meshes.has(key)) {
       const m = this.meshes.get(key);
       this.scene.remove(m);
@@ -1912,13 +1946,24 @@ export class DistantTerrainRing {
   update(playerX, playerZ, renderDistance) {
     const innerRadius = (renderDistance + 1) * CHUNK_SIZE;
     const outerRadius = (renderDistance + 3) * CHUNK_SIZE;
+    const radiusChanged = this._innerRadius !== innerRadius;
 
     const dx = playerX - this._lastPlayerX;
     const dz = playerZ - this._lastPlayerZ;
     const moved = Math.sqrt(dx * dx + dz * dz);
 
-    if (this.mesh && moved < this._updateInterval && this._innerRadius === innerRadius) return;
+    if (this.mesh && moved < this._updateInterval && !radiusChanged) return;
     if (this._pendingRebuild) return;
+
+    // SPEC-HORIZON-FIX: renderDistance can change every frame while flying
+    // (altitude boost) or right after an adaptive-RD step — without a
+    // debounce that meant a full ring geometry rebuild per frame, which is
+    // the horizon "popping"/flicker the ring exists to prevent in the first
+    // place. Coalesce radius-driven rebuilds to at most one per 250ms;
+    // movement-driven rebuilds (player walked _updateInterval units) are
+    // unaffected since they're already naturally throttled.
+    const now = performance.now();
+    if (radiusChanged && this.mesh && (now - (this._lastRebuildAt || 0)) < 250) return;
 
     this._innerRadius = innerRadius;
     this._outerRadius = outerRadius;
@@ -1929,6 +1974,7 @@ export class DistantTerrainRing {
     setTimeout(() => {
       this._rebuild(playerX, playerZ);
       this._pendingRebuild = false;
+      this._lastRebuildAt = performance.now();
     }, 0);
   }
 
@@ -1977,7 +2023,14 @@ export class DistantTerrainRing {
         const c1b = this._getColor(h1b, distFactor);
         const c2b = this._getColor(h2b, distFactor);
 
-        const baseY = WORLD_MIN_Y;
+        // Anchor the skirt at sea level (not WORLD_MIN_Y/bedrock): tall inland
+        // terrain used to drop a full-height wall all the way to the world
+        // floor, which rendered as a solid vertical cliff on the horizon.
+        // Anchoring at sea level keeps the wall short for elevated terrain
+        // while still reaching the water line for every ring step — needed
+        // so raised terrain sampled across open ocean (e.g. a distant island)
+        // doesn't appear to float with a gap of sky beneath it.
+        const baseY = Math.max(WORLD_MIN_Y, Math.min(SEA_LEVEL, h1a, h2a));
 
         positions.push(x1a, baseY, z1a, x1a, h1a, z1a, x2a, h2a, z2a, x2a, baseY, z2a);
         colors.push(...c1a, ...c1a, ...c2a, ...c2a);

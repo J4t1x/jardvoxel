@@ -319,22 +319,30 @@ export class WeatherManager {
     }
     this.weatherTimer = duration;
 
-    // Adjust scene visuals
+    // SPEC-075 Bug #11: Smooth weather transitions via lerp
+    // Store target colors for gradual transition in update()
+    const weatherColors = {
+      clear:   { bg: 0xA8C8E0, fog: 0xA8C8E0, fogNear: 30, fogFar: 55 },
+      rain:    { bg: 0x6a7a8a, fog: 0x6a7a8a, fogNear: 20, fogFar: 40 },
+      snow:    { bg: 0xaab0b8, fog: 0xaab0b8, fogNear: 25, fogFar: 45 },
+      thunder: { bg: 0x3a3a4a, fog: 0x3a3a4a, fogNear: 15, fogFar: 35 },
+    };
+    const cfg = weatherColors[weather] || weatherColors.clear;
+    this._targetBgColor = new THREE.Color(cfg.bg);
+    this._targetFogColor = new THREE.Color(cfg.fog);
+    this._targetFogNear = cfg.fogNear;
+    this._targetFogFar = cfg.fogFar;
+    this._weatherTransitionTime = 0;
+    this._weatherTransitionDuration = 3.0; // 3 second fade
+
+    // Particles change immediately (visual feedback)
     if (weather === WEATHER.CLEAR) {
-      this.scene.background = new THREE.Color(0xA8C8E0);
-      this.scene.fog = new THREE.Fog(0xA8C8E0, 30, 55);
       this._clearParticles();
     } else if (weather === WEATHER.RAIN) {
-      this.scene.background = new THREE.Color(0x6a7a8a);
-      this.scene.fog = new THREE.Fog(0x6a7a8a, 20, 40);
       this._initRainParticles();
     } else if (weather === WEATHER.SNOW) {
-      this.scene.background = new THREE.Color(0xaab0b8);
-      this.scene.fog = new THREE.Fog(0xaab0b8, 25, 45);
       this._initSnowParticles();
     } else if (weather === WEATHER.THUNDER) {
-      this.scene.background = new THREE.Color(0x3a3a4a);
-      this.scene.fog = new THREE.Fog(0x3a3a4a, 15, 35);
       this._initRainParticles();
       this.lightningTimer = 5 + Math.random() * 10;
     }
@@ -460,6 +468,24 @@ export class WeatherManager {
     this._climate.advanceSeason(dt);
     this.weatherTimer -= dt;
     this.nextWeatherCheck -= dt;
+
+    // SPEC-075 Bug #11: Smooth weather color/fog transition
+    if (this._targetBgColor && this._weatherTransitionTime < this._weatherTransitionDuration) {
+      this._weatherTransitionTime += dt;
+      const t = Math.min(1, this._weatherTransitionTime / this._weatherTransitionDuration);
+      // Lerp background color
+      if (this.scene.background) {
+        this.scene.background.lerp(this._targetBgColor, t * 0.1);
+      } else {
+        this.scene.background = this._targetBgColor.clone();
+      }
+      // Lerp fog
+      if (this.scene.fog) {
+        this.scene.fog.color.lerp(this._targetFogColor, t * 0.1);
+        this.scene.fog.near += (this._targetFogNear - this.scene.fog.near) * t * 0.1;
+        this.scene.fog.far += (this._targetFogFar - this.scene.fog.far) * t * 0.1;
+      }
+    }
 
     // Weather transition
     if (this.weatherTimer <= 0) {

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>JardVoxel Zen 2 — Paisajes en calma</title>
 <style>
+:root{--primary:#7C3AED;--accent:#00ff88;--bg-dark:#1a1a2e;--bg-panel:rgba(20,20,40,0.9)}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0e1a 0%,#1a1428 50%,#0f1a1e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e8e8f0}
 canvas{display:block}
@@ -30,7 +31,7 @@ canvas{display:block}
 #block-info{position:fixed;top:12px;right:160px;background:linear-gradient(135deg,rgba(15,15,30,0.75) 0%,rgba(20,20,40,0.65) 100%);padding:12px 16px;border-radius:12px;backdrop-filter:blur(12px) saturate(180%);border:1px solid rgba(167,139,250,0.15);box-shadow:0 8px 32px rgba(0,0,0,0.3);font-size:0.85rem}
 #block-info span{color:#a78bfa;font-weight:600}
 
-#controls-hint{position:fixed;bottom:75px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(15,15,30,0.8) 0%,rgba(20,20,40,0.7) 100%);padding:10px 20px;border-radius:10px;backdrop-filter:blur(12px) saturate(180%);border:1px solid rgba(167,139,250,0.12);box-shadow:0 4px 24px rgba(0,0,0,0.25);font-size:0.75rem;color:#b4b4d0;white-space:nowrap;font-weight:400}
+#controls-hint{position:fixed;bottom:75px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(15,15,30,0.8) 0%,rgba(20,20,40,0.7) 100%);padding:10px 20px;border-radius:10px;backdrop-filter:blur(12px) saturate(180%);border:1px solid rgba(167,139,250,0.12);box-shadow:0 4px 24px rgba(0,0,0,0.25);font-size:0.75rem;color:#b4b4d0;white-space:nowrap;font-weight:400;display:none}
 
 #hotbar{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:10;pointer-events:auto}
 .hotbar-slot{width:56px;height:56px;border:2px solid rgba(100,100,140,0.4);background:linear-gradient(135deg,rgba(20,20,40,0.85) 0%,rgba(30,30,50,0.75) 100%);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.65rem;text-align:center;position:relative;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:blur(8px)}
@@ -75,7 +76,10 @@ canvas{display:block}
 #save-indicator{position:fixed;top:10px;right:120px;background:rgba(0,0,0,0.4);padding:6px 12px;border-radius:8px;font-size:0.7rem;color:#7C3AED;z-index:10;opacity:0;transition:opacity 0.3s}
 #save-indicator.show{opacity:1}
 
-#minimap{position:fixed;top:10px;right:140px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);z-index:10;pointer-events:none;background:rgba(0,0,0,0.3)}
+#minimap{position:fixed;bottom:10px;right:10px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);z-index:10;pointer-events:none;background:rgba(0,0,0,0.3)}
+
+#controls-hint-toggle{position:fixed;bottom:75px;left:50%;transform:translateX(-50%);width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,rgba(15,15,30,0.8) 0%,rgba(20,20,40,0.7) 100%);border:1px solid rgba(167,139,250,0.25);backdrop-filter:blur(12px) saturate(180%);box-shadow:0 4px 24px rgba(0,0,0,0.25);color:#b4b4d0;font-size:0.9rem;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;z-index:11}
+#controls-hint-toggle:hover{border-color:rgba(167,139,250,0.5);color:#fff}
 
 #weather-indicator{position:fixed;top:10px;right:270px;background:rgba(0,0,0,0.4);padding:6px 12px;border-radius:8px;font-size:0.8rem;color:#aaa;z-index:10}
 
@@ -189,8 +193,9 @@ canvas{display:block}
   #info{font-size:0.7rem;padding:6px 8px}
   #block-info{font-size:0.7rem;padding:6px 8px}
   #controls-hint{display:none}
+  #controls-hint-toggle{display:none}
   .hotbar-slot{width:42px;height:42px}
-  #minimap{width:80px;height:80px;right:10px}
+  #minimap{width:80px;height:80px;right:10px;bottom:auto;top:10px}
   #clock{right:100px}
 }
 </style>
@@ -219,6 +224,7 @@ canvas{display:block}
     Seleccionado: <span id="selected-block">Grass</span>
   </div>
   <div id="controls-hint">WASD explorar · Click izq romper · Click der colocar · 1-9 seleccionar · F volar · V cámara (1a/3a/vista) · rueda zoom en vista · E inventario · J diario · M meditar · ESC pausa</div>
+  <div id="controls-hint-toggle" title="Mostrar controles">?</div>
   <div id="hotbar"></div>
   <div id="mode-indicator">Zen 2</div>
   <div id="save-indicator">Guardado</div>
@@ -262,7 +268,7 @@ canvas{display:block}
   <div class="tab-content show" id="tab-graphics">
     <h3>Graficos</h3>
     <div class="setting-row" style="pointer-events:none;opacity:0.7"><label>Device tier (auto)</label><span class="setting-value" id="device-tier-label" style="color:#a78bfa">--</span></div>
-    <div class="setting-row"><label>Distancia de render</label><input type="range" id="setting-render-dist" min="2" max="32" step="1" value="8"><span class="setting-value" id="setting-render-dist-val">8</span></div>
+    <div class="setting-row"><label>Distancia de render</label><input type="range" id="setting-render-dist" min="2" max="32" step="1" value="14"><span class="setting-value" id="setting-render-dist-val">14</span></div>
     <div class="setting-row"><label>FOV</label><input type="range" id="setting-fov" min="60" max="110" step="5" value="75"><span class="setting-value" id="setting-fov-val">75</span></div>
     <div class="setting-toggle"><label>Nubes</label><div class="toggle-switch" id="setting-clouds"></div></div>
     <div class="setting-toggle"><label>Niebla</label><div class="toggle-switch" id="setting-fog"></div></div>

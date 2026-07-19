@@ -213,4 +213,11 @@ export class LivingWorldSystem {
       this._builtAreas = data.builtAreas || [];
     }
   }
+
+  // SPEC-074 Bug #10: Dispose method to prevent memory leaks
+  dispose() {
+    this._plantedTrees.length = 0;
+    this._builtAreas.length = 0;
+    this._onEvent = null;
+  }
 }

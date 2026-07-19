@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>JardVoxel Zen — Mundo de Bienestar</title>
 <style>
+:root{--primary:#7C3AED;--accent:#00ff88;--bg-dark:#1a1a2e;--bg-panel:rgba(20,20,40,0.9)}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#1a1a2e;font-family:'Courier New',monospace;color:#fff}
 canvas{display:block}
@@ -436,14 +437,14 @@ canvas{display:block}
 <div id="quest-tracker"></div>
 
 <div id="dialogue-panel">
-  <span id="dialogue-close">✕</span>
+  <span id="dialogue-close" role="button" aria-label="Cerrar diálogo">✕</span>
   <div id="dialogue-npc-name"></div>
   <div id="dialogue-text"></div>
   <div id="dialogue-options"></div>
 </div>
 
 <div id="journal-panel">
-  <span id="journal-close">✕</span>
+  <span id="journal-close" role="button" aria-label="Cerrar diario">✕</span>
   <h3>📖 Diario de Exploración</h3>
   <div class="journal-tabs">
     <button class="journal-tab active" data-jtab="all">Todo</button>
@@ -523,7 +524,7 @@ canvas{display:block}
 <div id="achievements-screen" class="ui-panel" style="display:none">
   <h3>Logros</h3>
   <div id="achievements-content"></div>
-  <button id="achievements-close" class="ui-btn">Cerrar</button>
+  <button id="achievements-close" class="ui-btn" aria-label="Cerrar logros">Cerrar</button>
 </div>
 
 <div id="anvil-panel">
@@ -563,7 +564,7 @@ canvas{display:block}
 </div>
 
 <div id="inventory-panel">
-  <button id="inv-close-btn">✕</button>
+  <button id="inv-close-btn" aria-label="Cerrar inventario">✕</button>
   <h3>Inventario</h3>
   <div id="armor-section">
     <div class="armor-slot" id="armor-helmet" title="Helmet"></div>
@@ -607,7 +608,7 @@ canvas{display:block}
     <h3>Graficos</h3>
     <div class="setting-row">
       <label>Distancia de render</label>
-      <input type="range" id="setting-render-dist" min="2" max="16" step="1" value="5">
+      <input type="range" id="setting-render-dist" min="2" max="16" step="1" value="8">
       <span class="setting-value" id="setting-render-dist-val">5</span>
     </div>
     <div class="setting-row">
@@ -1159,12 +1160,16 @@ class SurvivalGame {
   constructor() {
     this.seed = Math.floor(Math.random() * 2147483647);
     this.settings = {
-      renderDistance: 5, fov: 75, clouds: true, fog: true, shadows: true,
-      toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
+      renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
+      toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
       joystickDeadZone: 10, joystickSize: 120, buttonSize: 70,
       difficulty: 'normal', autoSaveInterval: 60,
+      // SPEC-085: Hierarchical 7.0 world generation (6 levels: World →
+      // Continents → Regions → Zones → Chunks → Microsectors). Disable to
+      // fall back to v6.0 flat noise generation.
+      hierarchicalGeneration: true,
       showFPS: true, showCoords: true, showMinimap: true,
       showClock: true, showControlsHint: true,
       ambientSoundEnabled: true,
@@ -1501,7 +1506,11 @@ class SurvivalGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, 3);
+    // SPEC-085: Pass hierarchicalGeneration setting to SurvivalWorld so the
+    // 6-level hierarchy (World → Continents → Regions → Zones → Chunks →
+    // Microsectors) is activated when enabled. Toggle via settings menu.
+    const useHierarchy = this.settings.hierarchicalGeneration !== false;
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, useHierarchy);
     this.dayNight = new DayNightCycle(this.scene);
     this.world.onChunkGenerated = (cx, cz) => {
       this._applyChunkModifications(cx, cz);
@@ -2010,12 +2019,13 @@ class SurvivalGame {
   _initSettings() {
     if (!this.settings) {
       this.settings = {
-        renderDistance: 5, fov: 75, clouds: true, fog: true, shadows: true,
-        toneMapping: true, postprocessing: true, volume: 0.5, sfxVolume: 0.8,
+        renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
+        toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
         ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
         sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
         joystickDeadZone: 10, joystickSize: 120, buttonSize: 70,
         difficulty: 'normal', autoSaveInterval: 60,
+        hierarchicalGeneration: true,
         showFPS: true, showCoords: true, showMinimap: true,
         showClock: true, showControlsHint: true,
         ambientSoundEnabled: true,
@@ -2062,6 +2072,7 @@ class SurvivalGame {
       this.settings.renderDistance = parseInt(rd.value);
       rdVal.textContent = this.settings.renderDistance;
       this.world.renderDistance = this.settings.renderDistance;
+      this.world._targetRenderDist = this.settings.renderDistance;
       // SPEC-CHUNK-OPT: Update fog dynamically with render distance
       if (this.fogManager) this.fogManager.setRenderDistance(this.settings.renderDistance);
       else if (this.settings.fog && this.scene.fog) {
@@ -2256,7 +2267,10 @@ class SurvivalGame {
   }
 
   _applySettings() {
-    if (this.world) this.world.renderDistance = this.settings.renderDistance;
+    if (this.world) {
+      this.world.renderDistance = this.settings.renderDistance;
+      this.world._targetRenderDist = this.settings.renderDistance;
+    }
     if (this.camera) { this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix(); }
 
     // Graphics
