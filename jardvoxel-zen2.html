@@ -40,7 +40,9 @@ canvas{display:block}
 .hotbar-slot .slot-block{width:28px;height:28px;border-radius:2px;margin-top:2px}
 .hotbar-slot .slot-name{position:absolute;bottom:1px;font-size:0.5rem;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46px}
 
-#pause-screen{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(124,58,237,0.08) 0%,rgba(10,14,26,0.92) 60%),rgba(10,14,26,0.95);backdrop-filter:blur(16px) saturate(150%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;pointer-events:auto}
+#pause-screen{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(124,58,237,0.08) 0%,rgba(10,14,26,0.82) 60%),rgba(10,14,26,0.85);backdrop-filter:blur(12px) saturate(150%);-webkit-backdrop-filter:blur(12px) saturate(150%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;pointer-events:auto}
+/* SPEC-070: Animated voxel canvas behind the pause screen (z-index 19, just under #pause-screen) */
+#pause-bg-canvas{position:fixed;inset:0;z-index:19;pointer-events:none;display:none}
 #pause-screen h2{font-size:2.2rem;margin-bottom:0.6rem;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 40%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700;letter-spacing:-0.02em}
 #pause-screen p{color:#a0a0c0;margin:0.4rem 0;font-weight:300}
 .pause-btns{display:flex;flex-direction:column;gap:0.5rem;margin-top:1.5rem}
@@ -317,6 +319,8 @@ canvas{display:block}
   <button id="settings-back">Volver</button>
 </div>
 
+<canvas id="pause-bg-canvas" aria-hidden="true"></canvas>
+
 <div id="pause-screen">
   <h2>JardVoxel Zen 2</h2>
   <p>Un mundo plano y sereno · estilo Ghibli</p>
@@ -357,6 +361,29 @@ canvas{display:block}
 
 <script type="module">
 import { ZenGame } from './core/jardvoxel-zen-game.js';
+import { MenuVoxelBackground } from './core/jardvoxel-menu-background.js';
+
+// SPEC-070: Pause-screen voxel background. Lazily created the first time
+// the pause screen is shown, and started/stopped on pause/resume so it
+// doesn't burn CPU while the player is in-game.
+let pauseBg = null;
+let pauseBgActive = false;
+function showPauseBg() {
+  const canvas = document.getElementById('pause-bg-canvas');
+  if (!canvas) return;
+  canvas.style.display = 'block';
+  if (!pauseBg) {
+    pauseBg = new MenuVoxelBackground(canvas, { blockCount: 18 });
+  }
+  if (!pauseBgActive) { pauseBg.start(); pauseBgActive = true; }
+}
+function hidePauseBg() {
+  if (pauseBg && pauseBgActive) { pauseBg.stop(); pauseBgActive = false; }
+  const canvas = document.getElementById('pause-bg-canvas');
+  if (canvas) canvas.style.display = 'none';
+}
+window._showPauseBg = showPauseBg;
+window._hidePauseBg = hidePauseBg;
 
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('seed-display').textContent = 'pending...';

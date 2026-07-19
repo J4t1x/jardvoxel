@@ -60,8 +60,22 @@ export class ZenGame {
     this._settingsKey = `jardvoxel-${this.variant}-settings`;
     this._saveKey = `jardvoxel-${this.variant}-save`;
 
-    this.patagonia = new PatagoniaProfile(PATAGONIA.SEED);
-    this.seed = PATAGONIA.SEED;
+    // Every fresh world used the same fixed PATAGONIA.SEED (142857), so every
+    // player saw the identical map. Randomize by default; if a save already
+    // exists for this variant, reuse ITS seed instead (checked synchronously
+    // via the localStorage mirror _saveNow() also writes, since the primary
+    // IndexedDB load in _initSave() only resolves after the world — and its
+    // seed — would already have been built).
+    let savedSeed = null;
+    try {
+      const raw = localStorage.getItem(this._saveKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved.seed === 'number') savedSeed = saved.seed;
+      }
+    } catch (e) {}
+    this.seed = savedSeed !== null ? savedSeed : Math.floor(Math.random() * 1_000_000_000);
+    this.patagonia = new PatagoniaProfile(this.seed);
     this.settings = {
       renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
       toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
@@ -463,7 +477,6 @@ export class ZenGame {
     this._initJournalTabs();
     this._applySettings();
 
-    const pauseScreen = document.getElementById('pause-screen');
     const resumeBtn = document.getElementById('resume-btn');
     const fullscreenBtn = document.getElementById('pause-fullscreen-btn');
     const journalBtn = document.getElementById('journal-btn');
@@ -477,13 +490,13 @@ export class ZenGame {
     resumeBtn.onclick = () => this._resume();
     fullscreenBtn.onclick = () => this._toggleFullscreen();
     journalBtn.onclick = () => {
-      pauseScreen.style.display = 'none';
+      this._setPauseScreenVisible(false);
       document.getElementById('journal-panel').classList.add('show');
       this.journalOpen = true;
       this._renderJournal();
     };
     optionsBtn.onclick = () => {
-      pauseScreen.style.display = 'none';
+      this._setPauseScreenVisible(false);
       settingsMenu.classList.add('show');
     };
     menuBtn.onclick = () => {
@@ -495,7 +508,7 @@ export class ZenGame {
     };
     settingsBack.onclick = () => {
       settingsMenu.classList.remove('show');
-      pauseScreen.style.display = 'flex';
+      this._setPauseScreenVisible(true);
     };
     invCloseBtn.onclick = () => {
       this.inventoryOpen = false;
@@ -505,7 +518,7 @@ export class ZenGame {
     journalClose.onclick = () => {
       document.getElementById('journal-panel').classList.remove('show');
       this.journalOpen = false;
-      pauseScreen.style.display = 'flex';
+      this._setPauseScreenVisible(true);
     };
 
     document.addEventListener('pointerlockchange', () => {
@@ -513,11 +526,11 @@ export class ZenGame {
       if (this.pointerLocked && !this.gameStarted) {
         this._initAudio();
         this.gameStarted = true;
-        pauseScreen.style.display = 'none';
+        this._setPauseScreenVisible(false);
         if (this.chilltune) this.chilltune.start();
       }
       if (!this.pointerLocked && this.gameStarted && !this.inventoryOpen && !this.journalOpen) {
-        pauseScreen.style.display = 'flex';
+        this._setPauseScreenVisible(true);
       }
     });
 
@@ -533,7 +546,7 @@ export class ZenGame {
       if (!this.gameStarted) {
         this._initAudio();
         this.gameStarted = true;
-        pauseScreen.style.display = 'none';
+        this._setPauseScreenVisible(false);
         if (this.chilltune) this.chilltune.start();
       }
     });
@@ -545,7 +558,7 @@ export class ZenGame {
         } else {
           this._initAudio();
           this.gameStarted = true;
-          pauseScreen.style.display = 'none';
+          this._setPauseScreenVisible(false);
           if (this.chilltune) this.chilltune.start();
         }
       }
@@ -595,10 +608,20 @@ export class ZenGame {
   }
 
   _resume() {
-    document.getElementById('pause-screen').style.display = 'none';
+    this._setPauseScreenVisible(false);
     if (!(this.touchControls && this.touchControls.enabled)) {
       document.body.requestPointerLock();
     }
+  }
+
+  // SPEC-070: Centralize pause-screen visibility so the voxel background
+  // canvas (window._showPauseBg / _hidePauseBg) stays in sync with the
+  // pause overlay. Falls through silently if the hooks aren't defined.
+  _setPauseScreenVisible(visible) {
+    const pauseScreen = document.getElementById('pause-screen');
+    if (pauseScreen) pauseScreen.style.display = visible ? 'flex' : 'none';
+    if (visible && typeof window._showPauseBg === 'function') window._showPauseBg();
+    else if (!visible && typeof window._hidePauseBg === 'function') window._hidePauseBg();
   }
 
   _toggleFullscreen() {
