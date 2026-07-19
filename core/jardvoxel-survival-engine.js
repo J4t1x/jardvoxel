@@ -493,10 +493,15 @@ export class WorldGenPipeline {
   getBaseHeight(x, z) {
     // v7.0: Use hierarchical heightmap if enabled
     if (this._useHierarchy && this.hierarchy) {
-      const cx = Math.floor(x / CHUNK_SIZE);
-      const cz = Math.floor(z / CHUNK_SIZE);
-      const lx = x - cx * CHUNK_SIZE;
-      const lz = z - cz * CHUNK_SIZE;
+      // Floor before splitting into chunk/local coords — getHeightAt indexes
+      // a typed array with lx/lz, and a fractional index (from a caller passing
+      // e.g. a raw island center or search-ring coordinate) silently returns
+      // undefined instead of throwing, which then propagates as a bogus height.
+      const fx = Math.floor(x), fz = Math.floor(z);
+      const cx = Math.floor(fx / CHUNK_SIZE);
+      const cz = Math.floor(fz / CHUNK_SIZE);
+      const lx = fx - cx * CHUNK_SIZE;
+      const lz = fz - cz * CHUNK_SIZE;
       let hHeight = this.hierarchy.getHeightAt(cx, cz, lx, lz);
       if (this._worldMode === 'zen2') hHeight = this._compressHeightForZen2(hHeight);
       return hHeight;

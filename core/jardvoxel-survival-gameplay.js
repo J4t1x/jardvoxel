@@ -212,8 +212,44 @@ export class SurvivalWorld {
     }
     if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
     this.pendingChunks.delete(this._chunkKey(cx, cz));
-    this._rebuildChunkMesh(cx, cz);
+    // SPEC-PERF: Defer the mesh build instead of rebuilding synchronously here.
+    // Worker completions can bunch up (multiple workers finishing in the same
+    // frame), and each rebuild is a greedy-mesh + AO pass; budgeting them across
+    // frames smooths out load-in stutter without delaying voxel data
+    // availability (chunk.generated is already true above). Self-scheduled via
+    // rAF rather than piggybacking on the game's own update() cadence, since
+    // that's gated behind pointer-lock/game-started state and won't tick during
+    // bootstrap (spawn chunks must still appear before the player clicks Start).
+    this._queueMeshRebuild(cx, cz);
     this._queueNeighborRebuilds(cx, cz);
+  }
+
+  _queueMeshRebuild(cx, cz) {
+    if (!this._pendingMeshRebuilds) this._pendingMeshRebuilds = new Map();
+    this._pendingMeshRebuilds.set(this._chunkKey(cx, cz), { cx, cz });
+    this._scheduleMeshDrain();
+  }
+
+  _scheduleMeshDrain() {
+    if (this._meshDrainScheduled) return;
+    this._meshDrainScheduled = true;
+    requestAnimationFrame(() => {
+      this._meshDrainScheduled = false;
+      this._drainPendingMeshRebuilds();
+    });
+  }
+
+  _drainPendingMeshRebuilds() {
+    if (!this._pendingMeshRebuilds || this._pendingMeshRebuilds.size === 0) return;
+    const maxMeshPerFrame = this._worldMode === 'zen2' ? 5 : 3;
+    let meshed = 0;
+    for (const [mkey, info] of this._pendingMeshRebuilds) {
+      if (meshed >= maxMeshPerFrame) break;
+      this._rebuildChunkMesh(info.cx, info.cz);
+      this._pendingMeshRebuilds.delete(mkey);
+      meshed++;
+    }
+    if (this._pendingMeshRebuilds.size > 0) this._scheduleMeshDrain();
   }
 
   _queueNeighborRebuilds(cx, cz) {
@@ -241,13 +277,23 @@ export class SurvivalWorld {
     return chunk;
   }
 
+  // Returns a promise that resolves once this chunk's voxel data is generated
+  // (not necessarily meshed — see _queueMeshRebuild). Callers that only care
+  // about kicking off generation can ignore the return value, as before;
+  // callers that need to know the data is actually ready (e.g. placing the
+  // player at spawn) can await it instead of racing the async worker.
   generateChunk(cx, cz, viewPriority) {
     const key = this._chunkKey(cx, cz);
-    if (this.pendingChunks.has(key)) return;
-    if (this.chunks.has(key) && this.chunks.get(key).generated) return;
+    if (this.pendingChunks.has(key)) return this._pendingChunkPromises?.get(key) || Promise.resolve();
+    if (this.chunks.has(key) && this.chunks.get(key).generated) return Promise.resolve();
 
     this.pendingChunks.add(key);
     const chunk = this._getOrCreateChunk(cx, cz);
+    let resolveDone;
+    const donePromise = new Promise(res => { resolveDone = res; });
+    if (!this._pendingChunkPromises) this._pendingChunkPromises = new Map();
+    this._pendingChunkPromises.set(key, donePromise);
+    const finish = () => { this._pendingChunkPromises.delete(key); resolveDone(); };
 
     if (this._useWorkerPool && this._workerPool) {
       // SPEC-116: Use view-direction-adjusted priority if provided, else fall back to distance
@@ -258,6 +304,7 @@ export class SurvivalWorld {
           : 0);
       this._workerPool.generateChunk(cx, cz, priority).then(data => {
         this._onWorkerChunkDone(data.cx, data.cz, data.blocks, data.minContentY, data.maxContentY, data.narrativeStructures);
+        finish();
       }).catch(err => {
         console.warn(`WorkerPool chunk generation failed for (${cx},${cz}), falling back to sync:`, err);
         chunk.generate();
@@ -269,16 +316,20 @@ export class SurvivalWorld {
         this._rebuildChunkMesh(cx + 1, cz);
         this._rebuildChunkMesh(cx, cz - 1);
         this._rebuildChunkMesh(cx, cz + 1);
+        finish();
       });
     } else if (this.worker) {
       this.worker.postMessage({ cx, cz });
+      finish(); // legacy single-worker path doesn't track per-chunk completion
     } else {
       generateChunkWithFeatures(chunk, this);
       if (this.onChunkGenerated) this.onChunkGenerated(cx, cz);
       this.pendingChunks.delete(key);
       this._rebuildChunkMesh(cx, cz);
       this._queueNeighborRebuilds(cx, cz);
+      finish();
     }
+    return donePromise;
   }
 
   _rebuildChunkMesh(cx, cz, skipNeighbors = false) {
@@ -660,6 +711,21 @@ export class SurvivalWorld {
       dispatched++;
     }
 
+    // SPEC-PERF: Drain freshly-generated chunk meshes every frame (not gated by
+    // burstActive — these are the chunks the player is actively waiting to see),
+    // but budgeted so a burst of simultaneous worker completions can't all pay
+    // for a greedy-mesh rebuild in the same frame.
+    if (this._pendingMeshRebuilds && this._pendingMeshRebuilds.size > 0) {
+      const maxMeshPerFrame = fps < 45 ? 2 : (isFlat ? 5 : 3);
+      let meshed = 0;
+      for (const [mkey, info] of this._pendingMeshRebuilds) {
+        if (meshed >= maxMeshPerFrame) break;
+        this._rebuildChunkMesh(info.cx, info.cz);
+        this._pendingMeshRebuilds.delete(mkey);
+        meshed++;
+      }
+    }
+
     // Process pending neighbor rebuilds after burst loading
     if (!burstActive && this._pendingNeighborRebuilds && this._pendingNeighborRebuilds.size > 0) {
       let processed = 0;
@@ -721,8 +787,7 @@ export class SurvivalWorld {
           this.waterMeshes.delete(key);
         }
         this._instancedRenderer.disposeChunk(key);
-        const chunk = this.chunks.get(key);
-        if (chunk) VoxelChunk.release(chunk);
+        VoxelChunk.release(chunk);
         this.chunks.delete(key);
         this._heightmaps.delete(key);
       }
@@ -911,7 +976,14 @@ export class PlayerController {
     for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
       const block = this.world.getBlock(0, WORLD_MIN_Y + y, 0);
       if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-        this.position.set(0.5, WORLD_MIN_Y + y + 2, 0.5);
+        // position.y is head/eye level — the collision box extends down by
+        // playerHeight (_moveAxis checks floor(pos.y - playerHeight)..floor(pos.y)).
+        // The ground block's top face sits at (found y)+1, so clearance needs
+        // to be playerHeight above that, not a flat "+2" — with playerHeight
+        // 1.8 that only left 0.2 blocks of headroom, embedding the legs ~0.6
+        // blocks into the ground and blocking horizontal movement in every
+        // direction (the collision box always overlapped solid ground).
+        this.position.set(0.5, WORLD_MIN_Y + y + 1 + this.playerHeight + 0.1, 0.5);
         this.camera.position.copy(this.position);
         return;
       }

@@ -597,13 +597,18 @@ export function generateChunkWithFeatures(chunk, world) {
   _updateContentYRange(chunk);
 }
 
-// Quick scan above stored maxContentY to find any feature-added blocks
+// Quick scan above stored maxContentY to find any feature-added blocks.
+// Bounded to FEATURE_HEIGHT_MARGIN above the prior surface: trees/decoration/
+// structures never place blocks taller than that, so scanning further up to
+// CHUNK_HEIGHT (384) was pure wasted work on every single chunk generated.
+const FEATURE_HEIGHT_MARGIN = 64;
 function _updateContentYRange(chunk) {
   if (chunk.maxContentY === undefined) return;
   const stride = CHUNK_SIZE * CHUNK_SIZE;
   const startY = chunk.maxContentY + 1;
+  const endY = Math.min(CHUNK_HEIGHT, startY + FEATURE_HEIGHT_MARGIN);
   let newMax = chunk.maxContentY;
-  for (let y = startY; y < CHUNK_HEIGHT; y++) {
+  for (let y = startY; y < endY; y++) {
     const base = y * stride;
     for (let i = 0; i < stride; i++) {
       if (chunk.blocks[base + i] !== 0) { newMax = y; break; }

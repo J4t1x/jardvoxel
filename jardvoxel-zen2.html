@@ -172,8 +172,16 @@ canvas{display:block}
 #touch-toast{position:fixed;bottom:140px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:6px 14px;border-radius:6px;font-size:0.75rem;color:#fff;z-index:20;opacity:0;transition:opacity 0.3s;pointer-events:none}
 #touch-toast.show{opacity:1}
 
-#meditation-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(124,58,237,0.05) 0%,rgba(0,0,0,0) 70%);pointer-events:none;z-index:8;opacity:0;transition:opacity 2s}
-#meditation-overlay.show{opacity:1}
+#meditation-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(124,58,237,0.05) 0%,rgba(0,0,0,0) 70%);pointer-events:none;z-index:8;opacity:0;transition:opacity 2s;display:flex;align-items:center;justify-content:center}
+#meditation-overlay.discovered{opacity:1}
+#meditation-overlay.meditating{opacity:1;background:radial-gradient(ellipse at center,rgba(124,58,237,0.18) 0%,rgba(10,14,26,0.55) 60%,rgba(0,0,0,0.75) 100%);transition:opacity 1.5s}
+.meditation-content{text-align:center;color:#e8e8f0;pointer-events:none}
+.meditation-breath{width:140px;height:140px;border-radius:50%;margin:0 auto 1.5rem;background:radial-gradient(circle,rgba(167,139,250,0.35) 0%,rgba(52,211,153,0.15) 60%,rgba(0,0,0,0) 100%);border:2px solid rgba(167,139,250,0.4);animation:meditation-breath 8s ease-in-out infinite}
+@keyframes meditation-breath{0%,100%{transform:scale(0.85);opacity:0.7}50%{transform:scale(1.15);opacity:1}}
+.meditation-title{font-size:2rem;font-weight:300;letter-spacing:0.05em;margin-bottom:0.4rem;background:linear-gradient(135deg,#a78bfa 0%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.meditation-sub{font-size:1.1rem;color:#b4b4d0;font-weight:300;margin-bottom:1.2rem}
+.meditation-hint{font-size:0.8rem;color:#888;font-weight:300}
+.meditation-hint strong{color:#a78bfa;font-weight:600}
 
 @media(max-width:768px){
   #info{font-size:0.7rem;padding:6px 8px}
@@ -208,7 +216,7 @@ canvas{display:block}
     Mirando: <span id="looking-at">--</span><br>
     Seleccionado: <span id="selected-block">Grass</span>
   </div>
-  <div id="controls-hint">WASD explorar · Click izq romper · Click der colocar · 1-9 seleccionar · F volar · V cámara (1a/3a/vista) · rueda zoom en vista · E inventario · J diario · ESC pausa</div>
+  <div id="controls-hint">WASD explorar · Click izq romper · Click der colocar · 1-9 seleccionar · F volar · V cámara (1a/3a/vista) · rueda zoom en vista · E inventario · J diario · M meditar · ESC pausa</div>
   <div id="hotbar"></div>
   <div id="mode-indicator">Zen 2</div>
   <div id="save-indicator">Guardado</div>

@@ -16,6 +16,7 @@ import {
 } from './blocks-registry.js';
 import {
   BIOMES, BIOME_COLORS, WORLD_MIN_Y, SEA_LEVEL, CHUNK_SIZE, CHUNK_HEIGHT,
+  WorldGenPipeline,
 } from './jardvoxel-survival-engine.js';
 import { SaveManager } from './jardvoxel-survival-save.js';
 import { ParticleSystem } from './jardvoxel-survival-particles.js';
@@ -110,14 +111,28 @@ export class ZenGame {
     this.saveLoaded = false;
     this.gameStarted = false;
     this.pointerLocked = false;
+    // Set when the browser rejects Pointer Lock (see 'pointerlockerror' below) —
+    // lets movement proceed via the fallback start path even though
+    // this.pointerLocked can never become true in that case.
+    this._pointerLockUnavailable = false;
     this.inventoryOpen = false;
     this.journalOpen = false;
     this.uiHidden = false;
     this.uiHideTimer = 0;
     this.arrows = [];
+    // SPEC-071/G-003: Meditation mode — persistent overlay + frozen movement +
+    // ambient drone + journal entry. Auto-exits after 2 minutes. Toggled by M.
+    this.meditationActive = false;
+    this.meditationTimeout = null;
+    this.meditationStartTime = 0;
+    this.meditationDrone = null;
 
-    // SPEC-115: Archipelago mode state — enabled by default (PRD: Archipiélagos Procedurales)
-    this.archipelagoMode = true;
+    // SPEC-115: Archipelago mode state — enabled by default (PRD: Archipiélagos Procedurales).
+    // Archipelago mode pushes ocean coverage to 85-93% (WorldIdentity, jardvoxel-survival-world-hierarchy.js)
+    // by design — scattered islands in a big ocean. That's the opposite of zen2's
+    // "flat, calm garden" premise (spawn kept landing mid-ocean), so zen2 uses the
+    // normal continental generator instead — classic zen keeps its documented default.
+    this.archipelagoMode = !this._isZen2;
     this.oceanSystem = null;
     this.restorationSystem = null;
     this._discoveryOverlayTimer = 0;
@@ -210,7 +225,12 @@ export class ZenGame {
   }
 
   initWorld() {
-    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, true, this.archipelagoMode, this._isZen2 ? 'zen2' : 'survival');
+    // Zen2 is meant to be flat/calm terrain (_compressHeightForZen2 in the
+    // engine handles that). Patagonia's generator monkey-patches getBaseHeight
+    // with full Andes-mountain-scale heights (up to sea level+200) and bypasses
+    // that compression entirely, so it must stay off for zen2 — classic zen
+    // keeps it (its documented "unchanged behavior").
+    this.world = new SurvivalWorld(this.scene, this.seed, this.settings.renderDistance, true, !this._isZen2, this.archipelagoMode, this._isZen2 ? 'zen2' : 'survival');
 
     // ── Adaptive render distance ──
     this.world._adaptiveEnabled = true;
@@ -219,7 +239,8 @@ export class ZenGame {
     this.world._initialLoadBurst = 6;
 
     // ── Patch generator with Patagonia geographic profile ──
-    applyPatagoniaToGenerator(this.world.generator, this.patagonia);
+    // (classic zen only — zen2's flat/calm terrain must not get Andes-scale heights)
+    if (!this._isZen2) applyPatagoniaToGenerator(this.world.generator, this.patagonia);
 
     this.dayNight = new DayNightCycle(this.scene);
     for (const cp of this.dayNight.cloudPlanes) cp.mesh.visible = this.settings.clouds;
@@ -293,11 +314,58 @@ export class ZenGame {
       spawn = this.patagonia.getSpawnPoint();
     }
     this.player.spawn = function() {
-      const sx = spawn.x, sz = spawn.z;
+      let sx = spawn.x, sz = spawn.z;
+      // Guard against spawning underwater: the archipelago "island center" (or
+      // Patagonia's fixed point) isn't guaranteed to be dry land once run
+      // through zen2's own height field. Spawning on a submerged ocean floor
+      // drops the player next to underwater slopes, whose collision box can
+      // block movement in every direction at once. Search outward in a ring
+      // for the nearest dry land instead of trusting the raw coordinate.
+      const gen = this.world.generator;
+      // A candidate must be dry land AND reasonably flat — a lone tall spike
+      // is "dry" but drops the player right against its own slope, which
+      // blocks horizontal movement in every direction just as badly as
+      // spawning underwater did.
+      const flatLandHeight = (x, z) => {
+        const h = gen.getBaseHeight(x, z);
+        if (h < SEA_LEVEL + 1) return null;
+        const d = 4;
+        const n = gen.getBaseHeight(x + d, z), s = gen.getBaseHeight(x - d, z);
+        const e = gen.getBaseHeight(x, z + d), w = gen.getBaseHeight(x, z - d);
+        const maxDiff = Math.max(Math.abs(n - h), Math.abs(s - h), Math.abs(e - h), Math.abs(w - h));
+        return maxDiff <= 3 ? h : null;
+      };
+      if (gen && flatLandHeight(sx, sz) === null) {
+        let bestHeight = gen.getBaseHeight(sx, sz), bestX = sx, bestZ = sz;
+        let found = false;
+        outer:
+        for (let radius = 16; radius <= 800 && !found; radius += 16) {
+          const steps = 16;
+          for (let i = 0; i < steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            const tx = spawn.x + Math.cos(angle) * radius;
+            const tz = spawn.z + Math.sin(angle) * radius;
+            const flatH = flatLandHeight(tx, tz);
+            if (flatH !== null) {
+              bestX = tx; bestZ = tz; found = true;
+              break outer;
+            }
+            const h = gen.getBaseHeight(tx, tz);
+            if (h > bestHeight) { bestHeight = h; bestX = tx; bestZ = tz; }
+          }
+        }
+        // Even if no flat dry land turned up within the search radius, the
+        // highest point found is still further from a submerged slope than
+        // the original underwater pick — use it so movement isn't blocked.
+        sx = bestX; sz = bestZ;
+      }
       for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
         const block = this.world.getBlock(Math.floor(sx), WORLD_MIN_Y + y, Math.floor(sz));
         if (block !== BLOCK.AIR && block !== BLOCK.WATER) {
-          this.position.set(sx + 0.5, WORLD_MIN_Y + y + 2, sz + 0.5);
+          // See gameplay.js Player.spawn() — needs playerHeight clearance above
+          // the ground's top face, not a flat "+2", or the legs embed in the
+          // ground and every horizontal move collides immediately.
+          this.position.set(sx + 0.5, WORLD_MIN_Y + y + 1 + this.playerHeight + 0.1, sz + 0.5);
           this.camera.position.copy(this.position);
           return;
         }
@@ -362,11 +430,21 @@ export class ZenGame {
     }
     const sx = Math.floor(this.player.position.x / CHUNK_SIZE);
     const sz = Math.floor(this.player.position.z / CHUNK_SIZE);
+    let centerChunkReady = null;
     for (let dx = -1; dx <= 1; dx++) {
       for (let dz = -1; dz <= 1; dz++) {
-        this.world.generateChunk(sx + dx, sz + dz);
+        const p = this.world.generateChunk(sx + dx, sz + dz);
+        if (dx === 0 && dz === 0) centerChunkReady = p;
       }
     }
+    // SPEC-PERF: Wait for the spawn chunk's actual voxel data before placing the
+    // player. Without this, spawn() scans an ungenerated chunk, whose getBlock()
+    // conservatively reports solid stone everywhere (so physics doesn't fall
+    // through unloaded terrain) — the scan then hits "solid ground" at the very
+    // top of the world, spawning the player near the build ceiling. That in turn
+    // triggers the altitude-based render-distance boost from frame one and floods
+    // the chunk queue, which is a major contributor to load-in stutter.
+    if (centerChunkReady) { try { await centerChunkReady; } catch (e) {} }
     this.player.spawn();
     this.world.update(this.player.position.x, this.player.position.z, 60, this.camera);
   }
@@ -440,6 +518,23 @@ export class ZenGame {
       }
       if (!this.pointerLocked && this.gameStarted && !this.inventoryOpen && !this.journalOpen) {
         pauseScreen.style.display = 'flex';
+      }
+    });
+
+    // Fallback: if the browser refuses/fails Pointer Lock (permissions, window
+    // focus, some Linux WMs, etc.), the click handler's requestPointerLock()
+    // silently does nothing and gameStarted never flips — the game gets stuck
+    // on the pause screen forever with WASD/F completely unresponsive and no
+    // feedback to the player. Start the game anyway so movement still works,
+    // just without locked mouse-look.
+    document.addEventListener('pointerlockerror', () => {
+      console.warn('[JardVoxel] Pointer Lock failed — starting without locked mouse-look.');
+      this._pointerLockUnavailable = true;
+      if (!this.gameStarted) {
+        this._initAudio();
+        this.gameStarted = true;
+        pauseScreen.style.display = 'none';
+        if (this.chilltune) this.chilltune.start();
       }
     });
 
@@ -698,11 +793,35 @@ export class ZenGame {
 
   _regenerateTerrain() {
     if (!this.world) return;
+    // SPEC-071/G-002: Generate a new seed so regen produces a *different* world.
+    // Previously this kept the same seed, so the "regenerated" terrain was
+    // identical to what was already there — the button felt like a no-op.
+    if (!confirm('¿Regenerar terreno con una nueva semilla? Se perderán las modificaciones del mundo actual.')) return;
+    this.seed = Math.floor(Math.random() * 1_000_000_000);
+    this.patagonia = new PatagoniaProfile(this.seed);
+    // Drop per-chunk modifications from the old world — they no longer apply.
+    this.blockModifications.clear();
+    this.chunkModifications.clear();
+    if (this.saveManager) {
+      try { this.saveManager.clearAll(); } catch (e) {}
+    }
     this._applyTerrainSettings();
-    const px = this.player.position.x;
-    const pz = this.player.position.z;
+    // Rebuild the world generator with the new seed so chunk generation uses it.
+    // SurvivalWorld stores seed + generator on construction; we patch both in
+    // place rather than tearing down the whole world (avoids re-creating
+    // workers/materials/renderers mid-session).
+    this.world.seed = this.seed;
+    const useHierarchy = !this._isZen2;
+    this.world.generator = new WorldGenPipeline(this.seed);
+    this.world.generator.setWorldMode(this.world._worldMode);
+    if (useHierarchy) this.world.generator.enableHierarchy({ archipelagoMode: this.archipelagoMode });
+    if (!this._isZen2) applyPatagoniaToGenerator(this.world.generator, this.patagonia);
+    // Reset player to spawn altitude above origin so we don't spawn inside
+    // terrain that no longer exists at the old coordinates.
+    const px = 0, pz = 0;
+    this.player.position.set(px, 120, pz);
+    this.player.velocity.set(0, 0, 0);
     this.world.clearAllChunks();
-    if (this.world.generator) this.world.generator.clearCache();
     const sx = Math.floor(px / CHUNK_SIZE);
     const sz = Math.floor(pz / CHUNK_SIZE);
     for (let dx = -2; dx <= 2; dx++) {
@@ -710,9 +829,10 @@ export class ZenGame {
         this.world.generateChunk(sx + dx, sz + dz);
       }
     }
-    this._applyChunkModifications(Array.from(this.blockModifications.entries()));
     this.world.update(px, pz, 60, this.camera);
-    if (this.uiManager) this.uiManager.showToast('Terreno regenerado', 'info');
+    const seedEl = document.getElementById('pause-seed');
+    if (seedEl) seedEl.textContent = this.seed;
+    if (this.uiManager) this.uiManager.showToast(`Terreno regenerado · seed ${this.seed}`, 'info');
   }
 
   _saveSettings() {
@@ -832,7 +952,13 @@ export class ZenGame {
         this._showViewModeToast();
       }
       if (e.code === 'KeyE') { this._toggleInventory(); }
+      // SPEC-071/G-003: M toggles meditation mode (only when playing and no
+      // other panel is open). ESC also exits meditation (handled below).
+      if (e.code === 'KeyM' && this.gameStarted && !this.inventoryOpen && !this.journalOpen) {
+        this._toggleMeditation();
+      }
       if (e.code === 'Escape') {
+        if (this.meditationActive) { this._endMeditation(); return; }
         if (this.inventoryOpen) { this._toggleInventory(); return; }
         if (this.journalOpen) { this._toggleJournal(); return; }
         if (this.gameStarted) {
@@ -1102,10 +1228,157 @@ export class ZenGame {
     setTimeout(() => el.remove(), 1400);
   }
 
+  // SPEC-071/G-003: Discovery notification — flashes the overlay for 5s when
+  // the MeditationSpaceGenerator finds a new space. Distinct from the actual
+  // meditation mode (see _toggleMeditation/_startMeditation/_endMeditation).
   _showMeditationOverlay() {
     const overlay = document.getElementById('meditation-overlay');
-    overlay.classList.add('show');
-    setTimeout(() => overlay.classList.remove('show'), 5000);
+    if (!overlay) return;
+    overlay.classList.add('discovered');
+    setTimeout(() => overlay.classList.remove('discovered'), 5000);
+  }
+
+  // SPEC-071/G-003: Toggle meditation mode. If not near a meditation space,
+  // still allow meditation (zen mode — player can meditate anywhere), but
+  // prefer the nearest known space for the journal entry when available.
+  _toggleMeditation() {
+    if (this.meditationActive) this._endMeditation();
+    else this._startMeditation();
+  }
+
+  _startMeditation() {
+    if (this.meditationActive) return;
+    this.meditationActive = true;
+    this.meditationStartTime = Date.now();
+    // Freeze movement immediately so the player doesn't drift mid-session.
+    if (this.player && this.player.velocity) this.player.velocity.set(0, 0, 0);
+
+    const overlay = document.getElementById('meditation-overlay');
+    if (overlay) {
+      overlay.classList.add('meditating');
+      overlay.innerHTML =
+        '<div class="meditation-content">' +
+          '<div class="meditation-breath"></div>' +
+          '<h2 class="meditation-title">Meditación</h2>' +
+          '<p class="meditation-sub">Respira profundo...</p>' +
+          '<p class="meditation-hint">Presiona <strong>M</strong> o <strong>ESC</strong> para salir</p>' +
+        '</div>';
+    }
+
+    // Ambient drone via GameAudio (oscillator + lowpass, gentle fade in).
+    this._startMeditationDrone();
+
+    // Let ChillTune know we're meditating so it can shift toward contemplation.
+    if (this.chilltune) {
+      try { this.chilltune.setInMeditationSpace(true); } catch (e) {}
+    }
+
+    // Track resonance for the wellness system.
+    if (this.resonanceSystem) {
+      try { this.resonanceSystem.track('meditation', 5); } catch (e) {}
+    }
+
+    // Journal entry — prefer nearest known meditation space metadata.
+    const space = this._findNearbyMeditationSpace();
+    if (this.journal) {
+      const title = space ? `Meditación: ${space.type}` : 'Meditación';
+      const desc = space
+        ? `Meditaste en un espacio tipo ${space.type} en (${space.cx}, ${space.cz}).`
+        : 'Meditaste en calma.';
+      this.journal.addEntry(ENTRY_TYPES.MEDITATION_SPACE, title, desc, {
+        location: space ? { x: space.cx, y: space.cy, z: space.cz } : { ...this.player.position },
+        duration: 120,
+        timestamp: Date.now(),
+      });
+      this.journal.incrementStat('meditationSpacesFound');
+    }
+    if (this.uiManager) this.uiManager.showToast('Meditación iniciada', 'wellness');
+
+    // Auto-exit after 2 minutes.
+    this.meditationTimeout = setTimeout(() => this._endMeditation(), 120000);
+  }
+
+  _endMeditation() {
+    if (!this.meditationActive) return;
+    this.meditationActive = false;
+    if (this.meditationTimeout) {
+      clearTimeout(this.meditationTimeout);
+      this.meditationTimeout = null;
+    }
+    const overlay = document.getElementById('meditation-overlay');
+    if (overlay) {
+      overlay.classList.remove('meditating');
+      overlay.innerHTML = '';
+    }
+    this._stopMeditationDrone();
+    if (this.chilltune) {
+      try { this.chilltune.setInMeditationSpace(false); } catch (e) {}
+    }
+    const secs = Math.floor((Date.now() - this.meditationStartTime) / 1000);
+    if (this.uiManager) this.uiManager.showToast(`Meditación finalizada · ${secs}s`, 'wellness');
+  }
+
+  _findNearbyMeditationSpace() {
+    if (!this.meditationSpaceGenerator) return null;
+    const pos = this.player.position;
+    let best = null, bestDist = Infinity;
+    for (const space of this.meditationSpaceGenerator._discoveredSpaces.values()) {
+      const dx = space.cx - pos.x;
+      const dz = space.cz - pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < bestDist) { bestDist = d; best = space; }
+    }
+    // Only return if within ~8 blocks — otherwise it's just "meditation anywhere".
+    return (best && bestDist < 8) ? best : null;
+  }
+
+  // SPEC-071/G-003: Soft ambient drone — two detuned sine oscillators through a
+  // lowpass filter with a slow gain fade. Self-contained on GameAudio.ctx so we
+  // don't need to extend the GameAudio class.
+  _startMeditationDrone() {
+    if (!this.audio || !this.audio.ctx || !this.audio.enabled) return;
+    try {
+      const ctx = this.audio.ctx;
+      const master = this.audio.masterGain || ctx.destination;
+      const now = ctx.currentTime;
+      const drone = {
+        osc1: ctx.createOscillator(),
+        osc2: ctx.createOscillator(),
+        filter: ctx.createBiquadFilter(),
+        gain: ctx.createGain(),
+      };
+      drone.osc1.type = 'sine';
+      drone.osc1.frequency.value = 110; // A2
+      drone.osc2.type = 'sine';
+      drone.osc2.frequency.value = 110 * 1.5; // perfect fifth
+      drone.osc2.detune.value = 4; // gentle beating
+      drone.filter.type = 'lowpass';
+      drone.filter.frequency.value = 600;
+      drone.gain.gain.setValueAtTime(0, now);
+      drone.gain.gain.linearRampToValueAtTime(0.08, now + 4); // 4s fade in
+      drone.osc1.connect(drone.filter);
+      drone.osc2.connect(drone.filter);
+      drone.filter.connect(drone.gain);
+      drone.gain.connect(master);
+      drone.osc1.start();
+      drone.osc2.start();
+      this.meditationDrone = drone;
+    } catch (e) { console.warn('[Zen] meditation drone failed:', e); }
+  }
+
+  _stopMeditationDrone() {
+    const d = this.meditationDrone;
+    if (!d) return;
+    try {
+      const ctx = this.audio.ctx;
+      const now = ctx.currentTime;
+      d.gain.gain.cancelScheduledValues(now);
+      d.gain.gain.setValueAtTime(d.gain.gain.value, now);
+      d.gain.gain.linearRampToValueAtTime(0, now + 1.5); // 1.5s fade out
+      d.osc1.stop(now + 1.6);
+      d.osc2.stop(now + 1.6);
+    } catch (e) {}
+    this.meditationDrone = null;
   }
 
   _renderToasts() {
@@ -1143,6 +1416,8 @@ export class ZenGame {
     if (this._disposed) return;
     this._disposed = true;
     if (this._animId) cancelAnimationFrame(this._animId);
+    // SPEC-071/G-003: tear down meditation mode cleanly.
+    if (this.meditationActive) this._endMeditation();
     if (this.chilltune) { try { this.chilltune.destroy(); } catch(e) {} }
     if (this.audio) { try { this.audio.dispose(); } catch(e) {} }
     if (this.world) { try { this.world.dispose(); } catch(e) {} }
@@ -1431,7 +1706,9 @@ export class ZenGame {
     }
     this.dayNight.setBiome(this._frame.biome);
 
-    if (this.gameStarted && !this._paused && (this.pointerLocked || (this.touchControls && this.touchControls.enabled))) {
+    if (this.gameStarted && !this._paused && !this.inventoryOpen && !this.journalOpen
+      && !this.meditationActive
+      && (this.pointerLocked || this._pointerLockUnavailable || (this.touchControls && this.touchControls.enabled))) {
       const touchInput = this.touchControls ? this.touchControls.getMoveInput() : null;
       if (this.touchControls) this.touchControls.updateLook(dt);
       this.player.update(dt, this.keys, touchInput);
