@@ -723,7 +723,7 @@ class Game {
       // Graphics
       renderDistance: 10,
       fov: 75,
-      clouds: true,
+      clouds: false,
       fog: true,
       shadows: false,
       toneMapping: true,
@@ -1726,10 +1726,23 @@ class Game {
     this.skyDome.material.uniforms.topColor.value.copy(topColor);
     this.skyDome.material.uniforms.bottomColor.value.copy(bottomColor);
 
-    // Fog color follows horizon (bottom) color
-    this.scene.fog.color.copy(bottomColor);
-    this.scene.fog.near = 30 + dayFactor * 30;
-    this.scene.fog.far = 80 + dayFactor * 80;
+    // Fog color follows horizon (bottom) color.
+    // SPEC-CHUNK-OPT: near/far used to be flat constants (30-60 / 80-160
+    // blocks) completely independent of this.settings.renderDistance — this
+    // ran every ~150ms (see chunkMgr.update's throttle) and unconditionally
+    // overwrote whatever fog.far the settings/init code had set from the
+    // actual render distance. So any terrain generated beyond ~5-10 chunks
+    // (a common — or even default, at renderDistance:10 — setting) was
+    // ALWAYS fully fog-blended into the sky, looking like it "disappeared"
+    // when looked at directly, regardless of camera angle. Scale the day/
+    // night range off the real render distance instead so fog never eats
+    // terrain that's actually loaded.
+    if (this.scene.fog) {
+      this.scene.fog.color.copy(bottomColor);
+      const maxFogFar = this.settings.renderDistance * CHUNK_SIZE * 1.2;
+      this.scene.fog.near = maxFogFar * (0.35 + dayFactor * 0.15);
+      this.scene.fog.far = maxFogFar * (0.65 + dayFactor * 0.35);
+    }
   }
 
   updateHUD() {

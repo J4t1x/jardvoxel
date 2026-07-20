@@ -2,7 +2,11 @@
 // JardVoxel Engine — Voxel Terrain + Caves + Features + Gameplay
 // ═══════════════════════════════════════════════════════════
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+// Resolved via each page's import map (all pages pin the same three.js build) —
+// importing the CDN URL directly here bypassed that indirection, so this file
+// would silently keep using a stale version if the project ever repins/self-hosts.
+import * as THREE from 'three';
+import { WorkerPool } from './jardvoxel-survival-worker-pool.js';
 
 // ═══════════════════════════════════════════════════════════
 // PRNG — Xorshift128+ (seeded, reproducible)
@@ -242,6 +246,21 @@ export const CHUNK_SIZE = 16;
 export const CHUNK_HEIGHT = 64;
 export const WORLD_MIN_Y = 0;
 export const RENDER_DIST = 32; // SPEC-CHUNK-OPT: Max render distance (chunks) — adaptive scales down from this
+
+// SPEC-CHUNK-OPT: View-direction-aware chunk generation priority — lower =
+// generated sooner. Continuous cosine weighting (front chunks win at equal
+// distance, back chunks still queue, just later) instead of a hard front/
+// side/back cutoff, so a chunk directly behind the player still eventually
+// loads even though the queue is only re-sorted on chunk-boundary crossing
+// (see ChunkManager._fullChunkScan) rather than every frame the player turns.
+function _chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera, K = 1.5) {
+  if (!hasCamera || dist <= 1.5) return dist;
+  const chunkAngle = Math.atan2(dx, dz);
+  const angleDiff = Math.abs(chunkAngle - cameraYaw);
+  const wrapped = angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
+  const cosWeight = Math.cos(wrapped);
+  return dist - cosWeight * K;
+}
 
 // SPEC-033: Block hardness — time in seconds to mine
 export const BLOCK_HARDNESS = {
@@ -2184,15 +2203,22 @@ export class ChunkManager {
       emissiveIntensity: 0.15,
     });
     this.waterTime = 0;
-    // SPEC-037: Frustum culling + adaptive LOD
-    this._frustum = new THREE.Frustum();
-    this._projScreenMatrix = new THREE.Matrix4();
+    // SPEC-037: adaptive LOD. Frustum culling is left to THREE's own
+    // automatic per-mesh bounding-sphere test (see update() for why a
+    // hand-rolled version used to live here).
     this._adaptiveRenderDist = RENDER_DIST;
     this._fpsHistory = [];
     // SPEC-CHUNK-OPT: User-configured render distance (from settings)
     this.renderDistance = 5;
     // SPEC-CHUNK-OPT: Heightmap cache for occlusion culling
     this._heightmaps = new Map();
+    // SPEC-CHUNK-OPT: Incremental chunk generation queue — rebuilt only on
+    // chunk-boundary crossing or render-distance change, not every frame.
+    this._chunkGenQueue = [];
+    this._queueReadIdx = 0;
+    this._lastQueuePCX = null;
+    this._lastQueuePCZ = null;
+    this._lastQueueRD = null;
     // SPEC-036: PointLight pool for torches/lanterns (max 8 active)
     this.pointLights = [];
     for (let i = 0; i < 8; i++) {
@@ -2201,41 +2227,23 @@ export class ChunkManager {
       this.scene.add(pl);
       this.pointLights.push(pl);
     }
-    // SPEC-037: Web Worker for chunk generation
-    this.pendingChunks = new Set(); // chunks sent to worker, awaiting response
-    this.workerQueued = new Map(); // key -> {cx, cz} waiting to be sent
+    // SPEC-CHUNK-OPT: Worker pool for chunk generation. This used to spin up
+    // a single `new Worker('./jardvoxel-worker.js')` by hand — that file
+    // didn't exist, so the constructor's onerror always fired and every
+    // chunk silently generated synchronously on the main thread. Reusing the
+    // WorkerPool class already used (and tested) by the modern engine fixes
+    // that and gets 2 parallel workers for free instead of 1.
+    this.pendingChunks = new Set(); // chunks sent to the pool, awaiting response
+    this._useWorkerPool = false;
     try {
-      this.worker = new Worker(new URL('./jardvoxel-worker.js', import.meta.url), { type: 'module' });
-      this.worker.postMessage({ type: 'init', seed: world.seed });
-      this.worker.onmessage = (e) => {
-        const { cx, cz, blocks } = e.data;
-        const key = this._chunkKey(cx, cz);
-        this.pendingChunks.delete(key);
-        if (this.chunks.has(key)) return; // already exists (e.g. player modified)
-        const chunk = VoxelChunk.acquire(cx, cz, this.world);
-        chunk.blocks = new Uint8Array(blocks);
-        chunk.generated = true;
-        this.chunks.set(key, chunk);
-        this._buildMeshForChunk(cx, cz, chunk);
-      };
-      this.worker.onerror = (err) => {
-        console.warn('[JardVoxel] Worker error, falling back to sync:', err.message);
-        this.worker = null;
-        // Recover chunks stuck in pendingChunks — regenerate synchronously
-        const pendingArr = Array.from(this.pendingChunks);
-        for (const key of pendingArr) {
-          const cx = Math.floor(key / 65536) - 32768;
-          const cz = key % 65536 - 32768;
-          this.pendingChunks.delete(key);
-          const chunk = VoxelChunk.acquire(cx, cz, this.world);
-          chunk.generate();
-          this.chunks.set(key, chunk);
-          this._buildMeshForChunk(cx, cz, chunk);
-        }
-      };
+      this._workerPool = new WorkerPool(new URL('./jardvoxel-worker.js', import.meta.url), 2);
+      this._workerPool.init({ seed: world.seed }).then(count => {
+        this._useWorkerPool = count > 0;
+        if (count === 0) console.warn('[JardVoxel] WorkerPool created no workers, using sync generation');
+      });
     } catch (e) {
-      console.warn('[JardVoxel] Worker unavailable, using sync generation:', e.message);
-      this.worker = null;
+      console.warn('[JardVoxel] WorkerPool unavailable, using sync generation:', e.message);
+      this._workerPool = null;
     }
   }
 
@@ -2326,14 +2334,30 @@ export class ChunkManager {
     return 4;
   }
 
-  generateChunk(cx, cz) {
+  generateChunk(cx, cz, priority = 0) {
     const key = this._chunkKey(cx, cz);
     if (this.chunks.has(key) || this.pendingChunks.has(key)) return;
 
-    // SPEC-037: Use web worker if available
-    if (this.worker) {
+    // SPEC-CHUNK-OPT: Use the worker pool if available
+    if (this._useWorkerPool && this._workerPool) {
       this.pendingChunks.add(key);
-      this.worker.postMessage({ cx, cz });
+      this._workerPool.generateChunk(cx, cz, priority).then(data => {
+        this.pendingChunks.delete(key);
+        if (this.chunks.has(key)) return; // already exists (e.g. player modified, or unloaded+reloaded)
+        const chunk = VoxelChunk.acquire(cx, cz, this.world);
+        chunk.blocks = new Uint8Array(data.blocks);
+        chunk.generated = true;
+        this.chunks.set(key, chunk);
+        this._buildMeshForChunk(cx, cz, chunk);
+      }).catch(err => {
+        console.warn(`[JardVoxel] WorkerPool chunk generation failed for (${cx},${cz}), falling back to sync:`, err.message);
+        this.pendingChunks.delete(key);
+        if (this.chunks.has(key)) return;
+        const chunk = VoxelChunk.acquire(cx, cz, this.world);
+        chunk.generate();
+        this.chunks.set(key, chunk);
+        this._buildMeshForChunk(cx, cz, chunk);
+      });
       return;
     }
 
@@ -2376,8 +2400,34 @@ export class ChunkManager {
     const chunk = this.chunks.get(key);
     if (chunk) VoxelChunk.release(chunk);
     this.chunks.delete(key);
-    this.pendingChunks.delete(key);
+    // SPEC-CHUNK-OPT: cancel any in-flight generation for this chunk — without
+    // this, a stale worker response could still land after unload (player flew
+    // away and back) and silently resurrect a chunk that was just released.
+    if (this.pendingChunks.has(key)) {
+      this.pendingChunks.delete(key);
+      if (this._workerPool) this._workerPool.cancelChunk(cx, cz);
+    }
     this._heightmaps.delete(key);
+  }
+
+  // SPEC-CHUNK-OPT: (Re)builds the chunk generation queue from scratch for
+  // the current render disc, sorted by view-direction-aware priority. Only
+  // called from update() when the disc actually needs re-evaluating.
+  _fullChunkScan(pcx, pcz, renderDist, cameraYaw, hasCamera) {
+    this._chunkGenQueue = [];
+    for (let dx = -renderDist; dx <= renderDist; dx++) {
+      for (let dz = -renderDist; dz <= renderDist; dz++) {
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist > renderDist) continue;
+        const cx = pcx + dx, cz = pcz + dz;
+        const key = this._chunkKey(cx, cz);
+        if (this.chunks.has(key) || this.pendingChunks.has(key)) continue;
+        const priority = _chunkGenPriority(dx, dz, dist, cameraYaw, hasCamera);
+        this._chunkGenQueue.push({ cx, cz, dist, priority });
+      }
+    }
+    this._chunkGenQueue.sort((a, b) => a.priority - b.priority);
+    this._queueReadIdx = 0;
   }
 
   update(playerX, playerZ, camera, fps) {
@@ -2386,149 +2436,107 @@ export class ChunkManager {
     this._playerCX = pcx;
     this._playerCZ = pcz;
 
-    // SPEC-CHUNK-OPT: Adaptive render distance — capped by user setting
+    // SPEC-CHUNK-OPT: Adaptive render distance — capped by user setting.
+    // A change here flips the ROUNDED renderDist integer, which triggers a
+    // full chunk-queue rescan + unload sweep (see rdChanged below) — without
+    // a cooldown, avgFps sitting right at the 30/55 threshold (the adaptive
+    // system's natural steady state, since it's designed to hover at the fps
+    // target) could nudge _adaptiveRenderDist every single time update() ran
+    // (every ~150ms, per chunkMgr.update's caller), constantly flipping the
+    // rounded value and re-triggering generation/unload for the chunks at
+    // the render-distance edge — visible as terrain endlessly reloading.
+    // Mirrors the modern engine's SPEC-HORIZON-FIX (1.5s cooldown).
     const maxDist = this.renderDistance || RENDER_DIST;
+    const nowTs = performance.now();
     if (fps !== undefined) {
       this._fpsHistory.push(fps);
       if (this._fpsHistory.length > 60) this._fpsHistory.shift();
-      if (this._fpsHistory.length >= 30) {
+      if (this._fpsHistory.length >= 30 && nowTs >= (this._adaptiveCooldownUntil || 0)) {
         const avgFps = this._fpsHistory.reduce((a, b) => a + b, 0) / this._fpsHistory.length;
         if (avgFps < 30 && this._adaptiveRenderDist > 3) {
           this._adaptiveRenderDist = Math.max(3, this._adaptiveRenderDist - 0.5);
+          this._adaptiveCooldownUntil = nowTs + 1500;
         } else if (avgFps > 55 && this._adaptiveRenderDist < maxDist) {
           this._adaptiveRenderDist = Math.min(maxDist, this._adaptiveRenderDist + 0.2);
+          this._adaptiveCooldownUntil = nowTs + 1500;
         }
       }
     }
     const renderDist = Math.min(Math.round(this._adaptiveRenderDist), maxDist);
 
-    // SPEC-CHUNK-OPT: Camera direction for view-direction loading
+    // SPEC-CHUNK-OPT: Camera direction for view-direction chunk prioritization
     let cameraYaw = 0;
-    if (camera) {
+    const hasCamera = !!camera;
+    if (hasCamera) {
       if (!this._tmpCamDir) this._tmpCamDir = new THREE.Vector3();
       camera.getWorldDirection(this._tmpCamDir);
       cameraYaw = Math.atan2(this._tmpCamDir.x, this._tmpCamDir.z);
     }
 
-    // SPEC-CHUNK-OPT: Priority queue — front > side > back, then by distance
-    const toGen = [];
-    const PI = Math.PI;
-    const frontArc = PI / 3;   // 60° half-angle = 120° front cone
-    const sideArc = PI / 2;    // 90° half-angle = includes periferal
+    // SPEC-CHUNK-OPT: Incremental chunk queue — only rescan the render disc
+    // (and sweep for chunks to unload) when something that actually affects
+    // it changed: first frame, a chunk-boundary crossing, or a render-
+    // distance change. This used to rebuild + sort a ~(2*renderDist+1)^2
+    // candidate array and walk every loaded chunk to check for unloads EVERY
+    // frame, even standing still with nothing to do — same pattern already
+    // fixed in the modern engine (SPEC-117).
+    const chunkChanged = this._lastQueuePCX !== pcx || this._lastQueuePCZ !== pcz;
+    const rdChanged = this._lastQueueRD !== renderDist;
+    if (this._lastQueuePCX === null || chunkChanged || rdChanged) {
+      this._fullChunkScan(pcx, pcz, renderDist, cameraYaw, hasCamera);
 
-    for (let dx = -renderDist; dx <= renderDist; dx++) {
-      for (let dz = -renderDist; dz <= renderDist; dz++) {
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist > renderDist) continue;
-
-        const cx = pcx + dx, cz = pcz + dz;
-        const key = this._chunkKey(cx, cz);
-        if (this.chunks.has(key) || this.pendingChunks.has(key)) continue;
-
-        // Classify by angle relative to camera direction
-        let priority = 2; // back (default)
-        if (camera && dist > 1.5) {
-          const chunkAngle = Math.atan2(dx, dz);
-          let angleDiff = Math.abs(chunkAngle - cameraYaw);
-          if (angleDiff > PI) angleDiff = 2 * PI - angleDiff;
-          if (angleDiff < frontArc) {
-            priority = 0; // front — highest priority
-          } else if (angleDiff < sideArc) {
-            priority = 1; // side — medium priority
-          } else {
-            // Back chunks: skip generation entirely (save CPU)
-            continue;
-          }
-        } else {
-          // Very close chunks or no camera: always generate
-          priority = 0;
+      // Unload distant chunks — only worth sweeping right after a boundary
+      // crossing or render-distance change, not every frame.
+      for (const key of this.chunks.keys()) {
+        const chunk = this.chunks.get(key);
+        const dx = chunk.cx - pcx, dz = chunk.cz - pcz;
+        if (Math.sqrt(dx * dx + dz * dz) > renderDist + 1) {
+          this.unloadChunk(chunk.cx, chunk.cz);
         }
-
-        toGen.push({ cx, cz, dist, priority });
       }
+    } else if (this._queueReadIdx >= this._chunkGenQueue.length) {
+      // Queue drained and nothing changed — nothing left to do until the
+      // player moves or renderDist changes.
+      this._chunkGenQueue = [];
+      this._queueReadIdx = 0;
     }
-    // Sort: priority ASC, then distance ASC
-    toGen.sort((a, b) => a.priority - b.priority || a.dist - b.dist);
+    this._lastQueuePCX = pcx;
+    this._lastQueuePCZ = pcz;
+    this._lastQueueRD = renderDist;
 
-    // SPEC-CHUNK-OPT: Generate up to 3 per frame (more budget since back chunks skipped)
+    // SPEC-CHUNK-OPT: Generate up to 3 per frame (more budget with a camera present)
     const genBudget = camera ? 3 : 2;
-    for (let i = 0; i < Math.min(genBudget, toGen.length); i++) {
-      this.generateChunk(toGen[i].cx, toGen[i].cz);
+    let dispatched = 0;
+    while (this._queueReadIdx < this._chunkGenQueue.length && dispatched < genBudget) {
+      const candidate = this._chunkGenQueue[this._queueReadIdx++];
+      const key = this._chunkKey(candidate.cx, candidate.cz);
+      if (this.chunks.has(key) || this.pendingChunks.has(key)) continue; // stale — generated/pending since scan
+      this.generateChunk(candidate.cx, candidate.cz, candidate.priority);
+      dispatched++;
     }
 
-    // Unload distant chunks
-    for (const key of this.chunks.keys()) {
-      const chunk = this.chunks.get(key);
-      const dx = chunk.cx - pcx, dz = chunk.cz - pcz;
-      if (Math.sqrt(dx * dx + dz * dz) > renderDist + 1) {
-        this.unloadChunk(chunk.cx, chunk.cz);
-      }
-    }
-
-    // SPEC-CHUNK-OPT: Frustum culling + heightmap-based occlusion
-    if (camera) {
-      this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
-      if (!this._tmpFrustumVec) this._tmpFrustumVec = new THREE.Vector3();
-      const tmpVec = this._tmpFrustumVec;
-      for (const [key, mesh] of this.meshes) {
-        const cx = mesh.userData.cx;
-        const cz = mesh.userData.cz;
-        const chunkCenterX = cx * CHUNK_SIZE + CHUNK_SIZE / 2;
-        const chunkCenterZ = cz * CHUNK_SIZE + CHUNK_SIZE / 2;
-        const dx = chunkCenterX - playerX;
-        const dz = chunkCenterZ - playerZ;
-        const chunkDist = Math.sqrt(dx * dx + dz * dz);
-        // Skip frustum check for close chunks (always visible)
-        if (chunkDist < CHUNK_SIZE * 2) {
-          mesh.visible = true;
-        } else {
-          // Frustum check
-          const inFrustum = this._frustum.containsPoint(tmpVec.set(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ));
-          if (!inFrustum) {
-            mesh.visible = false;
-          } else {
-            // SPEC-CHUNK-OPT: Heightmap occlusion — skip chunks hidden behind taller terrain
-            mesh.visible = this._checkOcclusion(cx, cz, pcx, pcz, chunkDist, cameraYaw);
-          }
-        }
-      }
-      for (const [key, wmesh] of this.waterMeshes) {
-        wmesh.visible = this.meshes.get(key) ? this.meshes.get(key).visible : true;
-      }
-    }
+    // SPEC-CHUNK-OPT: Visibility used to be hand-managed here in two layers:
+    // a single-point frustum test (removed earlier for popping fully-
+    // generated terrain invisible on any small look-around — the XZ center
+    // of a 16x64x16 chunk at a fixed y=CHUNK_HEIGHT/2 could flip outside the
+    // frustum while most of the mesh was still on screen), and heightmap-
+    // based occlusion culling (hide a chunk if some intermediate chunk's
+    // AVERAGE height was 5+ blocks taller). The occlusion heuristic never
+    // accounted for the player's actual eye height or the real terrain
+    // shape in between — just a coarse per-chunk average sampled at
+    // whichever intermediate chunk happened to round to — so it kept
+    // mis-hiding terrain that was legitimately in view, worse depending on
+    // exactly where the player stood (a valley vs a hill crest gives very
+    // different results for the same target chunk). That's what kept
+    // reproducing as "chunks disappear when I aim at them, fine again
+    // higher up." Both are gone now; visibility is left entirely to THREE's
+    // own automatic per-mesh frustum culling (correct — uses the real
+    // geometry bounds) plus the GPU's normal depth test for anything
+    // actually behind a hill — pixel-accurate, no heuristics, no more
+    // popping.
 
     // SPEC-036: Update point lights for torches/lanterns near player
     this._updatePointLights(playerX, camera ? camera.position.y : 0, playerZ);
-  }
-
-  // SPEC-CHUNK-OPT: Heightmap occlusion culling
-  _checkOcclusion(cx, cz, pcx, pcz, chunkDist, cameraYaw) {
-    // Only apply occlusion for chunks > 4 chunks away
-    if (chunkDist < CHUNK_SIZE * 4) return true;
-
-    // Get heightmap for this chunk
-    const key = this._chunkKey(cx, cz);
-    const hm = this._heightmaps.get(key);
-    if (!hm) return true; // No heightmap — render it
-
-    // Check if any chunk between this and the player is tall enough to occlude
-    const dx = cx - pcx;
-    const dz = cz - pcz;
-    const steps = Math.max(Math.abs(dx), Math.abs(dz));
-    if (steps <= 1) return true;
-
-    for (let s = 1; s < steps; s++) {
-      const ix = pcx + Math.round(dx * s / steps);
-      const iz = pcz + Math.round(dz * s / steps);
-      const iKey = this._chunkKey(ix, iz);
-      const iHm = this._heightmaps.get(iKey);
-      if (!iHm) continue;
-      // If intermediate chunk is 5+ blocks taller, it occludes
-      if (iHm.avgHeight > hm.avgHeight + 5) return false;
-    }
-
-    return true;
   }
 
   // SPEC-036: Find nearest torch/lantern blocks and assign PointLights
@@ -2642,7 +2650,7 @@ export class ChunkManager {
   }
 
   dispose() {
-    if (this.worker) this.worker.terminate();
+    if (this._workerPool) { this._workerPool.dispose(); this._workerPool = null; }
     for (const mesh of this.meshes.values()) { this.scene.remove(mesh); mesh.geometry.dispose(); }
     for (const wmesh of this.waterMeshes.values()) { this.scene.remove(wmesh); wmesh.geometry.dispose(); }
     for (const pl of this.pointLights) { this.scene.remove(pl); }
