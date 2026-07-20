@@ -98,9 +98,8 @@ export class SurvivalWorld {
     this.dimension = 'overworld';
     this.netherGenerator = new NetherGenerator();
     this.redstoneManager = null;
-    // SPEC-CHUNK-OPT: Frustum culling + heightmap occlusion
-    this._frustum = new THREE.Frustum();
-    this._projScreenMatrix = new THREE.Matrix4();
+    // SPEC-CHUNK-OPT: heightmap occlusion (per-mesh frustum culling is
+    // handled natively by THREE via mesh.frustumCulled, see update() below)
     this._heightmaps = new Map();
     this._camera = null;
     this.waterMaterialManager = null;
@@ -892,16 +891,24 @@ export class SurvivalWorld {
       }
     }
 
-    // SPEC-CHUNK-OPT: Frustum culling for visibility (no distance-based unloading here)
-    // Throttled to every 0.15s to avoid iterating all meshes every frame
+    // SPEC-CHUNK-OPT: Visibility pass (no distance-based unloading here).
+    // Throttled to every 0.15s to avoid iterating all meshes every frame.
+    //
+    // BUGFIX (chunk-vanish-on-aim): this used to also do a manual frustum
+    // test against a single point at (chunkCenterX, CHUNK_HEIGHT/2, chunkCenterZ)
+    // — i.e. world Y ~192, far above the actual terrain surface (~60-150).
+    // Tilting the camera down to aim at nearby ground trivially excludes that
+    // high point from the frustum, so `mesh.visible` got forced to false on
+    // already-generated chunks right around the crosshair — a "circle" of
+    // terrain disappearing wherever the player looked. THREE already performs
+    // correct per-mesh frustum culling every render using the mesh's real
+    // bounding sphere (mesh.frustumCulled = true, set at creation), so the
+    // manual point test was both redundant and wrong. Only heightmap-based
+    // occlusion (hills blocking distant chunks) remains here.
     this._frustumTimer = (this._frustumTimer || 0) + dt;
-    if (camera && this._frustumTimer >= 0.15) {
+    if (this._frustumTimer >= 0.15) {
       this._frustumTimer = 0;
-      this._projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
-      if (!this._tmpVec) this._tmpVec = new THREE.Vector3();
-      const tmpVec = this._tmpVec;
-      
+
       for (const [key, mesh] of this.meshes) {
         const cx = mesh.userData.cx;
         const cz = mesh.userData.cz;
@@ -910,18 +917,7 @@ export class SurvivalWorld {
         const dx = chunkCenterX - playerX;
         const dz = chunkCenterZ - playerZ;
         const chunkDist = Math.sqrt(dx * dx + dz * dz);
-        
-        if (chunkDist < CHUNK_SIZE * 2) {
-          mesh.visible = true;
-        } else {
-          tmpVec.set(chunkCenterX, CHUNK_HEIGHT / 2, chunkCenterZ);
-          const inFrustum = this._frustum.containsPoint(tmpVec);
-          if (!inFrustum) {
-            mesh.visible = false;
-          } else {
-            mesh.visible = this._checkOcclusion(cx, cz, pcx, pcz, chunkDist);
-          }
-        }
+        mesh.visible = this._checkOcclusion(cx, cz, pcx, pcz, chunkDist);
       }
       
       for (const [key, wmesh] of this.waterMeshes) {
