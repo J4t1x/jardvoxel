@@ -25,6 +25,11 @@ const ENTRY_TYPES = {
   GARDEN_DISCOVERY:   'garden_discovery',
   RESTORATION_POINT:  'restoration_point',
   GARDEN_RESTORED:    'garden_restored',
+  // SPEC-LANDMARKS/SPEC-089: landmark + narrative structure + world-event entries
+  LANDMARK:           'landmark',
+  NARRATIVE_STRUCTURE: 'narrative_structure',
+  WORLD_EVENT:        'world_event',
+  QUEST:              'quest',
   CUSTOM:             'custom',
 };
 
@@ -45,6 +50,9 @@ export class ExplorationJournal {
       gardensDiscovered: 0,
       restorationPointsActivated: 0,
       gardensRestored: 0,
+      // SPEC-LANDMARKS/SPEC-089: landmark + world-event discovery stats
+      landmarksFound: 0,
+      worldEventsWitnessed: 0,
     };
     this._lastPlayerPos = null;
   }

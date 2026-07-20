@@ -39,10 +39,16 @@ import { MeditationSpaceGenerator } from './jardvoxel-survival-meditation-spaces
 import { LivingWorldSystem } from './jardvoxel-survival-living-world.js';
 import { ExplorationJournal, ENTRY_TYPES } from './jardvoxel-survival-journal.js';
 // SPEC-073 Gaps 1-4: Wire previously unintegrated systems
-import { QuestManager } from './jardvoxel-survival-quests.js';
+import { QuestManager, QUEST_TYPES } from './jardvoxel-survival-quests.js';
 import { AIClient } from './jardvoxel-survival-ai-client.js';
 import { NPCMemorySystem } from './jardvoxel-survival-npc-memory.js';
 import { AncientCivilizationSystem } from './jardvoxel-survival-civilizations.js';
+// SPEC-LORE/SPEC-089: previously orphaned modules (never imported by any
+// playable variant) — wired here so landmark/structure discovery in zen2
+// surfaces actual lore text and ambient world events.
+import { LoreGenerator } from './jardvoxel-survival-lore.js';
+import { EventManager } from './jardvoxel-survival-events.js';
+import { getStructureDescription } from './jardvoxel-survival-narrative-structures.js';
 import {
   PatagoniaProfile, PATAGONIA, PATAGONIA_BIOME_NAMES, PATAGONIA_AMBIENT_MAP,
   applyPatagoniaToGenerator,
@@ -477,14 +483,41 @@ export class ZenGame {
     this.journal.setStat('highestResonance', 0);
 
     // SPEC-073 Gaps 1-4: Instantiate previously unintegrated systems
-    this.questManager = new QuestManager(this.seed);
+    this.npcMemorySystem = new NPCMemorySystem(this.seed);
+    // BUGFIX: QuestManager takes an options object ({aiClient, npcMemory,
+    // worldSeed}), not a bare seed number — passing this.seed directly left
+    // _worldSeed stuck at 0 and npcMemory/aiClient permanently null.
+    this.questManager = new QuestManager({ worldSeed: this.seed, npcMemory: this.npcMemorySystem });
     this.questManager.on('quest_completed', (quest) => {
+      // Discovery toasts/journal entries are already shown by whichever
+      // _on*Discovered() call created this quest (see _completeDiscoveryQuest)
+      // — this just keeps QuestManager's own completed-quest log consistent
+      // for save/load, without a second duplicate toast per discovery.
       if (this.journal) {
-        this.journal.addEntry('milestone', `Quest Complete: ${quest.title}`, quest.description || '', { questId: quest.id });
+        this.journal.addEntry(ENTRY_TYPES.QUEST, quest.title, quest.description || '', { questId: quest.id });
       }
     });
-    this.npcMemorySystem = new NPCMemorySystem(this.seed);
+    // SPEC-090: generate() was never called anywhere, so this system always
+    // reported zero civilizations — generate its lore data once up front so
+    // landmark/structure discoveries below can attach real flavor text.
     this.civilizationSystem = new AncientCivilizationSystem(this.seed);
+    this.civilizationSystem.generate();
+    // SPEC-081: procedural names/history/legends for landmark discovery text.
+    this.loreGenerator = new LoreGenerator(this.seed);
+    // SPEC-089: ambient emergent world events (meteor showers, auroras,
+    // ancient discoveries...) surfaced as journal/toast flavor moments.
+    this.eventManager = new EventManager();
+    this.eventManager.on('event_started', (event) => {
+      if (this.uiManager) this.uiManager.showToast(`${event.name}`, 'discovery');
+      if (this.journal) {
+        this.journal.addEntry(ENTRY_TYPES.WORLD_EVENT, event.name, event.description);
+        this.journal.incrementStat('worldEventsWitnessed');
+      }
+    });
+    // SPEC-LANDMARKS: chunks whose landmark/narrative-structure metadata has
+    // already triggered a discovery, so re-entering doesn't spam the journal.
+    this._discoveredLandmarkChunks = new Set();
+    this._discoveredStructureChunks = new Set();
     // AI Client is optional (requires server) — instantiate lazily
     this._aiClient = null;
 
@@ -1160,6 +1193,86 @@ export class ZenGame {
       panel.classList.remove('show');
       if (!(this.touchControls && this.touchControls.enabled)) document.body.requestPointerLock();
     }
+  }
+
+  // SPEC-LANDMARKS/SPEC-080: surface landmarks (jardvoxel-survival-landmarks.js,
+  // carved into terrain by generateChunkWithFeatures) and narrative structures
+  // (jardvoxel-survival-narrative-structures.js) — both were already being
+  // generated silently into chunk data/metadata, but nothing ever read
+  // chunk.landmark / chunk.narrativeStructures to show the player anything.
+  _checkPointsOfInterest() {
+    if (!this.world || !this.world.chunks || !this.world._chunkKey) return;
+    const pcx = Math.floor(this.player.position.x / CHUNK_SIZE);
+    const pcz = Math.floor(this.player.position.z / CHUNK_SIZE);
+    const key = this.world._chunkKey(pcx, pcz);
+    const chunk = this.world.chunks.get(key);
+    if (!chunk) return;
+
+    if (chunk.landmark && !this._discoveredLandmarkChunks.has(key)) {
+      this._discoveredLandmarkChunks.add(key);
+      this._onLandmarkDiscovered(chunk.landmark);
+    }
+    if (chunk.narrativeStructures && chunk.narrativeStructures.length && !this._discoveredStructureChunks.has(key)) {
+      this._discoveredStructureChunks.add(key);
+      for (const structure of chunk.narrativeStructures) this._onStructureDiscovered(structure);
+    }
+  }
+
+  _onLandmarkDiscovered(landmark) {
+    const flavorName = this.loreGenerator ? this.loreGenerator.generateStructureName(landmark.type) : landmark.name;
+    let text = `Encontraste ${landmark.name} — conocido localmente como "${flavorName}".`;
+    if (this.loreGenerator) {
+      const legends = this.loreGenerator.getLegends();
+      if (legends.length) text += ` ${legends[Math.floor(Math.random() * legends.length)].text}`;
+    }
+    // SPEC-090: attach ancient-civilization flavor lore to ruin/shrine-type landmarks.
+    if ((landmark.type === 'ancient_ruins' || landmark.type === 'natural_shrine') && this.civilizationSystem) {
+      const civs = this.civilizationSystem.getCivilizations();
+      if (civs.length) {
+        const civ = civs[Math.abs(landmark.cx * 374761393 + landmark.cz * 668265263) % civs.length];
+        const structIdx = Math.abs(landmark.cx + landmark.cz) % civ.structures.length;
+        const lore = this.civilizationSystem.discoverStructure(civ.id, structIdx);
+        if (lore) text += ` ${lore.text}`;
+      }
+    }
+
+    if (this.uiManager) this.uiManager.showToast(`Descubrimiento: ${landmark.name}`, 'discovery');
+    if (this.journal) {
+      this.journal.addEntry(ENTRY_TYPES.LANDMARK, landmark.name, text);
+      this.journal.incrementStat('landmarksFound');
+    }
+    if (this.resonanceSystem) this.resonanceSystem.track('discovery', 8);
+    if (this.chilltune && this.chilltune.playStinger) this.chilltune.playStinger('new_biome');
+    this._completeDiscoveryQuest(`Hito: ${landmark.name}`, text, landmark.name, landmark.regionType);
+  }
+
+  _onStructureDiscovered(structure) {
+    const description = getStructureDescription(structure);
+    const title = (structure.history && structure.history.villageName) || structure.type.replace(/_/g, ' ');
+    if (this.uiManager) this.uiManager.showToast(`Descubrimiento: ${title}`, 'discovery');
+    if (this.journal) {
+      this.journal.addEntry(ENTRY_TYPES.NARRATIVE_STRUCTURE, title, description);
+      this.journal.incrementStat('landmarksFound');
+    }
+    if (this.resonanceSystem) this.resonanceSystem.track('discovery', 10);
+    this._completeDiscoveryQuest(`Ruinas: ${title}`, description, structure.type, null);
+  }
+
+  // Records a lightweight, already-completed DISCOVER quest so the discovery
+  // also flows through QuestManager (journal/toast via 'quest_completed',
+  // see initSystems) instead of only the direct calls above — zen2 has no
+  // quest-tracker UI/NPCs to give quests out, so this acts as a passive
+  // "discovery achievement" log rather than a multi-step mission.
+  _completeDiscoveryQuest(title, description, structureName, biomeName) {
+    if (!this.questManager) return;
+    const quest = this.questManager.createQuest({
+      type: QUEST_TYPES.DISCOVER,
+      title,
+      description,
+      structure: structureName || 'landmark',
+      biome: biomeName || 'unknown',
+    });
+    if (quest) this.questManager.updateProgress(quest.id, 0, true);
   }
 
   _breakBlock() {
@@ -2094,6 +2207,10 @@ export class ZenGame {
         }
       }
 
+      // SPEC-LANDMARKS/SPEC-080: surface landmarks + narrative structures
+      // that world generation already places silently in the terrain.
+      this._checkPointsOfInterest();
+
       this.ambientSoundManager.updateListener(
         this.player.position.x, this.player.position.y, this.player.position.z,
         this._tmpCamDir ? this._tmpCamDir.x : 0, this._tmpCamDir ? this._tmpCamDir.z : 0
@@ -2123,6 +2240,22 @@ export class ZenGame {
         try {
           this.world.generator.setResonanceInfluence(this.resonanceSystem.getWorldGenInfluence());
         } catch (e) {}
+      }
+
+      // SPEC-089: ambient world events — lazily started on first frame after
+      // gameStarted (rather than duplicating the start call at each of the
+      // 3 pointer-lock entry points above), context refreshed periodically
+      // so night-only/biome-gated events roll correctly.
+      if (this.eventManager) {
+        if (!this.eventManager.isRunning()) this.eventManager.start();
+        this._eventContextTimer = (this._eventContextTimer || 0) + dt;
+        if (this._eventContextTimer >= 5) {
+          this._eventContextTimer = 0;
+          this.eventManager.setPlayerContext({
+            dayTime: this.dayNight ? this.dayNight.time : 0.5,
+            biome: this._frame.biome || 'plains',
+          });
+        }
       }
 
       // Sunrise/sunset journal

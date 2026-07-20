@@ -14,6 +14,29 @@ import { generateTree, getTreeTypeForBiome, TREE_TYPES } from './jardvoxel-survi
 import { biomeIdentityManager } from './jardvoxel-survival-biome-identity.js';
 import { generateNarrativeStructure, getStructureDescription, STRUCTURE_TYPES } from './jardvoxel-survival-narrative-structures.js';
 import { PoissonDiskSampler } from './jardvoxel-survival-poisson.js';
+// SPEC-LANDMARKS: natural landmarks (waterfalls, ancient trees, ruins, shrines...)
+// were only ever reachable through jardvoxel-survival-archipelago.js, so they
+// only appeared in archipelago worlds. Imported here (a leaf module with no
+// static dependency on jardvoxel-survival-world-hierarchy.js, so no import
+// cycle) and lazily attached to the hierarchy generator below, so every
+// world — continental included (e.g. zen2) — gets them too.
+import { LandmarkSystem } from './jardvoxel-survival-landmarks.js';
+
+// String block-type names used by LandmarkSystem.generateLandmarkBlocks() map
+// to the numeric block registry used everywhere else in this file.
+const LANDMARK_BLOCK_MAP = {
+  wood: MC_BLOCKS.OAK_LOG,
+  leaves: MC_BLOCKS.OAK_LEAVES,
+  water: BLOCK.WATER,
+  lava: BLOCK.LAVA,
+  air: BLOCK.AIR,
+  stone: BLOCK.STONE,
+  smooth_stone: MC_BLOCKS.GRANITE,
+  stone_bricks: MC_BLOCKS.BRICKS,
+  lantern: MC_BLOCKS.LANTERN,
+  leaves_pink: MC_BLOCKS.AUTUMN_LEAVES_RED ?? MC_BLOCKS.OAK_LEAVES,
+  red_leaves: MC_BLOCKS.AUTUMN_LEAVES_RED ?? MC_BLOCKS.OAK_LEAVES,
+};
 
 // ═══════════════════════════════════════════════════════════
 // Ore generation — vein-based, depth-dependent
@@ -590,6 +613,33 @@ export function generateChunkWithFeatures(chunk, world) {
         chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE] = block;
       };
       hierarchy.hydrology.applyToChunk(chunk, ctx.hydroData, getBlock, setBlock);
+    }
+  }
+
+  // SPEC-LANDMARKS: natural landmarks per-region, independent of archipelago
+  // mode (see LandmarkSystem import above for why this needs to live here).
+  if (hierarchy) {
+    if (!hierarchy.landmarkSystem) {
+      hierarchy.landmarkSystem = new LandmarkSystem(hierarchy.world?.seed ?? world.seed ?? 0);
+    }
+    const ctx = hierarchy.getChunkContext(chunk.cx, chunk.cz);
+    if (ctx) {
+      const landmark = hierarchy.landmarkSystem.tryPlaceLandmark(chunk.cx, chunk.cz, ctx.region, ctx.zone);
+      if (landmark) {
+        const getBlock = (x, y, z) => {
+          if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) return 0;
+          if (y < 0 || y >= CHUNK_HEIGHT) return 0;
+          return chunk.blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE];
+        };
+        const setBlock = (x, y, z, typeName) => {
+          setBlockSafe(chunk, x, y, z, LANDMARK_BLOCK_MAP[typeName] ?? BLOCK.STONE, true);
+        };
+        hierarchy.landmarkSystem.generateLandmarkBlocks(chunk, {
+          cx: chunk.cx, cz: chunk.cz, heightMap: ctx.heightMap, waterLevel: ctx.waterLevel,
+        }, { setBlock, getBlock });
+        // Metadata for discovery UI (journal/toast) — see ZenGame._checkLandmarkDiscovery.
+        chunk.landmark = landmark;
+      }
     }
   }
 
