@@ -987,6 +987,23 @@ export class HierarchicalChunkGenerator {
     return ctx.heightMap[lx + lz * CHUNK_SIZE];
   }
 
+  // SPEC-INFINITE-TERRAIN: cheap O(1) height estimate for callers that only
+  // need an approximate value at a single world point (e.g. DistantTerrainRing
+  // filling gaps over chunks that haven't generated yet). getHeightAt() goes
+  // through getChunkContext(), which builds a full 32x32 heightmap with
+  // multi-octave warped noise plus a hydrology pass for the WHOLE chunk on
+  // first access — fine for a real chunk (it's needed once, off the main
+  // thread in a worker), but ruinous if called synchronously on the main
+  // thread for dozens of scattered, never-visited chunks per frame. This
+  // reuses the same lightweight estimate the biome-weight sampler already
+  // relies on, skipping heightmap/hydrology entirely.
+  estimateHeightAt(x, z) {
+    const continentProps = this.continentGen.getContinentProperties(x, z);
+    const region = this.regionGen.getRegion(x, z);
+    const zone = this.zoneGen.getZone(x, z);
+    return this._estimateHeightAt(x, z, region, zone, continentProps);
+  }
+
   // Clear caches
   clearCache() {
     this._contextCache.clear();

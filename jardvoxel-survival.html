@@ -1160,7 +1160,7 @@ class SurvivalGame {
   constructor() {
     this.seed = Math.floor(Math.random() * 2147483647);
     this.settings = {
-      renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
+      renderDistance: 8, fov: 75, clouds: false, fog: true, shadows: false,
       toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',
@@ -2019,7 +2019,7 @@ class SurvivalGame {
   _initSettings() {
     if (!this.settings) {
       this.settings = {
-        renderDistance: 8, fov: 75, clouds: true, fog: true, shadows: false,
+        renderDistance: 8, fov: 75, clouds: false, fog: true, shadows: false,
         toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
         ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
         sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',

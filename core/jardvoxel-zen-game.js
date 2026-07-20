@@ -82,7 +82,10 @@ export class ZenGame {
     this.seed = savedSeed !== null ? savedSeed : Math.floor(Math.random() * 1_000_000_000);
     this.patagonia = new PatagoniaProfile(this.seed);
     this.settings = {
-      renderDistance: 20, fov: 75, clouds: true, fog: true, shadows: false,
+      // SPEC-INFINITE-TERRAIN: clouds off by default (togglable in Settings) —
+      // terrain generation/streaming is the priority; shadows already default
+      // off. Both stay fully user-configurable.
+      renderDistance: 20, fov: 75, clouds: false, fog: true, shadows: false,
       toneMapping: true, postprocessing: false, volume: 0.5, sfxVolume: 0.8,
       ambientVolume: 0.3, musicVolume: 0.35, musicEnabled: true,
       sensitivity: 2.0, invertY: false, touchJoysticks: 'auto',

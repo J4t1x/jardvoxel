@@ -115,6 +115,10 @@ export class SurvivalWorld {
     this._useWorkerPool = false;
     // Distant terrain ring — fake horizon to hide unloaded chunks
     this._distantTerrain = new DistantTerrainRing(scene, this);
+    // SPEC-CHUNK-FADE: chunks fade in (opacity 0 -> 1) on first appearance
+    // instead of popping in at full opacity. key -> { mesh, sharedMaterial, elapsed }
+    this._fadingMeshes = new Map();
+    this._fadeInDuration = 0.4;
     // SPEC-117: Incremental chunk generation queue — replaces per-frame full-grid scan
     this._chunkGenQueue = [];
     this._queueReadIdx = 0;
@@ -127,6 +131,18 @@ export class SurvivalWorld {
   initWaterMaterialManager(renderer, camera) {
     this.waterMaterialManager = new WaterMaterialManager(renderer, this.scene, camera);
     return this.waterMaterialManager;
+  }
+
+  // SPEC-CHUNK-FADE: drop a chunk's in-progress fade, if any, disposing its
+  // per-mesh material clone (never the shared LOD material — see
+  // _rebuildChunkMesh). Must run whenever a mesh is removed/replaced,
+  // otherwise the clone leaks and a stale map entry keeps animating a mesh
+  // that's no longer in the scene.
+  _clearFadingMesh(key) {
+    const fading = this._fadingMeshes.get(key);
+    if (!fading) return;
+    fading.mesh.material.dispose();
+    this._fadingMeshes.delete(key);
   }
 
   _initLodMaterials() {
@@ -354,11 +370,17 @@ export class SurvivalWorld {
 
     // Remove old mesh (capture its LOD first for hysteresis)
     const previousLod = this.meshes.has(key) ? (this.meshes.get(key).userData.lod ?? 0) : 0;
+    // SPEC-CHUNK-FADE: only a chunk's first-ever mesh should fade in — a
+    // rebuild of one already in the scene (LOD change, block edit, neighbor
+    // update) must not fade again, that would make already-visible terrain
+    // flicker.
+    const isNewChunk = !this.meshes.has(key);
     if (this.meshes.has(key)) {
       const old = this.meshes.get(key);
       this.scene.remove(old);
       old.geometry.dispose();
       this.meshes.delete(key);
+      this._clearFadingMesh(key);
     }
     if (this.waterMeshes.has(key)) {
       const old = this.waterMeshes.get(key);
@@ -408,6 +430,20 @@ export class SurvivalWorld {
     mesh.userData.cz = cz;
     this.scene.add(mesh);
     this.meshes.set(key, mesh);
+
+    // SPEC-CHUNK-FADE: fade this chunk's terrain in from transparent instead
+    // of popping at full opacity. `material` above is a SHARED instance
+    // reused by every chunk at this LOD (see _initLodMaterials) — animating
+    // its opacity directly would fade every chunk on screen at once, so
+    // clone it just for the fade window and hand the mesh back the shared
+    // reference once done (see update()'s fade-processing loop).
+    if (isNewChunk) {
+      const fadeMaterial = material.clone();
+      fadeMaterial.transparent = true;
+      fadeMaterial.opacity = 0;
+      mesh.material = fadeMaterial;
+      this._fadingMeshes.set(key, { mesh, sharedMaterial: material, elapsed: 0 });
+    }
 
     // Water mesh (skip for LOD 3+ — too far for water detail)
     if (lod < 3) {
@@ -654,6 +690,22 @@ export class SurvivalWorld {
 
     if (this._instancedRenderer) this._instancedRenderer.update(dt);
 
+    // SPEC-CHUNK-FADE: advance opacity for chunks that just streamed in.
+    // Cheap even with many in flight — this is a handful of scalar writes,
+    // not a mesh rebuild.
+    if (this._fadingMeshes.size > 0) {
+      for (const [fkey, fading] of this._fadingMeshes) {
+        fading.elapsed += dt;
+        const t = Math.min(1, fading.elapsed / this._fadeInDuration);
+        fading.mesh.material.opacity = 1 - (1 - t) * (1 - t); // ease-out
+        if (t >= 1) {
+          fading.mesh.material.dispose();
+          fading.mesh.material = fading.sharedMaterial;
+          this._fadingMeshes.delete(fkey);
+        }
+      }
+    }
+
     // Adaptive render distance
     // SPEC-HORIZON-FIX: cooldown between changes prevents renderDistance from
     // flapping frame-to-frame when fps hovers near a threshold (35/50), which
@@ -670,12 +722,21 @@ export class SurvivalWorld {
       }
     }
     
-    // Altitude-based render distance boost: when flying high, load more chunks
-    // Capped at +6 to prevent memory explosion (was +24, caused browser crashes)
+    // Altitude-based render distance boost: when flying high, load more chunks.
+    // SPEC-INFINITE-TERRAIN: capped at +4 (was +6, originally +24 — caused
+    // browser crashes) and quantized into steps of 2 instead of 1. Every
+    // integer bump here changes `rd`, which forces a full chunk-queue rescan
+    // (see rdChanged below) — while climbing/descending, a step of 1 fired
+    // that rescan on nearly every altitude tick, flooding the queue with far
+    // more chunks than the per-frame budget could generate before the player
+    // moved again, which is what produced the floating-island/gap look while
+    // flying. Coarser steps mean far fewer rescans; DistantTerrainRing now
+    // also covers any chunk that's still mid-generation, so the smaller
+    // boost doesn't reintroduce visible holes at the edge of view.
     let altitudeBoost = 0;
     if (this._camera && this._camera.position.y > 80) {
       const altitudeFactor = Math.min(1, (this._camera.position.y - 80) / 120);
-      altitudeBoost = Math.floor(altitudeFactor * 6);
+      altitudeBoost = Math.floor(altitudeFactor * 4 / 2) * 2;
     }
     
     const rd = this.renderDistance + altitudeBoost;
@@ -733,7 +794,15 @@ export class SurvivalWorld {
     // cheaper (fewer surface transitions -> larger greedy-merged quads). Raise
     // the per-frame ceiling for that mode while keeping the FPS-based backoff.
     const isFlat = this._worldMode === 'zen2';
-    const maxPerFrame = burstActive ? (isFlat ? 4 : 2) : (fps < 45 ? 1 : (isFlat ? 3 : 2));
+    // SPEC-INFINITE-TERRAIN: raised from (4/2/1/3/2) — dispatching to the
+    // worker pool is a cheap async postMessage (actual generation runs off
+    // the main thread), so the old low ceiling just meant the pool's own
+    // priority queue rarely had more than a couple of candidates to sort
+    // among, and the real terrain took far too long to catch up to a
+    // suddenly-expanded render distance (e.g. altitude boost while flying).
+    // Clouds/shadows/postprocessing are now off by default, freeing enough
+    // frame budget to feed workers more aggressively.
+    const maxPerFrame = burstActive ? (isFlat ? 6 : 3) : (fps < 45 ? 2 : (isFlat ? 5 : 3));
     if (burstActive) this._initialLoadBurst--;
     let dispatched = 0;
     while (this._queueReadIdx < this._chunkGenQueue.length && dispatched < maxPerFrame) {
@@ -751,7 +820,7 @@ export class SurvivalWorld {
     // but budgeted so a burst of simultaneous worker completions can't all pay
     // for a greedy-mesh rebuild in the same frame.
     if (this._pendingMeshRebuilds && this._pendingMeshRebuilds.size > 0) {
-      const maxMeshPerFrame = fps < 45 ? 2 : (isFlat ? 5 : 3);
+      const maxMeshPerFrame = fps < 45 ? 2 : (isFlat ? 6 : 4);
       let meshed = 0;
       for (const [mkey, info] of this._pendingMeshRebuilds) {
         if (meshed >= maxMeshPerFrame) break;
@@ -906,6 +975,7 @@ export class SurvivalWorld {
       this.scene.remove(m);
       m.geometry.dispose();
       this.meshes.delete(key);
+      this._clearFadingMesh(key);
     }
     if (this.waterMeshes && this.waterMeshes.has(key)) {
       const wm = this.waterMeshes.get(key);
@@ -1719,8 +1789,12 @@ export class DayNightCycle {
       this.skyDome.position.set(playerPos.x, 0, playerPos.z);
     }
 
-    // Clouds: move with wind, color shift, follow player
+    // Clouds: move with wind, color shift, follow player.
+    // SPEC-INFINITE-TERRAIN: clouds are off by default now — skip invisible
+    // planes entirely instead of still animating/reallocating Color objects
+    // for meshes nobody sees every single frame.
     for (const cp of this.cloudPlanes) {
+      if (!cp.mesh.visible) continue;
       cp.texture.offset.x += cp.speed * dt * 60;
       cp.texture.offset.y += cp.speed * 0.5 * dt * 60;
       // Cloud color: white → pink sunset → grey night
@@ -1923,7 +1997,11 @@ export class DistantTerrainRing {
     this._lastPlayerZ = Infinity;
     this._updateInterval = 128;
     this._ringSegments = 24;
-    this._ringSteps = 3;
+    // SPEC-INFINITE-TERRAIN: raised from 3 to 5 radial steps — the ring now
+    // spans from near the player (see innerRadius in update()) instead of
+    // starting past renderDistance, so it covers a much wider band and needs
+    // a bit more radial resolution to avoid oversized, blocky-looking panels.
+    this._ringSteps = 5;
     this._innerRadius = 0;
     this._outerRadius = 0;
     this._pendingRebuild = false;
@@ -1944,9 +2022,26 @@ export class DistantTerrainRing {
   }
 
   update(playerX, playerZ, renderDistance) {
-    const innerRadius = (renderDistance + 1) * CHUNK_SIZE;
+    // SPEC-INFINITE-TERRAIN: the ring used to start at renderDistance+1, i.e.
+    // it only ever hid the world PAST the loaded disc. That leaves a visible
+    // hole anywhere inside the disc whose real chunk hasn't finished
+    // generating yet — exactly what happens when renderDistance balloons
+    // (altitude boost) faster than chunks can stream in, producing floating
+    // islands of already-loaded terrain over gaps of bare sky (see bug
+    // report: chunks visible from above while flying). Starting the ring a
+    // few chunks from the player instead — a radius that's effectively
+    // always fully generated because it's the first thing prioritized/burst
+    // loaded — means any not-yet-generated chunk anywhere else in view has
+    // an approximate ground proxy under it instead of a hole. Real terrain
+    // still draws on top and occludes it correctly once ready (the ring
+    // doesn't write depth).
+    const innerRadius = Math.min(3, renderDistance) * CHUNK_SIZE;
     const outerRadius = (renderDistance + 3) * CHUNK_SIZE;
-    const radiusChanged = this._innerRadius !== innerRadius;
+    // innerRadius is now capped at 3 chunks, so it stops changing once
+    // renderDistance passes 3 — track outerRadius too or renderDistance
+    // swings (e.g. altitude boost while hovering) would never trigger a
+    // rebuild.
+    const radiusChanged = this._innerRadius !== innerRadius || this._outerRadius !== outerRadius;
 
     const dx = playerX - this._lastPlayerX;
     const dz = playerZ - this._lastPlayerZ;
@@ -2065,7 +2160,17 @@ export class DistantTerrainRing {
 
   _getHeight(x, z) {
     try {
-      const h = this.world.generator.getBaseHeight(Math.floor(x), Math.floor(z));
+      const gen = this.world.generator;
+      // SPEC-INFINITE-TERRAIN: use the cheap hierarchy estimate instead of
+      // getBaseHeight() — that path builds a full chunk heightmap (+
+      // hydrology) on first access, which is fine for a real chunk but far
+      // too expensive to pay synchronously, on the main thread, for the many
+      // scattered never-visited chunks this ring now samples (it used to
+      // only cover a thin band past render distance; it now also fills gaps
+      // inside it — see update()).
+      const h = (gen._useHierarchy && gen.hierarchy)
+        ? gen.hierarchy.estimateHeightAt(Math.floor(x), Math.floor(z))
+        : gen.getBaseHeight(Math.floor(x), Math.floor(z));
       return Math.max(WORLD_MIN_Y + 1, h);
     } catch {
       return SEA_LEVEL;
