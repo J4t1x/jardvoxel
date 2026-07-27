@@ -926,13 +926,18 @@ export class VoxelChunk {
         const worldZ = offsetZ + z;
         const baseHeight = this.worldGen.getBaseHeight(worldX, worldZ);
         const terrainTop = Math.ceil(baseHeight) + NOISE_MARGIN;
+        // Water must reach flat SEA_LEVEL regardless of how deep the floor is.
+        // Without this, columns whose bed dips more than NOISE_MARGIN below SEA_LEVEL
+        // get their water surface capped at terrainTop (≈ baseHeight + 15), producing
+        // the terraced "rice-paddy" pattern. See WATER-BUG-001 / jardvoxel-zen-water-effects-prd.md.
+        const waterCeiling = Math.max(terrainTop, SEA_LEVEL);
 
         // Calculate Y boundaries in local chunk coordinates
         // Deep stone: y=0 to stoneEndY-1 (no noise needed)
         // Surface band: stoneEndY to surfaceTopY (full noise calculation)
         // Air/water: surfaceTopY+1 to CHUNK_HEIGHT-1
         const stoneEndY = Math.max(0, Math.floor(baseHeight - NOISE_MARGIN - WORLD_MIN_Y));
-        const surfaceTopY = Math.min(CHUNK_HEIGHT - 1, Math.ceil(terrainTop - WORLD_MIN_Y));
+        const surfaceTopY = Math.min(CHUNK_HEIGHT - 1, Math.ceil(waterCeiling - WORLD_MIN_Y));
         const colBase = x + z * CHUNK_SIZE;
 
         // Bulk fill deep stone — tight loop without if checks
